@@ -108,3 +108,43 @@ async fn test_load_based_balancing_favors_low_cpu_agents() {
             .unwrap();
     }
 }
+
+#[tokio::test]
+async fn test_load_based_balancing_prefers_lower_latency() {
+    let registry = AgentRegistry::new();
+    let load_manager = LoadManager::new(registry.clone());
+
+    let slow_agent = registry
+        .register(RegisterRequest {
+            machine_name: "slow-agent".to_string(),
+            ip_address: "192.168.3.10".parse::<IpAddr>().unwrap(),
+            ollama_version: "0.1.0".to_string(),
+            ollama_port: 11434,
+        })
+        .await
+        .unwrap()
+        .agent_id;
+
+    let fast_agent = registry
+        .register(RegisterRequest {
+            machine_name: "fast-agent".to_string(),
+            ip_address: "192.168.3.11".parse::<IpAddr>().unwrap(),
+            ollama_version: "0.1.0".to_string(),
+            ollama_port: 11434,
+        })
+        .await
+        .unwrap()
+        .agent_id;
+
+    load_manager
+        .record_metrics(slow_agent, 50.0, 40.0, 1, Some(250.0))
+        .await
+        .unwrap();
+    load_manager
+        .record_metrics(fast_agent, 50.0, 40.0, 1, Some(120.0))
+        .await
+        .unwrap();
+
+    let selected = load_manager.select_agent().await.unwrap();
+    assert_eq!(selected.id, fast_agent);
+}
