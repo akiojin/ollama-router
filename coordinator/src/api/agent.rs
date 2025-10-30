@@ -183,7 +183,9 @@ mod tests {
         assert_eq!(summary.total_agents, 0);
         assert_eq!(summary.online_agents, 0);
         assert_eq!(summary.total_requests, 0);
+        assert_eq!(summary.total_active_requests, 0);
         assert!(summary.average_response_time_ms.is_none());
+        assert!(summary.last_metrics_updated_at.is_none());
     }
 
     #[tokio::test]
@@ -246,7 +248,9 @@ mod tests {
         assert_eq!(summary.total_requests, 2);
         assert_eq!(summary.successful_requests, 1);
         assert_eq!(summary.failed_requests, 1);
+        assert_eq!(summary.total_active_requests, 2);
         let avg = summary.average_response_time_ms.unwrap();
         assert!((avg - 160.0).abs() < 0.1);
+        assert!(summary.last_metrics_updated_at.is_some());
     }
 }
