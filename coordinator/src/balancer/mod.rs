@@ -11,9 +11,10 @@ use ollama_coordinator_common::{
 };
 use serde::Serialize;
 use std::{
+    cmp::Ordering,
     collections::HashMap,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering as AtomicOrdering},
         Arc,
     },
     time::Duration,
@@ -31,6 +32,15 @@ pub enum RequestOutcome {
     Success,
     /// エラー終了
     Error,
+}
+
+fn compare_average_ms(a: Option<f32>, b: Option<f32>) -> Ordering {
+    match (a, b) {
+        (Some(ax), Some(bx)) => ax.partial_cmp(&bx).unwrap_or(Ordering::Equal),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
 }
 
 /// エージェントの最新ロード状態
@@ -72,6 +82,13 @@ impl AgentLoadState {
             Some(ts) => (now - ts).num_seconds() > METRICS_STALE_THRESHOLD_SECS,
             None => true,
         }
+    }
+
+    fn effective_average_ms(&self) -> Option<f32> {
+        self.last_metrics
+            .as_ref()
+            .and_then(|m| m.average_response_time_ms)
+            .or_else(|| self.average_latency_ms())
     }
 }
 
@@ -160,8 +177,7 @@ impl LoadManager {
         let mut state = self.state.write().await;
         let entry = state.entry(agent_id).or_default();
 
-        let derived_average =
-            average_response_time_ms.or_else(|| self.compute_average_response_time(&*entry));
+        let derived_average = average_response_time_ms.or_else(|| entry.average_latency_ms());
 
         entry.last_metrics = Some(HealthMetrics {
             agent_id,
@@ -213,11 +229,13 @@ impl LoadManager {
             .total_latency_ms
             .saturating_add(duration.as_millis() as u128);
 
-        let updated_average = self.compute_average_response_time(&*entry);
+        let updated_average = entry.average_latency_ms();
 
         if let Some(metrics) = entry.last_metrics.as_mut() {
             metrics.total_requests = entry.total_assigned;
-            metrics.average_response_time_ms = updated_average;
+            if updated_average.is_some() {
+                metrics.average_response_time_ms = updated_average;
+            }
         }
 
         Ok(())
@@ -254,8 +272,11 @@ impl LoadManager {
             load_based_candidates.sort_by(|a, b| {
                 let a_active = a.1.combined_active();
                 let b_active = b.1.combined_active();
+                let a_avg = a.1.effective_average_ms();
+                let b_avg = b.1.effective_average_ms();
                 a_active
                     .cmp(&b_active)
+                    .then_with(|| compare_average_ms(a_avg, b_avg))
                     .then_with(|| a.1.total_assigned.cmp(&b.1.total_assigned))
                     .then_with(|| a.0.machine_name.cmp(&b.0.machine_name))
             });
@@ -266,7 +287,7 @@ impl LoadManager {
         // すべてのエージェントが高負荷またはメトリクスなし → ラウンドロビン
         let next_index = self
             .round_robin
-            .fetch_add(1, Ordering::SeqCst)
+            .fetch_add(1, AtomicOrdering::SeqCst)
             .rem_euclid(online_agents.len());
         Ok(online_agents[next_index].clone())
     }
@@ -394,22 +415,9 @@ impl LoadManager {
             total_requests: load_state.total_assigned,
             successful_requests: load_state.success_count,
             failed_requests: load_state.error_count,
-            average_response_time_ms: load_state
-                .last_metrics
-                .as_ref()
-                .and_then(|m| m.average_response_time_ms)
-                .or_else(|| load_state.average_latency_ms()),
+            average_response_time_ms: load_state.effective_average_ms(),
             last_updated: load_state.last_updated(),
             is_stale: load_state.is_stale(now),
-        }
-    }
-
-    fn compute_average_response_time(&self, load_state: &AgentLoadState) -> Option<f32> {
-        let completed = load_state.success_count + load_state.error_count;
-        if completed == 0 {
-            None
-        } else {
-            Some((load_state.total_latency_ms as f64 / completed as f64) as f32)
         }
     }
 }
