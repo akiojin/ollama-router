@@ -1,130 +1,136 @@
 //! データベースアクセス層
 //!
-//! SQLiteデータベースへの接続とクエリ実行
+//! JSONファイルベースのデータ永続化
 
-use chrono::{DateTime, Utc};
 use ollama_coordinator_common::{
     error::{CoordinatorError, CoordinatorResult},
-    types::{Agent, AgentStatus},
+    types::Agent,
 };
-use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
+use std::path::PathBuf;
+use tokio::fs;
 use uuid::Uuid;
 
-/// データベース接続プールを作成
-pub async fn create_pool(database_url: &str) -> CoordinatorResult<SqlitePool> {
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(database_url)
-        .await
-        .map_err(|e| CoordinatorError::Database(e.to_string()))?;
+/// データファイルのパスを取得
+fn get_data_file_path() -> CoordinatorResult<PathBuf> {
+    // テスト用に環境変数でデータディレクトリを指定可能にする
+    let data_dir = if let Ok(test_dir) = std::env::var("OLLAMA_COORDINATOR_DATA_DIR") {
+        PathBuf::from(test_dir)
+    } else {
+        let home = std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .map_err(|_| {
+                CoordinatorError::Database("Failed to get home directory".to_string())
+            })?;
 
-    // マイグレーション実行
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .map_err(|e| CoordinatorError::Database(format!("Migration failed: {}", e)))?;
-
-    Ok(pool)
-}
-
-/// エージェントをデータベースに保存
-pub async fn save_agent(pool: &SqlitePool, agent: &Agent) -> CoordinatorResult<()> {
-    let status_str = match agent.status {
-        AgentStatus::Online => "online",
-        AgentStatus::Offline => "offline",
+        PathBuf::from(home).join(".ollama-coordinator")
     };
 
-    sqlx::query(
-        r#"
-        INSERT INTO agents (id, machine_name, ip_address, ollama_version, ollama_port, status, registered_at, last_seen)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-            machine_name = excluded.machine_name,
-            ip_address = excluded.ip_address,
-            ollama_version = excluded.ollama_version,
-            ollama_port = excluded.ollama_port,
-            status = excluded.status,
-            last_seen = excluded.last_seen
-        "#
-    )
-    .bind(agent.id.to_string())
-    .bind(&agent.machine_name)
-    .bind(agent.ip_address.to_string())
-    .bind(&agent.ollama_version)
-    .bind(agent.ollama_port as i64)
-    .bind(status_str)
-    .bind(agent.registered_at.to_rfc3339())
-    .bind(agent.last_seen.to_rfc3339())
-    .execute(pool)
-    .await
-    .map_err(|e| CoordinatorError::Database(format!("Failed to save agent: {}", e)))?;
+    Ok(data_dir.join("agents.json"))
+}
+
+/// データディレクトリを初期化
+pub async fn init_storage() -> CoordinatorResult<()> {
+    let data_file = get_data_file_path()?;
+    let data_dir = data_file
+        .parent()
+        .ok_or_else(|| CoordinatorError::Database("Invalid data file path".to_string()))?;
+
+    // ディレクトリが存在しない場合は作成
+    if !data_dir.exists() {
+        fs::create_dir_all(data_dir)
+            .await
+            .map_err(|e| {
+                CoordinatorError::Database(format!("Failed to create data directory: {}", e))
+            })?;
+    }
+
+    // ファイルが存在しない場合は空の配列を作成
+    if !data_file.exists() {
+        fs::write(&data_file, "[]").await.map_err(|e| {
+            CoordinatorError::Database(format!("Failed to initialize data file: {}", e))
+        })?;
+    }
 
     Ok(())
 }
 
-/// データベースから全エージェントを読み込み
-pub async fn load_agents(pool: &SqlitePool) -> CoordinatorResult<Vec<Agent>> {
-    let rows = sqlx::query("SELECT id, machine_name, ip_address, ollama_version, ollama_port, status, registered_at, last_seen FROM agents")
-        .fetch_all(pool)
-        .await
-        .map_err(|e| CoordinatorError::Database(format!("Failed to load agents: {}", e)))?;
+/// エージェントを保存
+pub async fn save_agent(agent: &Agent) -> CoordinatorResult<()> {
+    let data_file = get_data_file_path()?;
 
-    let mut agents = Vec::new();
+    // ディレクトリが存在しない場合は作成
+    let data_dir = data_file
+        .parent()
+        .ok_or_else(|| CoordinatorError::Database("Invalid data file path".to_string()))?;
 
-    for row in rows {
-        let id_str: String = row.get("id");
-        let id = Uuid::parse_str(&id_str)
-            .map_err(|e| CoordinatorError::Database(format!("Invalid UUID: {}", e)))?;
-
-        let machine_name: String = row.get("machine_name");
-
-        let ip_str: String = row.get("ip_address");
-        let ip_address = ip_str
-            .parse()
-            .map_err(|e| CoordinatorError::Database(format!("Invalid IP address: {}", e)))?;
-
-        let ollama_version: String = row.get("ollama_version");
-        let ollama_port: i64 = row.get("ollama_port");
-
-        let status_str: String = row.get("status");
-        let status = match status_str.as_str() {
-            "online" => AgentStatus::Online,
-            "offline" => AgentStatus::Offline,
-            _ => AgentStatus::Offline,
-        };
-
-        let registered_at_str: String = row.get("registered_at");
-        let registered_at = DateTime::parse_from_rfc3339(&registered_at_str)
-            .map_err(|e| CoordinatorError::Database(format!("Invalid datetime: {}", e)))?
-            .with_timezone(&Utc);
-
-        let last_seen_str: String = row.get("last_seen");
-        let last_seen = DateTime::parse_from_rfc3339(&last_seen_str)
-            .map_err(|e| CoordinatorError::Database(format!("Invalid datetime: {}", e)))?
-            .with_timezone(&Utc);
-
-        agents.push(Agent {
-            id,
-            machine_name,
-            ip_address,
-            ollama_version,
-            ollama_port: ollama_port as u16,
-            status,
-            registered_at,
-            last_seen,
-        });
+    if !data_dir.exists() {
+        fs::create_dir_all(data_dir).await.map_err(|e| {
+            CoordinatorError::Database(format!("Failed to create data directory: {}", e))
+        })?;
     }
+
+    // 既存のエージェントを読み込み
+    let mut agents = load_agents().await?;
+
+    // 同じIDのエージェントがあれば更新、なければ追加
+    if let Some(existing) = agents.iter_mut().find(|a| a.id == agent.id) {
+        *existing = agent.clone();
+    } else {
+        agents.push(agent.clone());
+    }
+
+    // JSONに変換して保存
+    let json = serde_json::to_string_pretty(&agents)
+        .map_err(|e| CoordinatorError::Database(format!("Failed to serialize agents: {}", e)))?;
+
+    fs::write(&data_file, json)
+        .await
+        .map_err(|e| CoordinatorError::Database(format!("Failed to write data file: {}", e)))?;
+
+    Ok(())
+}
+
+/// 全エージェントを読み込み
+pub async fn load_agents() -> CoordinatorResult<Vec<Agent>> {
+    let data_file = get_data_file_path()?;
+
+    // ファイルが存在しない場合は空の配列を返す
+    if !data_file.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(&data_file)
+        .await
+        .map_err(|e| CoordinatorError::Database(format!("Failed to read data file: {}", e)))?;
+
+    // 空のファイルの場合は空の配列を返す
+    if content.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let agents: Vec<Agent> = serde_json::from_str(&content)
+        .map_err(|e| CoordinatorError::Database(format!("Failed to parse agents: {}", e)))?;
 
     Ok(agents)
 }
 
-/// エージェントをデータベースから削除
-pub async fn delete_agent(pool: &SqlitePool, agent_id: Uuid) -> CoordinatorResult<()> {
-    sqlx::query("DELETE FROM agents WHERE id = ?")
-        .bind(agent_id.to_string())
-        .execute(pool)
+/// エージェントを削除
+pub async fn delete_agent(agent_id: Uuid) -> CoordinatorResult<()> {
+    let data_file = get_data_file_path()?;
+
+    // 既存のエージェントを読み込み
+    let mut agents = load_agents().await?;
+
+    // 指定されたIDのエージェントを削除
+    agents.retain(|a| a.id != agent_id);
+
+    // JSONに変換して保存
+    let json = serde_json::to_string_pretty(&agents)
+        .map_err(|e| CoordinatorError::Database(format!("Failed to serialize agents: {}", e)))?;
+
+    fs::write(&data_file, json)
         .await
-        .map_err(|e| CoordinatorError::Database(format!("Failed to delete agent: {}", e)))?;
+        .map_err(|e| CoordinatorError::Database(format!("Failed to write data file: {}", e)))?;
 
     Ok(())
 }
@@ -132,18 +138,42 @@ pub async fn delete_agent(pool: &SqlitePool, agent_id: Uuid) -> CoordinatorResul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+    use ollama_coordinator_common::types::AgentStatus;
     use std::net::IpAddr;
+    use std::sync::Mutex;
+    use tempfile::tempdir;
+
+    // テスト用のグローバルロック（環境変数の競合を防ぐ）
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[tokio::test]
-    async fn test_create_pool_with_invalid_url() {
-        let result = create_pool("invalid://url").await;
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), CoordinatorError::Database(_)));
+    async fn test_init_storage() {
+        let _lock = TEST_LOCK.lock().unwrap();
+
+        // 一時ディレクトリを使用（_guardでスコープ内保持）
+        let _guard = tempdir().unwrap();
+        std::env::set_var("OLLAMA_COORDINATOR_DATA_DIR", _guard.path());
+
+        let result = init_storage().await;
+        assert!(result.is_ok());
+
+        // ファイルが作成されていることを確認
+        let data_file = get_data_file_path().unwrap();
+        assert!(data_file.exists());
+
+        std::env::remove_var("OLLAMA_COORDINATOR_DATA_DIR");
     }
 
     #[tokio::test]
     async fn test_save_and_load_agent() {
-        let pool = create_pool("sqlite::memory:").await.unwrap();
+        let _lock = TEST_LOCK.lock().unwrap();
+
+        // 一時ディレクトリを使用（_guardでスコープ内保持）
+        let _guard = tempdir().unwrap();
+        std::env::set_var("OLLAMA_COORDINATOR_DATA_DIR", _guard.path());
+
+        init_storage().await.unwrap();
 
         let agent = Agent {
             id: Uuid::new_v4(),
@@ -157,18 +187,26 @@ mod tests {
         };
 
         // 保存
-        save_agent(&pool, &agent).await.unwrap();
+        save_agent(&agent).await.unwrap();
 
         // 読み込み
-        let loaded_agents = load_agents(&pool).await.unwrap();
+        let loaded_agents = load_agents().await.unwrap();
         assert_eq!(loaded_agents.len(), 1);
         assert_eq!(loaded_agents[0].id, agent.id);
         assert_eq!(loaded_agents[0].machine_name, agent.machine_name);
+
+        std::env::remove_var("OLLAMA_COORDINATOR_DATA_DIR");
     }
 
     #[tokio::test]
     async fn test_delete_agent() {
-        let pool = create_pool("sqlite::memory:").await.unwrap();
+        let _lock = TEST_LOCK.lock().unwrap();
+
+        // 一時ディレクトリを使用（_guardでスコープ内保持）
+        let _guard = tempdir().unwrap();
+        std::env::set_var("OLLAMA_COORDINATOR_DATA_DIR", _guard.path());
+
+        init_storage().await.unwrap();
 
         let agent = Agent {
             id: Uuid::new_v4(),
@@ -181,10 +219,59 @@ mod tests {
             last_seen: Utc::now(),
         };
 
-        save_agent(&pool, &agent).await.unwrap();
-        delete_agent(&pool, agent.id).await.unwrap();
+        save_agent(&agent).await.unwrap();
+        delete_agent(agent.id).await.unwrap();
 
-        let loaded_agents = load_agents(&pool).await.unwrap();
+        let loaded_agents = load_agents().await.unwrap();
         assert_eq!(loaded_agents.len(), 0);
+
+        std::env::remove_var("OLLAMA_COORDINATOR_DATA_DIR");
+    }
+
+    #[tokio::test]
+    async fn test_update_existing_agent() {
+        let _lock = TEST_LOCK.lock().unwrap();
+
+        // 一時ディレクトリを使用（_guardでスコープ内保持）
+        let _guard = tempdir().unwrap();
+        std::env::set_var("OLLAMA_COORDINATOR_DATA_DIR", _guard.path());
+
+        init_storage().await.unwrap();
+
+        let agent_id = Uuid::new_v4();
+        let agent1 = Agent {
+            id: agent_id,
+            machine_name: "test-machine-1".to_string(),
+            ip_address: "192.168.1.100".parse::<IpAddr>().unwrap(),
+            ollama_version: "0.1.0".to_string(),
+            ollama_port: 11434,
+            status: AgentStatus::Online,
+            registered_at: Utc::now(),
+            last_seen: Utc::now(),
+        };
+
+        save_agent(&agent1).await.unwrap();
+
+        // 同じIDで異なる内容のエージェントを保存
+        let agent2 = Agent {
+            id: agent_id,
+            machine_name: "test-machine-2".to_string(),
+            ip_address: "192.168.1.101".parse::<IpAddr>().unwrap(),
+            ollama_version: "0.2.0".to_string(),
+            ollama_port: 11435,
+            status: AgentStatus::Offline,
+            registered_at: Utc::now(),
+            last_seen: Utc::now(),
+        };
+
+        save_agent(&agent2).await.unwrap();
+
+        // 読み込んで更新されていることを確認
+        let loaded_agents = load_agents().await.unwrap();
+        assert_eq!(loaded_agents.len(), 1);
+        assert_eq!(loaded_agents[0].machine_name, "test-machine-2");
+        assert_eq!(loaded_agents[0].ollama_port, 11435);
+
+        std::env::remove_var("OLLAMA_COORDINATOR_DATA_DIR");
     }
 }

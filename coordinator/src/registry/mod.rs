@@ -17,7 +17,6 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub struct AgentRegistry {
     agents: Arc<RwLock<HashMap<Uuid, Agent>>>,
-    db_pool: Option<sqlx::SqlitePool>,
 }
 
 impl AgentRegistry {
@@ -25,44 +24,41 @@ impl AgentRegistry {
     pub fn new() -> Self {
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
-            db_pool: None,
         }
     }
 
-    /// データベース接続付きでレジストリを作成
-    pub async fn with_database(db_pool: sqlx::SqlitePool) -> CoordinatorResult<Self> {
+    /// ストレージ初期化付きでレジストリを作成
+    pub async fn with_storage() -> CoordinatorResult<Self> {
+        // ストレージ初期化
+        crate::db::init_storage().await?;
+
         let registry = Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
-            db_pool: Some(db_pool.clone()),
         };
 
-        // 起動時にDBからエージェント情報を読み込み
-        registry.load_from_db().await?;
+        // 起動時にストレージからエージェント情報を読み込み
+        registry.load_from_storage().await?;
 
         Ok(registry)
     }
 
-    /// データベースからエージェント情報を読み込み
-    async fn load_from_db(&self) -> CoordinatorResult<()> {
-        if let Some(pool) = &self.db_pool {
-            let loaded_agents = crate::db::load_agents(pool).await?;
-            let mut agents = self.agents.write().await;
+    /// ストレージからエージェント情報を読み込み
+    async fn load_from_storage(&self) -> CoordinatorResult<()> {
+        let loaded_agents = crate::db::load_agents().await?;
+        let mut agents = self.agents.write().await;
 
-            for agent in loaded_agents {
-                agents.insert(agent.id, agent);
-            }
-
-            println!("Loaded {} agents from database", agents.len());
+        for agent in loaded_agents {
+            agents.insert(agent.id, agent);
         }
+
+        println!("Loaded {} agents from storage", agents.len());
+
         Ok(())
     }
 
-    /// エージェントをデータベースに保存
-    async fn save_to_db(&self, agent: &Agent) -> CoordinatorResult<()> {
-        if let Some(pool) = &self.db_pool {
-            crate::db::save_agent(pool, agent).await?;
-        }
-        Ok(())
+    /// エージェントをストレージに保存
+    async fn save_to_storage(&self, agent: &Agent) -> CoordinatorResult<()> {
+        crate::db::save_agent(agent).await
     }
 
     /// エージェントを登録
@@ -102,9 +98,9 @@ impl AgentRegistry {
             (agent_id, RegisterStatus::Registered, agent)
         };
 
-        // ロックを解放してからDB保存
+        // ロックを解放してからストレージ保存
         drop(agents);
-        self.save_to_db(&agent).await?;
+        self.save_to_storage(&agent).await?;
 
         Ok(RegisterResponse { agent_id, status })
     }
@@ -136,8 +132,8 @@ impl AgentRegistry {
             agent.clone()
         };
 
-        // ロック解放後にDB保存
-        self.save_to_db(&agent_to_save).await?;
+        // ロック解放後にストレージ保存
+        self.save_to_storage(&agent_to_save).await?;
         Ok(())
     }
 
@@ -152,8 +148,8 @@ impl AgentRegistry {
             agent.clone()
         };
 
-        // ロック解放後にDB保存
-        self.save_to_db(&agent_to_save).await?;
+        // ロック解放後にストレージ保存
+        self.save_to_storage(&agent_to_save).await?;
         Ok(())
     }
 }
