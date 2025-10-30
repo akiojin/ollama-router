@@ -21,6 +21,9 @@ use std::{
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+/// メトリクスを新鮮とみなすための許容秒数
+const METRICS_STALE_THRESHOLD_SECS: i64 = 120;
+
 /// リクエスト結果
 #[derive(Debug, Clone, Copy)]
 pub enum RequestOutcome {
@@ -62,6 +65,13 @@ impl AgentLoadState {
 
     fn last_updated(&self) -> Option<DateTime<Utc>> {
         self.last_metrics.as_ref().map(|m| m.timestamp)
+    }
+
+    fn is_stale(&self, now: DateTime<Utc>) -> bool {
+        match self.last_updated() {
+            Some(ts) => (now - ts).num_seconds() > METRICS_STALE_THRESHOLD_SECS,
+            None => true,
+        }
     }
 }
 
@@ -109,6 +119,10 @@ pub struct SystemSummary {
     pub failed_requests: u64,
     /// 平均レスポンスタイム (ms)
     pub average_response_time_ms: Option<f32>,
+    /// 処理中リクエスト総数
+    pub total_active_requests: u32,
+    /// 最新メトリクス更新時刻
+    pub last_metrics_updated_at: Option<DateTime<Utc>>,
 }
 
 /// ロードマネージャー
@@ -214,12 +228,13 @@ impl LoadManager {
         }
 
         let state = self.state.read().await;
+        let now = Utc::now();
 
         let mut load_based_candidates: Vec<(Agent, AgentLoadState)> = Vec::new();
         for agent in &online_agents {
             if let Some(load_state) = state.get(&agent.id) {
                 if let Some(metrics) = &load_state.last_metrics {
-                    if metrics.cpu_usage <= 80.0 {
+                    if !load_state.is_stale(now) && metrics.cpu_usage <= 80.0 {
                         load_based_candidates.push((agent.clone(), load_state.clone()));
                     }
                 }
@@ -290,9 +305,17 @@ impl LoadManager {
 
         let mut total_latency_ms = 0u128;
         let mut latency_samples = 0u64;
+        let mut latest_timestamp: Option<DateTime<Utc>> = None;
+        let now = Utc::now();
 
         for agent in &agents {
             if let Some(load_state) = state.get(&agent.id) {
+                let is_fresh = !load_state.is_stale(now);
+                if is_fresh {
+                    summary.total_active_requests = summary
+                        .total_active_requests
+                        .saturating_add(load_state.combined_active());
+                }
                 summary.total_requests = summary
                     .total_requests
                     .saturating_add(load_state.total_assigned);
@@ -308,6 +331,19 @@ impl LoadManager {
                     total_latency_ms = total_latency_ms.saturating_add(load_state.total_latency_ms);
                     latency_samples = latency_samples.saturating_add(completed);
                 }
+
+                if is_fresh {
+                    if let Some(timestamp) = load_state.last_updated() {
+                        if latest_timestamp.map_or(true, |current| timestamp > current) {
+                            latest_timestamp = Some(timestamp);
+                        }
+                    }
+                } else if latest_timestamp.is_none() {
+                    // フレッシュなメトリクスがない場合でも最も新しい値を保持
+                    if let Some(timestamp) = load_state.last_updated() {
+                        latest_timestamp = Some(timestamp);
+                    }
+                }
             }
         }
 
@@ -315,6 +351,8 @@ impl LoadManager {
             summary.average_response_time_ms =
                 Some((total_latency_ms as f64 / latency_samples as f64) as f32);
         }
+
+        summary.last_metrics_updated_at = latest_timestamp;
 
         summary
     }
