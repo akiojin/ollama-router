@@ -25,7 +25,6 @@ reqwest = { version = "0.11", features = ["json"] }
 axum = "0.7"
 tower = "0.4"
 tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
-sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono", "uuid"] }
 
 # Agent専用
 sysinfo = "0.30"

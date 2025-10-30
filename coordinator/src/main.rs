@@ -6,23 +6,15 @@ use ollama_coordinator_coordinator::{api, db, health, registry, AppState};
 async fn main() {
     println!("Ollama Coordinator v{}", env!("CARGO_PKG_VERSION"));
 
-    // データベースURL
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://coordinator.db".to_string());
+    // ストレージディレクトリを初期化
+    println!("Initializing storage at ~/.ollama-coordinator/");
 
-    println!("Connecting to database: {}", database_url);
-
-    // データベース接続プールを作成
-    let db_pool = db::create_pool(&database_url)
-        .await
-        .expect("Failed to create database pool");
-
-    println!("Database connected successfully");
-
-    // エージェントレジストリを初期化（DB付き）
-    let registry = registry::AgentRegistry::with_database(db_pool)
+    // エージェントレジストリを初期化（JSON file storage）
+    let registry = registry::AgentRegistry::with_storage()
         .await
         .expect("Failed to initialize agent registry");
+
+    println!("Storage initialized successfully");
 
     // ヘルスチェック設定
     let health_check_interval_secs: u64 = std::env::var("HEALTH_CHECK_INTERVAL")
