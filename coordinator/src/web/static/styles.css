@@ -247,6 +247,10 @@ body {
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
 }
 
+.agents-table td:last-child {
+  text-align: right;
+}
+
 .agents-table th.sortable {
   cursor: pointer;
   user-select: none;
@@ -344,6 +348,116 @@ body {
 .chart-container canvas {
   width: 100% !important;
   max-height: 320px;
+}
+
+.btn,
+.agents-table button {
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent);
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.btn:hover,
+.agents-table button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(56, 189, 248, 0.2);
+}
+
+.btn:active,
+.agents-table button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal__dialog {
+  background: var(--bg-card-alt);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  width: min(420px, 100%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.45);
+}
+
+.modal__header,
+.modal__footer {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.modal__footer {
+  border-bottom: none;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal__content {
+  padding: 12px 20px 20px;
+  overflow-y: auto;
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.modal__close {
+  border: none;
+  background: transparent;
+  color: var(--text-subtle);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.modal__close:hover {
+  color: var(--accent);
+}
+
+.detail-list {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.detail-list div {
+  display: grid;
+  gap: 4px;
+}
+
+.detail-list dt {
+  font-size: 0.85rem;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detail-list dd {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .page-footer {

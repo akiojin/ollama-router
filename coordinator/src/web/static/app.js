@@ -8,16 +8,48 @@ const state = {
   filterQuery: "",
   sortKey: "machine",
   sortOrder: "asc",
+  lastFocused: null,
   timerId: null,
 };
 
 let requestsChart = null;
+const modalRefs = {
+  modal: null,
+  close: null,
+  ok: null,
+  machineName: null,
+  ipAddress: null,
+  ollamaVersion: null,
+  uptime: null,
+  status: null,
+  lastSeen: null,
+  totalRequests: null,
+  averageResponse: null,
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   const refreshButton = document.getElementById("refresh-button");
   const statusSelect = document.getElementById("filter-status");
   const queryInput = document.getElementById("filter-query");
   const sortableHeaders = document.querySelectorAll("th[data-sort]");
+  const modal = document.getElementById("agent-modal");
+  const modalClose = document.getElementById("agent-modal-close");
+  const modalOk = document.getElementById("agent-modal-ok");
+  const tbody = document.getElementById("agents-body");
+
+  Object.assign(modalRefs, {
+    modal,
+    close: modalClose,
+    ok: modalOk,
+    machineName: document.getElementById("detail-machine-name"),
+    ipAddress: document.getElementById("detail-ip-address"),
+    ollamaVersion: document.getElementById("detail-ollama-version"),
+    uptime: document.getElementById("detail-uptime"),
+    status: document.getElementById("detail-status"),
+    lastSeen: document.getElementById("detail-last-seen"),
+    totalRequests: document.getElementById("detail-total-requests"),
+    averageResponse: document.getElementById("detail-average-response"),
+  });
 
   refreshButton.addEventListener("click", () => refreshData({ manual: true }));
   statusSelect.addEventListener("change", (event) => {
@@ -50,6 +82,30 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   updateSortIndicators();
+
+  tbody.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-agent-id]");
+    if (!button) return;
+    const agentId = button.dataset.agentId;
+    const agent = state.agents.find((item) => item.id === agentId);
+    if (agent) {
+      openAgentModal(agent);
+    }
+  });
+
+  const closeModal = () => closeAgentModal();
+  modalClose.addEventListener("click", closeModal);
+  modalOk.addEventListener("click", closeModal);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeModal();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+      closeModal();
+    }
+  });
 
   refreshData({ initial: true });
   state.timerId = window.setInterval(refreshData, REFRESH_INTERVAL_MS);
@@ -143,7 +199,7 @@ function renderAgents() {
   if (!state.agents.length) {
     const placeholder = document.createElement("tr");
     placeholder.className = "empty-row";
-    placeholder.innerHTML = `<td colspan="10">エージェントはまだ登録されていません</td>`;
+    placeholder.innerHTML = `<td colspan="11">エージェントはまだ登録されていません</td>`;
     tbody.appendChild(placeholder);
     return;
   }
@@ -155,7 +211,7 @@ function renderAgents() {
   if (!filtered.length) {
     const placeholder = document.createElement("tr");
     placeholder.className = "empty-row";
-    placeholder.innerHTML = `<td colspan="10">条件に一致するエージェントはありません</td>`;
+    placeholder.innerHTML = `<td colspan="11">条件に一致するエージェントはありません</td>`;
     tbody.appendChild(placeholder);
     return;
   }
@@ -322,6 +378,9 @@ function buildAgentRow(agent) {
       <div class="cell-title">${formatTimestamp(agent.last_seen)}</div>
       <div class="cell-sub">${metricsDetail}</div>
     </td>
+    <td>
+      <button type="button" data-agent-id="${agent.id}">詳細</button>
+    </td>
   `;
 
   return tr;
@@ -389,6 +448,32 @@ function updateSortIndicators() {
       indicator.textContent = "–";
     }
   });
+}
+
+function openAgentModal(agent) {
+  if (!modalRefs.modal) return;
+  state.lastFocused = document.activeElement;
+
+  modalRefs.machineName.textContent = agent.machine_name ?? "-";
+  modalRefs.ipAddress.textContent = agent.ip_address ?? "-";
+  modalRefs.ollamaVersion.textContent = agent.ollama_version ?? "-";
+  modalRefs.uptime.textContent = formatDuration(agent.uptime_seconds);
+  modalRefs.status.textContent = agent.status === "online" ? "オンライン" : "オフライン";
+  modalRefs.lastSeen.textContent = formatTimestamp(agent.last_seen);
+  modalRefs.totalRequests.textContent = agent.total_requests ?? 0;
+  modalRefs.averageResponse.textContent = formatAverage(agent.average_response_time_ms);
+
+  modalRefs.modal.classList.remove("hidden");
+  modalRefs.modal.setAttribute("tabindex", "-1");
+  window.requestAnimationFrame(() => modalRefs.close.focus());
+}
+
+function closeAgentModal() {
+  if (!modalRefs.modal) return;
+  modalRefs.modal.classList.add("hidden");
+  if (state.lastFocused && typeof state.lastFocused.focus === "function") {
+    state.lastFocused.focus();
+  }
 }
 
 function setConnectionStatus(mode) {
