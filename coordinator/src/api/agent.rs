@@ -369,8 +369,9 @@ mod tests {
         .0
         .agent_id;
 
-        let status =
-            disconnect_agent(State(state.clone()), axum::extract::Path(agent_id)).await.unwrap();
+        let status = disconnect_agent(State(state.clone()), axum::extract::Path(agent_id))
+            .await
+            .unwrap();
         assert_eq!(status, StatusCode::ACCEPTED);
 
         let agent = state.registry.get(agent_id).await.unwrap();
