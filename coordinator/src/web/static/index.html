@@ -71,8 +71,21 @@
           <h2>エージェント一覧</h2>
           <div class="section-tools">
             <label class="filter-label">
-              <input type="checkbox" id="filter-offline" />
-              オフラインを非表示
+              <span>状態</span>
+              <select id="filter-status">
+                <option value="all">すべて</option>
+                <option value="online">オンライン</option>
+                <option value="offline">オフライン</option>
+              </select>
+            </label>
+            <label class="filter-label">
+              <span>検索</span>
+              <input
+                type="search"
+                id="filter-query"
+                placeholder="マシン名・IPアドレス"
+                autocomplete="off"
+              />
             </label>
           </div>
         </header>

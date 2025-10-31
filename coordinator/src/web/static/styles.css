@@ -193,8 +193,32 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-subtle);
+  background: rgba(148, 163, 184, 0.08);
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.filter-label span {
+  font-weight: 600;
+}
+
+.filter-label input,
+.filter-label select {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 4px 6px;
+}
+
+.filter-label input:focus,
+.filter-label select:focus {
+  outline: 2px solid rgba(56, 189, 248, 0.4);
+  border-radius: 8px;
 }
 
 .table-wrapper {

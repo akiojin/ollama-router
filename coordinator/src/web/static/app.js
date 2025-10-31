@@ -4,6 +4,8 @@ const state = {
   agents: [],
   stats: null,
   history: [],
+  filterStatus: "all",
+  filterQuery: "",
   timerId: null,
 };
 
@@ -11,10 +13,23 @@ let requestsChart = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   const refreshButton = document.getElementById("refresh-button");
-  const filterCheckbox = document.getElementById("filter-offline");
+  const statusSelect = document.getElementById("filter-status");
+  const queryInput = document.getElementById("filter-query");
 
   refreshButton.addEventListener("click", () => refreshData({ manual: true }));
-  filterCheckbox.addEventListener("change", () => renderAgents());
+  statusSelect.addEventListener("change", (event) => {
+    state.filterStatus = event.target.value;
+    renderAgents();
+  });
+  let queryDebounce = null;
+  queryInput.addEventListener("input", (event) => {
+    const value = event.target.value ?? "";
+    window.clearTimeout(queryDebounce);
+    queryDebounce = window.setTimeout(() => {
+      state.filterQuery = value.trim().toLowerCase();
+      renderAgents();
+    }, 150);
+  });
 
   refreshData({ initial: true });
   state.timerId = window.setInterval(refreshData, REFRESH_INTERVAL_MS);
@@ -102,7 +117,6 @@ function renderStats() {
 
 function renderAgents() {
   const tbody = document.getElementById("agents-body");
-  const hideOffline = document.getElementById("filter-offline").checked;
 
   tbody.innerHTML = "";
 
@@ -116,7 +130,7 @@ function renderAgents() {
 
   const fragment = document.createDocumentFragment();
   state.agents
-    .filter((agent) => !(hideOffline && agent.status === "offline"))
+    .filter((agent) => filterAgent(agent, state.filterStatus, state.filterQuery))
     .forEach((agent) => fragment.appendChild(buildAgentRow(agent)));
 
   if (!fragment.childNodes.length) {
@@ -287,6 +301,23 @@ function buildAgentRow(agent) {
   `;
 
   return tr;
+}
+
+function filterAgent(agent, statusFilter, query) {
+  if (statusFilter === "online" && agent.status !== "online") {
+    return false;
+  }
+  if (statusFilter === "offline" && agent.status !== "offline") {
+    return false;
+  }
+
+  if (!query) {
+    return true;
+  }
+
+  const machine = (agent.machine_name ?? "").toLowerCase();
+  const ip = (agent.ip_address ?? "").toLowerCase();
+  return machine.includes(query) || ip.includes(query);
 }
 
 function setConnectionStatus(mode) {
