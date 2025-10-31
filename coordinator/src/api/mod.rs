@@ -8,7 +8,10 @@ pub mod health;
 pub mod proxy;
 
 use crate::AppState;
-use axum::{routing::{get, get_service, post}, Router};
+use axum::{
+    routing::{get, get_service, post},
+    Router,
+};
 use tower_http::services::ServeDir;
 
 /// APIルーターを作成
