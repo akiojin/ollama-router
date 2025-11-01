@@ -1,6 +1,8 @@
 use axum::http::StatusCode;
 use ollama_coordinator_common::protocol::{ChatRequest, ChatResponse, GenerateRequest};
-use ollama_coordinator_coordinator::{api, balancer::LoadManager, registry::AgentRegistry, AppState};
+use ollama_coordinator_coordinator::{
+    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+};
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -64,7 +66,9 @@ async fn test_proxy_chat_success() {
                 .method("POST")
                 .uri("/api/chat")
                 .header("Content-Type", "application/json")
-                .body(axum::body::Body::from(serde_json::to_vec(&payload).unwrap()))
+                .body(axum::body::Body::from(
+                    serde_json::to_vec(&payload).unwrap(),
+                ))
                 .unwrap(),
         )
         .await
@@ -82,7 +86,10 @@ async fn test_proxy_chat_success() {
 async fn test_proxy_chat_no_agents() {
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
-    let router = api::create_router(AppState { registry, load_manager });
+    let router = api::create_router(AppState {
+        registry,
+        load_manager,
+    });
 
     let payload = ChatRequest {
         model: "test-model".into(),
@@ -99,7 +106,9 @@ async fn test_proxy_chat_no_agents() {
                 .method("POST")
                 .uri("/api/chat")
                 .header("Content-Type", "application/json")
-                .body(axum::body::Body::from(serde_json::to_vec(&payload).unwrap()))
+                .body(axum::body::Body::from(
+                    serde_json::to_vec(&payload).unwrap(),
+                ))
                 .unwrap(),
         )
         .await
@@ -135,7 +144,9 @@ async fn test_proxy_generate_success() {
                 .method("POST")
                 .uri("/api/generate")
                 .header("Content-Type", "application/json")
-                .body(axum::body::Body::from(serde_json::to_vec(&payload).unwrap()))
+                .body(axum::body::Body::from(
+                    serde_json::to_vec(&payload).unwrap(),
+                ))
                 .unwrap(),
         )
         .await
@@ -148,7 +159,10 @@ async fn test_proxy_generate_success() {
 async fn test_proxy_generate_no_agents() {
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
-    let router = api::create_router(AppState { registry, load_manager });
+    let router = api::create_router(AppState {
+        registry,
+        load_manager,
+    });
 
     let payload = GenerateRequest {
         model: "test-model".into(),
@@ -162,7 +176,9 @@ async fn test_proxy_generate_no_agents() {
                 .method("POST")
                 .uri("/api/generate")
                 .header("Content-Type", "application/json")
-                .body(axum::body::Body::from(serde_json::to_vec(&payload).unwrap()))
+                .body(axum::body::Body::from(
+                    serde_json::to_vec(&payload).unwrap(),
+                ))
                 .unwrap(),
         )
         .await

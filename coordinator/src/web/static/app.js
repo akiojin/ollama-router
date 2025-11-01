@@ -52,6 +52,7 @@ const modalRefs = {
   machineName: null,
   ipAddress: null,
   ollamaVersion: null,
+  loadedModels: null,
   uptime: null,
   status: null,
   lastSeen: null,
@@ -97,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     machineName: document.getElementById("detail-machine-name"),
     ipAddress: document.getElementById("detail-ip-address"),
     ollamaVersion: document.getElementById("detail-ollama-version"),
+    loadedModels: document.getElementById("detail-loaded-models"),
     uptime: document.getElementById("detail-uptime"),
     status: document.getElementById("detail-status"),
     lastSeen: document.getElementById("detail-last-seen"),
@@ -704,7 +706,9 @@ function buildAgentRow(agent, row = document.createElement("tr")) {
   row.classList.toggle("agent-offline", agent.status === "offline");
 
   const displayName = getDisplayName(agent);
-  const secondaryName = agent.custom_name ? agent.machine_name : agent.ollama_version;
+  const secondaryName = agent.custom_name
+    ? agent.machine_name
+    : agent.ollama_version || agent.machine_name;
 
   const statusLabel =
     agent.status === "online"
@@ -727,6 +731,15 @@ function buildAgentRow(agent, row = document.createElement("tr")) {
     typeof agent.gpu_memory_usage === "number"
       ? `<div class="cell-sub">GPU ${formatPercentage(agent.gpu_memory_usage)}</div>`
       : "";
+  const models = getModelList(agent);
+  const primaryModelDisplay = models.length ? models[0] : "-";
+  const extraModels = models.slice(1, 4).join(", ");
+  const remainderCount = Math.max(0, models.length - 4);
+  const modelSub = extraModels
+    ? `<div class="cell-sub">${escapeHtml(extraModels)}${
+        remainderCount > 0 ? ` 他${remainderCount}件` : ""
+      }</div>`
+    : "";
 
   row.innerHTML = `
     <td>
@@ -746,7 +759,10 @@ function buildAgentRow(agent, row = document.createElement("tr")) {
       <div class="cell-sub">Port ${Number.isFinite(agent.ollama_port) ? escapeHtml(agent.ollama_port) : "-"}</div>
     </td>
     <td>${statusLabel}</td>
-    <td>${formatDuration(agent.uptime_seconds)}</td>
+    <td>
+      <div class="cell-title">${formatDuration(agent.uptime_seconds)}</div>
+      <div class="cell-sub">${escapeHtml(agent.ollama_version ?? "-")}</div>
+    </td>
     <td>
       <div class="cell-title">${cpuDisplay}</div>
       ${cpuGpuSub}
@@ -763,6 +779,10 @@ function buildAgentRow(agent, row = document.createElement("tr")) {
       </div>
     </td>
     <td>${formatAverage(agent.average_response_time_ms)}</td>
+    <td>
+      <div class="cell-title">${escapeHtml(primaryModelDisplay)}</div>
+      ${modelSub}
+    </td>
     <td>
       <div class="cell-title">${formatTimestamp(agent.last_seen)}</div>
       <div class="cell-sub">${metricsDetail}</div>
@@ -788,7 +808,7 @@ function syncAgentRowSelection(row, agentId) {
 function buildPlaceholderRow(message) {
   const row = document.createElement("tr");
   row.className = "empty-row";
-  row.innerHTML = `<td colspan="11">${escapeHtml(message)}</td>`;
+  row.innerHTML = `<td colspan="13">${escapeHtml(message)}</td>`;
   return row;
 }
 
@@ -810,6 +830,7 @@ function getAgentSignature(agent) {
     agent.last_seen ?? "",
     agent.metrics_last_updated_at ?? "",
     agent.metrics_stale ? 1 : 0,
+    getModelList(agent).join("|") ?? "",
   ].join("|");
 }
 
@@ -829,6 +850,14 @@ function getDisplayName(agent) {
   return agent.machine_name ?? "-";
 }
 
+function getModelList(agent) {
+  if (!agent) return [];
+  const list = Array.isArray(agent.loaded_models) ? agent.loaded_models : [];
+  return list
+    .map((model) => (typeof model === "string" ? model.trim() : ""))
+    .filter((model) => model.length);
+}
+
 function filterAgent(agent, statusFilter, query) {
   if (statusFilter === "online" && agent.status !== "online") {
     return false;
@@ -844,7 +873,10 @@ function filterAgent(agent, statusFilter, query) {
   const machine = (agent.machine_name ?? "").toLowerCase();
   const ip = (agent.ip_address ?? "").toLowerCase();
   const custom = (agent.custom_name ?? "").toLowerCase();
-  return machine.includes(query) || ip.includes(query) || custom.includes(query);
+  const models = getModelList(agent).join(" ").toLowerCase();
+  return (
+    machine.includes(query) || ip.includes(query) || custom.includes(query) || models.includes(query)
+  );
 }
 
 function getFilteredAgents() {
@@ -932,6 +964,10 @@ function openAgentModal(agent) {
   modalRefs.machineName.textContent = agent.machine_name ?? "-";
   modalRefs.ipAddress.textContent = agent.ip_address ?? "-";
   modalRefs.ollamaVersion.textContent = agent.ollama_version ?? "-";
+  if (modalRefs.loadedModels) {
+    const models = getModelList(agent);
+    modalRefs.loadedModels.textContent = models.length ? models.join(", ") : "-";
+  }
   modalRefs.uptime.textContent = formatDuration(agent.uptime_seconds);
   modalRefs.status.textContent = agent.status === "online" ? "オンライン" : "オフライン";
   modalRefs.lastSeen.textContent = formatTimestamp(agent.last_seen);
@@ -1306,10 +1342,12 @@ function downloadCsv(data, filename) {
     "gpu_memory_usage",
     "registered_at",
     "last_seen",
+    "loaded_models",
     "tags",
   ];
 
   const rows = data.map((agent) => {
+    const models = getModelList(agent).join("|");
     return [
       agent.id,
       getDisplayName(agent),
@@ -1323,6 +1361,7 @@ function downloadCsv(data, filename) {
       agent.gpu_memory_usage ?? "",
       agent.registered_at ?? "",
       agent.last_seen ?? "",
+      models,
       Array.isArray(agent.tags) ? agent.tags.join("|") : "",
     ]
       .map((value) => `"${String(value).replace(/"/g, '""')}"`)

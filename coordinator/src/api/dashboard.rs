@@ -39,6 +39,9 @@ pub struct DashboardAgent {
     pub last_seen: DateTime<Utc>,
     /// 稼働秒数
     pub uptime_seconds: i64,
+    /// ロード済みモデル一覧
+    #[serde(default)]
+    pub loaded_models: Vec<String>,
     /// CPU使用率
     pub cpu_usage: Option<f32>,
     /// メモリ使用率
@@ -209,6 +212,7 @@ async fn collect_agents(state: &AppState) -> Vec<DashboardAgent> {
                 registered_at: agent.registered_at,
                 last_seen: agent.last_seen,
                 uptime_seconds,
+                loaded_models: agent.loaded_models.clone(),
                 cpu_usage,
                 memory_usage,
                 gpu_usage,

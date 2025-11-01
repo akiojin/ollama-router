@@ -10,7 +10,15 @@ pub async fn health_check(
     Json(req): Json<HealthCheckRequest>,
 ) -> Result<Json<()>, AppError> {
     // エージェントの最終確認時刻を更新
-    state.registry.update_last_seen(req.agent_id).await?;
+    let models = if req.loaded_models.is_empty() {
+        None
+    } else {
+        Some(req.loaded_models.clone())
+    };
+    state
+        .registry
+        .update_last_seen(req.agent_id, models)
+        .await?;
 
     // 最新メトリクスをロードマネージャーに記録
     state
@@ -68,6 +76,7 @@ mod tests {
             gpu_memory_usage: None,
             active_requests: 3,
             average_response_time_ms: Some(110.0),
+            loaded_models: vec!["gpt-oss:20b".into()],
         };
 
         let result = health_check(State(state.clone()), Json(health_req)).await;
@@ -83,6 +92,7 @@ mod tests {
             agent.status,
             ollama_coordinator_common::types::AgentStatus::Online
         );
+        assert_eq!(agent.loaded_models, vec!["gpt-oss:20b"]);
     }
 
     #[tokio::test]
@@ -97,6 +107,7 @@ mod tests {
             gpu_memory_usage: None,
             active_requests: 3,
             average_response_time_ms: None,
+            loaded_models: Vec::new(),
         };
 
         let result = health_check(State(state), Json(health_req)).await;
