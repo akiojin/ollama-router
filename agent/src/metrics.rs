@@ -112,39 +112,6 @@ impl Default for MetricsCollector {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_metrics_collector_creation() {
-        let collector = MetricsCollector::new();
-        assert!(!collector.system.cpus().is_empty());
-    }
-
-    #[test]
-    fn test_get_memory_usage() {
-        let mut collector = MetricsCollector::new();
-        let memory_usage = collector.get_memory_usage().unwrap();
-        assert!((0.0..=100.0).contains(&memory_usage));
-    }
-
-    #[test]
-    fn test_collect_metrics() {
-        let mut collector = MetricsCollector::new();
-        let metrics = collector.collect_metrics().unwrap();
-
-        assert!((0.0..=100.0).contains(&metrics.cpu_usage));
-        assert!((0.0..=100.0).contains(&metrics.memory_usage));
-        if let Some(gpu_usage) = metrics.gpu_usage {
-            assert!((0.0..=100.0).contains(&gpu_usage));
-        }
-        if let Some(gpu_memory) = metrics.gpu_memory_usage {
-            assert!((0.0..=100.0).contains(&gpu_memory));
-        }
-    }
-}
-
 /// NVIDIA GPUメトリクスコレクター
 struct GpuCollector {
     nvml: Nvml,
@@ -189,5 +156,38 @@ impl GpuCollector {
         }
 
         Ok((total_usage / device_count, total_memory / device_count))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_metrics_collector_creation() {
+        let collector = MetricsCollector::new();
+        assert!(!collector.system.cpus().is_empty());
+    }
+
+    #[test]
+    fn test_get_memory_usage() {
+        let mut collector = MetricsCollector::new();
+        let memory_usage = collector.get_memory_usage().unwrap();
+        assert!((0.0..=100.0).contains(&memory_usage));
+    }
+
+    #[test]
+    fn test_collect_metrics() {
+        let mut collector = MetricsCollector::new();
+        let metrics = collector.collect_metrics().unwrap();
+
+        assert!((0.0..=100.0).contains(&metrics.cpu_usage));
+        assert!((0.0..=100.0).contains(&metrics.memory_usage));
+        if let Some(gpu_usage) = metrics.gpu_usage {
+            assert!((0.0..=100.0).contains(&gpu_usage));
+        }
+        if let Some(gpu_memory) = metrics.gpu_memory_usage {
+            assert!((0.0..=100.0).contains(&gpu_memory));
+        }
     }
 }

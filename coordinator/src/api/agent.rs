@@ -204,7 +204,10 @@ mod tests {
             ollama_version: "0.1.0".to_string(),
             ollama_port: 11434,
         };
-        let res1 = register_agent(State(state.clone()), Json(req1)).await.unwrap().0;
+        let res1 = register_agent(State(state.clone()), Json(req1))
+            .await
+            .unwrap()
+            .0;
         assert_eq!(res1.status, RegisterStatus::Registered);
 
         let req2 = RegisterRequest {
@@ -213,7 +216,10 @@ mod tests {
             ollama_version: "0.1.0".to_string(),
             ollama_port: 12434,
         };
-        let res2 = register_agent(State(state.clone()), Json(req2)).await.unwrap().0;
+        let res2 = register_agent(State(state.clone()), Json(req2))
+            .await
+            .unwrap()
+            .0;
         assert_eq!(res2.status, RegisterStatus::Registered);
 
         let agents = list_agents(State(state)).await.0;

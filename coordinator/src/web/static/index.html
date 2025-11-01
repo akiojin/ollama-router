@@ -104,6 +104,21 @@
 
         <div class="table-wrapper">
           <table class="agents-table">
+            <colgroup>
+              <col class="col-select" />
+              <col class="col-name" />
+              <col class="col-address" />
+              <col class="col-status" />
+              <col class="col-uptime" />
+              <col class="col-cpu" />
+              <col class="col-memory" />
+              <col class="col-active" />
+              <col class="col-total" />
+              <col class="col-average" />
+              <col class="col-models" />
+              <col class="col-last-seen" />
+              <col class="col-actions" />
+            </colgroup>
             <thead>
               <tr>
                 <th>
@@ -133,13 +148,14 @@
                   <span class="sort-indicator" aria-hidden="true">–</span>
                 </th>
                 <th>平均応答</th>
+                <th>モデル</th>
                 <th>最終確認</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody id="agents-body">
               <tr class="empty-row">
-                <td colspan="11">データ取得中…</td>
+                <td colspan="13">データ取得中…</td>
               </tr>
             </tbody>
           </table>
@@ -198,6 +214,10 @@
             <div>
               <dt>Ollamaバージョン</dt>
               <dd id="detail-ollama-version">-</dd>
+            </div>
+            <div>
+              <dt>モデル</dt>
+              <dd id="detail-loaded-models">-</dd>
             </div>
             <div>
               <dt>稼働時間</dt>

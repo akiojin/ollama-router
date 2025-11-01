@@ -120,6 +120,7 @@ async fn dashboard_agents_and_stats_reflect_registry() {
     assert_eq!(agent["status"], "online");
     assert_eq!(agent["total_requests"], 1);
     assert_eq!(agent["successful_requests"], 1);
+    assert!(agent["loaded_models"].is_array());
 
     let stats_response = router
         .clone()
@@ -238,6 +239,8 @@ async fn dashboard_overview_returns_combined_payload() {
     let overview: Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(overview["agents"].as_array().unwrap().len(), 1);
+    let agent = overview["agents"].as_array().unwrap().first().unwrap();
+    assert!(agent["loaded_models"].is_array());
     assert_eq!(overview["stats"]["total_agents"], 1);
     assert_eq!(overview["history"].as_array().unwrap().len(), 60);
     assert!(overview["generated_at"].is_string());
