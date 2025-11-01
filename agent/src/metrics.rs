@@ -52,16 +52,16 @@ impl GpuCapability {
     /// - RTX 4090 (16GB, 2.5GHz, Compute 8.9): 1600 + 250 + 8000 = 9850
     /// - RTX 3080 (10GB, 1.7GHz, Compute 8.6): 1000 + 170 + 8000 = 9170
     /// - GTX 1660 (6GB, 1.8GHz, Compute 7.5): 600 + 180 + 7000 = 7780
-    pub fn calculate_score(memory_mb: u64, max_clock_mhz: u32, compute_capability: (u32, u32)) -> u32 {
+    pub fn calculate_score(
+        memory_mb: u64,
+        max_clock_mhz: u32,
+        compute_capability: (u32, u32),
+    ) -> u32 {
         let memory_gb = memory_mb / 1024;
         let clock_ghz = max_clock_mhz as f32 / 1000.0;
         let (compute_major, _compute_minor) = compute_capability;
 
-        let score = (memory_gb * 100) as u32
-            + (clock_ghz * 100.0) as u32
-            + (compute_major * 1000);
-
-        score
+        (memory_gb * 100) as u32 + (clock_ghz * 100.0) as u32 + (compute_major * 1000)
     }
 
     /// 自身のスコアを計算
@@ -185,9 +185,7 @@ impl MetricsCollector {
 
     /// GPU能力情報を取得（静的な情報、初回のみ取得推奨）
     pub fn get_gpu_capability(&self) -> Option<GpuCapability> {
-        self.gpu
-            .as_ref()
-            .and_then(|gpu| gpu.get_capability().ok())
+        self.gpu.as_ref().and_then(|gpu| gpu.get_capability().ok())
     }
 }
 
@@ -366,7 +364,8 @@ impl NvidiaGpuCollector {
         let model_name = device.name()?;
         let cuda_capability = device.cuda_compute_capability()?;
         let compute_capability = (cuda_capability.major as u32, cuda_capability.minor as u32);
-        let max_clock_mhz = device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics)?;
+        let max_clock_mhz =
+            device.max_clock_info(nvml_wrapper::enum_wrappers::device::Clock::Graphics)?;
         let memory_info = device.memory_info()?;
         let memory_total_mb = memory_info.total / (1024 * 1024);
 
@@ -711,17 +710,29 @@ mod tests {
         // RTX 4090 example: 16GB, 2.5GHz, Compute 8.9
         let score = GpuCapability::calculate_score(16384, 2520, (8, 9));
         // Expected: (16 * 100) + (2.52 * 100) + (8 * 1000) = 1600 + 252 + 8000 = 9852
-        assert!(score >= 9800 && score <= 10000, "Score should be around 9852, got {}", score);
+        assert!(
+            score >= 9800 && score <= 10000,
+            "Score should be around 9852, got {}",
+            score
+        );
 
         // RTX 3080 example: 10GB, 1.7GHz, Compute 8.6
         let score = GpuCapability::calculate_score(10240, 1710, (8, 6));
         // Expected: (10 * 100) + (1.71 * 100) + (8 * 1000) = 1000 + 171 + 8000 = 9171
-        assert!(score >= 9100 && score <= 9200, "Score should be around 9171, got {}", score);
+        assert!(
+            score >= 9100 && score <= 9200,
+            "Score should be around 9171, got {}",
+            score
+        );
 
         // GTX 1660 example: 6GB, 1.8GHz, Compute 7.5
         let score = GpuCapability::calculate_score(6144, 1785, (7, 5));
         // Expected: (6 * 100) + (1.785 * 100) + (7 * 1000) = 600 + 178 + 7000 = 7778
-        assert!(score >= 7700 && score <= 7800, "Score should be around 7778, got {}", score);
+        assert!(
+            score >= 7700 && score <= 7800,
+            "Score should be around 7778, got {}",
+            score
+        );
     }
 
     #[test]

@@ -222,8 +222,14 @@ mod tests {
         let deserialized: HealthCheckRequest = serde_json::from_str(&json).unwrap();
 
         assert_eq!(request.gpu_model_name, deserialized.gpu_model_name);
-        assert_eq!(request.gpu_compute_capability, deserialized.gpu_compute_capability);
-        assert_eq!(request.gpu_capability_score, deserialized.gpu_capability_score);
+        assert_eq!(
+            request.gpu_compute_capability,
+            deserialized.gpu_compute_capability
+        );
+        assert_eq!(
+            request.gpu_capability_score,
+            deserialized.gpu_capability_score
+        );
     }
 
     #[test]

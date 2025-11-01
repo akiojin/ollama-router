@@ -230,7 +230,8 @@ async fn collect_agents(state: &AppState) -> Vec<DashboardAgent> {
                 )
             } else {
                 (
-                    None, None, None, None, None, None, None, None, None, None, 0, 0, 0, 0, None, None, true,
+                    None, None, None, None, None, None, None, None, None, None, 0, 0, 0, 0, None,
+                    None, true,
                 )
             };
 
