@@ -126,9 +126,9 @@ async fn main() {
             gpu_memory_used_mb: metrics.gpu_memory_used_mb,
             gpu_temperature: metrics.gpu_temperature,
             gpu_model_name: gpu_capability.as_ref().map(|c| c.model_name.clone()),
-            gpu_compute_capability: gpu_capability.as_ref().map(|c| {
-                format!("{}.{}", c.compute_capability.0, c.compute_capability.1)
-            }),
+            gpu_compute_capability: gpu_capability
+                .as_ref()
+                .map(|c| format!("{}.{}", c.compute_capability.0, c.compute_capability.1)),
             gpu_capability_score: gpu_capability.as_ref().map(|c| c.score()),
             active_requests: 0, // TODO: 実際のリクエスト数をカウント
             average_response_time_ms: None,
