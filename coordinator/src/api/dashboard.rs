@@ -82,6 +82,10 @@ pub struct DashboardStats {
     pub total_active_requests: u32,
     /// 平均レスポンスタイム
     pub average_response_time_ms: Option<f32>,
+    /// 平均GPU使用率
+    pub average_gpu_usage: Option<f32>,
+    /// 平均GPUメモリ使用率
+    pub average_gpu_memory_usage: Option<f32>,
     /// 最新メトリクス更新時刻
     pub last_metrics_updated_at: Option<DateTime<Utc>>,
     /// 最新登録日時
@@ -240,6 +244,8 @@ async fn collect_stats(state: &AppState) -> DashboardStats {
         failed_requests: summary.failed_requests,
         total_active_requests: summary.total_active_requests,
         average_response_time_ms: summary.average_response_time_ms,
+        average_gpu_usage: summary.average_gpu_usage,
+        average_gpu_memory_usage: summary.average_gpu_memory_usage,
         last_metrics_updated_at: summary.last_metrics_updated_at,
         last_registered_at,
         last_seen_at,
@@ -376,6 +382,8 @@ mod tests {
         assert_eq!(stats.successful_requests, 0);
         assert!(stats.last_registered_at.is_some());
         assert!(stats.last_seen_at.is_some());
+        assert!(stats.average_gpu_usage.is_none());
+        assert!(stats.average_gpu_memory_usage.is_none());
     }
 
     #[tokio::test]

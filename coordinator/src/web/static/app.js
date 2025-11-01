@@ -457,6 +457,8 @@ function renderStats() {
     "failed-requests": state.stats.failed_requests,
     "total-active-requests": state.stats.total_active_requests,
     "average-response-time-ms": formatAverage(state.stats.average_response_time_ms),
+    "average-gpu-usage": formatPercentage(state.stats.average_gpu_usage),
+    "average-gpu-memory-usage": formatPercentage(state.stats.average_gpu_memory_usage),
     "last-metrics-updated-at": formatTimestamp(state.stats.last_metrics_updated_at),
     "last-registered-at": formatTimestamp(state.stats.last_registered_at),
     "last-seen-at": formatTimestamp(state.stats.last_seen_at),

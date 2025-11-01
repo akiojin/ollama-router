@@ -291,6 +291,10 @@ pub struct SystemSummary {
     pub failed_requests: u64,
     /// 平均レスポンスタイム (ms)
     pub average_response_time_ms: Option<f32>,
+    /// 平均GPU使用率 (0-100)
+    pub average_gpu_usage: Option<f32>,
+    /// 平均GPUメモリ使用率 (0-100)
+    pub average_gpu_memory_usage: Option<f32>,
     /// 処理中リクエスト総数
     pub total_active_requests: u32,
     /// 最新メトリクス更新時刻
@@ -522,6 +526,10 @@ impl LoadManager {
         let mut weighted_average_sum = 0f64;
         let mut weighted_average_weight = 0f64;
         let mut latest_timestamp: Option<DateTime<Utc>> = None;
+        let mut gpu_usage_total = 0f64;
+        let mut gpu_usage_samples = 0u64;
+        let mut gpu_memory_total = 0f64;
+        let mut gpu_memory_samples = 0u64;
         let now = Utc::now();
 
         for agent in &agents {
@@ -559,6 +567,16 @@ impl LoadManager {
                         weighted_average_sum += avg as f64 * weight;
                         weighted_average_weight += weight;
                     }
+                    if let Some(metrics) = load_state.last_metrics.as_ref() {
+                        if let Some(gpu) = metrics.gpu_usage {
+                            gpu_usage_total += gpu as f64;
+                            gpu_usage_samples = gpu_usage_samples.saturating_add(1);
+                        }
+                        if let Some(gpu_mem) = metrics.gpu_memory_usage {
+                            gpu_memory_total += gpu_mem as f64;
+                            gpu_memory_samples = gpu_memory_samples.saturating_add(1);
+                        }
+                    }
                 } else if latest_timestamp.is_none() {
                     // フレッシュなメトリクスがない場合でも最も新しい値を保持
                     if let Some(timestamp) = load_state.last_updated() {
@@ -574,6 +592,14 @@ impl LoadManager {
         } else if latency_samples > 0 {
             summary.average_response_time_ms =
                 Some((total_latency_ms as f64 / latency_samples as f64) as f32);
+        }
+
+        if gpu_usage_samples > 0 {
+            summary.average_gpu_usage = Some((gpu_usage_total / gpu_usage_samples as f64) as f32);
+        }
+        if gpu_memory_samples > 0 {
+            summary.average_gpu_memory_usage =
+                Some((gpu_memory_total / gpu_memory_samples as f64) as f32);
         }
 
         summary.last_metrics_updated_at = latest_timestamp;
