@@ -76,6 +76,35 @@ async fn dashboard_serves_static_index() {
 }
 
 #[tokio::test]
+async fn dashboard_static_index_contains_gpu_labels() {
+    let (router, _, _) = build_router();
+
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/dashboard/index.html")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+    let html = String::from_utf8(bytes.to_vec()).expect("dashboard html should be valid utf-8");
+
+    assert!(
+        html.contains("<th>CPU / GPU</th>"),
+        "dashboard table should include GPU column: {html}"
+    );
+    assert!(
+        html.contains("GPUモデル"),
+        "dashboard modal should mention GPU model: {html}"
+    );
+}
+
+#[tokio::test]
 async fn dashboard_agents_and_stats_reflect_registry() {
     let (router, registry, load_manager) = build_router();
 

@@ -27,9 +27,9 @@
 #### テスト
 
 - [x] GPU検出の既存テストを確認
-- [ ] Docker for Mac環境でのApple Silicon検出テストを追加
-- [ ] AMD GPU検出テストを追加（モック使用）
-- [ ] NVIDIA GPU検出テストを確認
+- [x] Docker for Mac環境でのApple Silicon検出テストを追加
+- [x] AMD GPU検出テストを追加（モック使用）
+- [x] NVIDIA GPU検出テストを確認
 
 ### Phase 2: ダッシュボード表示の改善 ✅
 
@@ -39,7 +39,7 @@
 - [x] gpu_availableとgpu_modelを確認してモデル名表示
 - [x] テーブル表示: "GPU {モデル名}"
 - [x] モーダル表示: "{モデル名} (メトリクス非対応)"
-- [ ] ダッシュボード表示のE2Eテストを追加
+- [x] ダッシュボード表示のE2Eテストを追加
 
 #### テスト
 
@@ -50,7 +50,7 @@
 
 - [x] spec.mdにDocker for Mac対応を追記
 - [x] README.mdにGPU検出方法を記載
-- [ ] research.mdの統合結果を記録
+- [x] research.mdの統合結果を記録
 
 ### Phase 4: 統合テストとリリース ⏳
 
