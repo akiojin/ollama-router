@@ -3,6 +3,7 @@
 //! Ollamaの自動ダウンロード、起動、停止、状態監視
 
 use flate2::read::GzDecoder;
+use indicatif::{ProgressBar, ProgressStyle};
 use ollama_coordinator_common::error::{AgentError, AgentResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -21,6 +22,26 @@ pub struct OllamaManager {
     ollama_path: PathBuf,
     process: Option<Child>,
     port: u16,
+}
+
+/// ダウンロード進捗情報
+#[derive(Debug, Clone)]
+pub struct DownloadProgress {
+    /// 現在ダウンロードしたバイト数
+    pub current: u64,
+    /// 合計バイト数
+    pub total: u64,
+}
+
+impl DownloadProgress {
+    /// パーセンテージを計算
+    pub fn percentage(&self) -> f64 {
+        if self.total == 0 {
+            0.0
+        } else {
+            (self.current as f64 / self.total as f64) * 100.0
+        }
+    }
 }
 
 const DEFAULT_MODEL: &str = "gpt-oss:20b";
@@ -298,12 +319,32 @@ impl OllamaManager {
             )));
         }
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| AgentError::Internal(format!("Failed to read Ollama download: {}", e)))?;
+        // プログレスバーを作成
+        let total_size = response.content_length().unwrap_or(0);
+        let pb = ProgressBar::new(total_size);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+                .unwrap()
+                .progress_chars("#>-"),
+        );
+        pb.set_message("Downloading Ollama");
 
-        save_ollama_binary(&bytes, &download_url, &self.ollama_path)?;
+        // チャンク単位でダウンロード
+        use futures::StreamExt;
+        let mut stream = response.bytes_stream();
+        let mut buffer = Vec::new();
+
+        while let Some(chunk) = stream.next().await {
+            let chunk =
+                chunk.map_err(|e| AgentError::Internal(format!("Failed to read chunk: {}", e)))?;
+            buffer.extend_from_slice(&chunk);
+            pb.inc(chunk.len() as u64);
+        }
+
+        pb.finish_with_message("Download complete");
+
+        save_ollama_binary(&buffer, &download_url, &self.ollama_path)?;
 
         println!("Ollama downloaded successfully to {:?}", self.ollama_path);
         Ok(())

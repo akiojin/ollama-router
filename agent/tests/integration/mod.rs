@@ -4,5 +4,6 @@
 
 mod test_agent_registration;
 mod test_download_retry;
+mod test_download_with_progress;
 mod test_heartbeat;
 mod test_ollama_lifecycle;
