@@ -7,6 +7,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use ollama_coordinator_common::error::{AgentError, AgentResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -343,6 +344,14 @@ impl OllamaManager {
         }
 
         pb.finish_with_message("Download complete");
+
+        // チェックサム検証（環境変数で有効化）
+        if std::env::var("OLLAMA_VERIFY_CHECKSUM").is_ok() {
+            println!("Verifying checksum...");
+            let expected_checksum = fetch_checksum_from_url(&client, &download_url).await?;
+            verify_checksum(&buffer, &expected_checksum)?;
+            println!("Checksum verification successful");
+        }
 
         save_ollama_binary(&buffer, &download_url, &self.ollama_path)?;
 
@@ -835,6 +844,67 @@ fn build_http_client_with_proxy() -> AgentResult<reqwest::Client> {
     client_builder
         .build()
         .map_err(|e| AgentError::Internal(format!("Failed to build HTTP client: {}", e)))
+}
+
+/// SHA256チェックサムを検証
+///
+/// バイナリデータのSHA256ハッシュを計算し、期待されるチェックサムと比較する
+fn verify_checksum(data: &[u8], expected_checksum: &str) -> AgentResult<()> {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    let actual_checksum = format!("{:x}", hasher.finalize());
+
+    if actual_checksum.to_lowercase() != expected_checksum.to_lowercase() {
+        return Err(AgentError::Internal(format!(
+            "Checksum mismatch: expected {}, got {}",
+            expected_checksum, actual_checksum
+        )));
+    }
+
+    Ok(())
+}
+
+/// GitHubからチェックサムファイルを取得
+///
+/// ダウンロードURLに基づいてチェックサムファイル（.sha256）をダウンロードする
+async fn fetch_checksum_from_url(
+    client: &reqwest::Client,
+    download_url: &str,
+) -> AgentResult<String> {
+    // チェックサムURLを生成（.sha256拡張子を追加）
+    let checksum_url = format!("{}.sha256", download_url);
+
+    println!("Fetching checksum from {}", checksum_url);
+
+    let (max_retries, max_backoff_secs) = get_retry_config();
+
+    // リトライ付きでチェックサムをダウンロード
+    let response = retry_http_request(
+        || {
+            let client = client.clone();
+            let url = checksum_url.clone();
+            async move { client.get(&url).send().await }
+        },
+        max_retries,
+        max_backoff_secs,
+    )
+    .await?;
+
+    if !response.status().is_success() {
+        return Err(AgentError::Internal(format!(
+            "Failed to fetch checksum: HTTP {}",
+            response.status()
+        )));
+    }
+
+    let checksum = response
+        .text()
+        .await
+        .map_err(|e| AgentError::Internal(format!("Failed to read checksum: {}", e)))?
+        .trim()
+        .to_string();
+
+    Ok(checksum)
 }
 
 /// ollama psコマンドの実行結果

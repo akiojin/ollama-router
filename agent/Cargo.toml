@@ -37,6 +37,7 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 whoami = "1.4"
 indicatif = "0.17"
+sha2 = "0.10"
 
 # GPU検出 (プラットフォーム別)
 [target.'cfg(target_os = "macos")'.dependencies]
