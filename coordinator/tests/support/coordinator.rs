@@ -1,11 +1,7 @@
 use std::net::SocketAddr;
 
-use axum::Router;
 use ollama_coordinator_coordinator::{
-    api,
-    balancer::LoadManager,
-    registry::AgentRegistry,
-    AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, AppState,
 };
 use reqwest::{Client, Response};
 use serde_json::json;
@@ -21,7 +17,7 @@ pub async fn spawn_coordinator() -> TestServer {
         load_manager,
     };
 
-    let router: Router = api::create_router(state);
+    let router = api::create_router(state);
     spawn_router(router).await
 }
 

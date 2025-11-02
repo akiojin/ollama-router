@@ -5,9 +5,9 @@
 
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
 use ollama_coordinator_common::protocol::{ChatRequest, ChatResponse};
-use reqwest::Client;
+use reqwest::{Client, StatusCode as ReqStatusCode};
 
 #[path = "../support/mod.rs"]
 mod support;
@@ -49,8 +49,10 @@ async fn agent_chat_handler(
     }
 
     match &state.chat_response {
-        AgentChatStubResponse::Success(resp) => (StatusCode::OK, Json(resp.clone())),
-        AgentChatStubResponse::Error(status, body) => (*status, body.clone()),
+        AgentChatStubResponse::Success(resp) => {
+            (StatusCode::OK, Json(resp.clone())).into_response()
+        }
+        AgentChatStubResponse::Error(status, body) => (*status, body.clone()).into_response(),
     }
 }
 
@@ -74,7 +76,7 @@ async fn proxy_chat_end_to_end_success() {
     let register_response = register_agent(coordinator.addr(), agent_stub.addr())
         .await
         .expect("register agent request must succeed");
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), ReqStatusCode::OK);
 
     // Act: /api/chat にOpenAI互換リクエストを送信
     let client = Client::new();
@@ -93,7 +95,7 @@ async fn proxy_chat_end_to_end_success() {
         .expect("chat request should succeed");
 
     // Assert: コーディネーターがスタブのレスポンスをそのまま返す
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), ReqStatusCode::OK);
     let body: ChatResponse = response.json().await.expect("valid chat response");
     assert_eq!(body.message.content, "Hello from stub");
     assert!(body.done);
@@ -119,7 +121,7 @@ async fn proxy_chat_propagates_upstream_error() {
     let register_response = register_agent(coordinator.addr(), agent_stub.addr())
         .await
         .expect("register agent must succeed");
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), ReqStatusCode::OK);
 
     // Act: 存在しないモデルを指定
     let client = Client::new();
@@ -138,7 +140,7 @@ async fn proxy_chat_propagates_upstream_error() {
         .expect("chat request should reach coordinator");
 
     // Assert: コーディネーターが404とOpenAI互換のエラー形式を返す
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), ReqStatusCode::NOT_FOUND);
     let body: serde_json::Value = response.json().await.expect("error payload");
     assert_eq!(body["error"]["type"], "ollama_upstream_error");
     assert_eq!(body["error"]["code"], 404);

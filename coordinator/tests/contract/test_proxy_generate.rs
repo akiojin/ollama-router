@@ -5,9 +5,9 @@
 
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
 use ollama_coordinator_common::protocol::GenerateRequest;
-use reqwest::Client;
+use reqwest::{Client, StatusCode as ReqStatusCode};
 use serde_json::Value;
 
 #[path = "../support/mod.rs"]
@@ -50,8 +50,10 @@ async fn agent_generate_handler(
     }
 
     match &state.response {
-        AgentGenerateStubResponse::Success(payload) => (StatusCode::OK, payload.clone()),
-        AgentGenerateStubResponse::Error(status, body) => (*status, body.clone()),
+        AgentGenerateStubResponse::Success(payload) => {
+            (StatusCode::OK, Json(payload.clone())).into_response()
+        }
+        AgentGenerateStubResponse::Error(status, body) => (*status, body.clone()).into_response(),
     }
 }
 
@@ -70,7 +72,7 @@ async fn proxy_generate_end_to_end_success() {
     let register_response = register_agent(coordinator.addr(), agent_stub.addr())
         .await
         .expect("register agent must succeed");
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), ReqStatusCode::OK);
 
     let client = Client::new();
     let response = client
@@ -84,7 +86,7 @@ async fn proxy_generate_end_to_end_success() {
         .await
         .expect("generate request should succeed");
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), ReqStatusCode::OK);
     let body: Value = response.json().await.expect("valid json response");
     assert_eq!(body["response"], "stubbed");
     assert_eq!(body["done"], true);
@@ -108,7 +110,7 @@ async fn proxy_generate_propagates_upstream_error() {
     let register_response = register_agent(coordinator.addr(), agent_stub.addr())
         .await
         .expect("register agent must succeed");
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), ReqStatusCode::OK);
 
     let client = Client::new();
     let response = client
@@ -122,16 +124,14 @@ async fn proxy_generate_propagates_upstream_error() {
         .await
         .expect("generate request should succeed");
 
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), ReqStatusCode::BAD_REQUEST);
     let body: Value = response.json().await.expect("error payload");
     assert_eq!(body["error"]["type"], "ollama_upstream_error");
     assert_eq!(body["error"]["code"], 400);
-    assert!(
-        body["error"]["message"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("model not loaded")
-    );
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("model not loaded"));
 
     coordinator.stop().await;
     agent_stub.stop().await;

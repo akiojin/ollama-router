@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{io, net::SocketAddr};
 
 use axum::Router;
 use tokio::{net::TcpListener, sync::oneshot, task::JoinHandle};
@@ -7,7 +7,7 @@ use tokio::{net::TcpListener, sync::oneshot, task::JoinHandle};
 pub struct TestServer {
     addr: SocketAddr,
     shutdown: Option<oneshot::Sender<()>>,
-    handle: JoinHandle<Result<(), hyper::Error>>,
+    handle: JoinHandle<Result<(), io::Error>>,
 }
 
 impl TestServer {
@@ -26,10 +26,7 @@ impl TestServer {
 }
 
 /// 任意のRouterを実ポートにバインドして起動する
-pub async fn spawn_router<S>(router: Router<S>) -> TestServer
-where
-    S: Clone + Send + Sync + 'static,
-{
+pub async fn spawn_router(router: Router) -> TestServer {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let (tx, rx) = oneshot::channel();
