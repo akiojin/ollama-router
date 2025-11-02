@@ -11,6 +11,7 @@ use ollama_coordinator_common::{
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 /// エージェントレジストリ
@@ -61,9 +62,11 @@ impl AgentRegistry {
         for mut agent in loaded_agents {
             // GPU非搭載 or 情報欠落エージェントは削除対象
             if !agent.gpu_available {
-                println!(
-                    "Removing GPU-less agent: {} (ID: {})",
-                    agent.machine_name, agent.id
+                info!(
+                    agent_id = %agent.id,
+                    machine_name = %agent.machine_name,
+                    reason = "gpu_available is false",
+                    "Removing GPU-less agent from database during startup cleanup"
                 );
                 removed_count += 1;
                 removed_ids.push(agent.id);
@@ -78,9 +81,11 @@ impl AgentRegistry {
                     agent.gpu_devices = vec![GpuDeviceInfo { model, count }];
                     sanitized = true;
                 } else {
-                    println!(
-                        "Removing agent missing GPU devices: {} (ID: {})",
-                        agent.machine_name, agent.id
+                    info!(
+                        agent_id = %agent.id,
+                        machine_name = %agent.machine_name,
+                        reason = "gpu_devices array is empty and gpu_model is None",
+                        "Removing agent with missing GPU device information from database"
                     );
                     removed_count += 1;
                     removed_ids.push(agent.id);
@@ -89,9 +94,11 @@ impl AgentRegistry {
             }
 
             if !agent.gpu_devices.iter().all(|device| device.is_valid()) {
-                println!(
-                    "Removing agent with invalid GPU info: {} (ID: {})",
-                    agent.machine_name, agent.id
+                info!(
+                    agent_id = %agent.id,
+                    machine_name = %agent.machine_name,
+                    reason = "gpu_devices contains invalid device (empty model or zero count)",
+                    "Removing agent with invalid GPU device information from database"
                 );
                 removed_count += 1;
                 removed_ids.push(agent.id);
@@ -105,25 +112,33 @@ impl AgentRegistry {
             agents.insert(agent.id, agent);
         }
 
-        println!(
-            "Loaded {} agents from storage ({} GPU-less agents removed)",
-            agents.len(),
-            removed_count
+        info!(
+            agents_loaded = agents.len(),
+            agents_removed = removed_count,
+            "Completed agent registry initialization from storage"
         );
 
         drop(agents);
 
+        // 削除対象エージェントをデータベースから削除
         for id in removed_ids {
             if let Err(err) = crate::db::delete_agent(id).await {
-                println!("Failed to delete GPU-less agent {}: {}", id, err);
+                error!(
+                    agent_id = %id,
+                    error = %err,
+                    "Failed to delete GPU-less agent from database during cleanup"
+                );
             }
         }
 
+        // サニタイズされたエージェント情報をストレージに保存
         for agent in sanitized_agents {
             if let Err(err) = self.save_to_storage(&agent).await {
-                println!(
-                    "Failed to persist sanitized agent {} ({}): {}",
-                    agent.id, agent.machine_name, err
+                warn!(
+                    agent_id = %agent.id,
+                    machine_name = %agent.machine_name,
+                    error = %err,
+                    "Failed to persist sanitized agent data to storage"
                 );
             }
         }
