@@ -255,8 +255,13 @@ For a deeper walkthrough, including API references and customisation tips, see [
 - **GPU**: NVIDIA / AMD / Apple Silicon GPU required for agent registration
   - Automatically detected on startup
   - Docker for Mac: Apple Silicon detection supported
-- **Docker memory**: When running via `docker-compose`, allocate at least 16 GiB RAM to the container (`mem_limit: 16g`, `mem_reservation: 13g`, `memswap_limit: 18g`). On Docker Desktop, open **Settings → Resources** and raise the memory slider to ≥16 GiB before running `docker compose up`. Without this, large models such as `gpt-oss:20b` will fail to start with “requires more system memory” errors.
-- **Ollama**: Pre-installation recommended (automatic download is a future enhancement)
+- **Docker memory**: When running via `docker-compose`, allocate at least 16 GiB RAM to the container (`mem_limit: 16g`, `mem_reservation: 13g`, `memswap_limit: 18g`). On Docker Desktop, open **Settings → Resources** and raise the memory slider to ≥16 GiB before running `docker compose up`. Without this, large models such as `gpt-oss:20b` will fail to start with "requires more system memory" errors.
+- **Ollama**: Automatically downloaded and installed when not present
+  - Progress display during download
+  - Automatic retry on network errors
+  - SHA256 checksum verification
+  - Proxy support (HTTP_PROXY, HTTPS_PROXY environment variables)
+  - Memory-based automatic model selection
 - **Management**: Browser-based WebUI dashboard for agent settings and monitoring
 
 ### Coordinator Setup
@@ -289,7 +294,15 @@ COORDINATOR_URL=http://coordinator-host:8080 ./target/release/ollama-coordinator
 ./target/release/ollama-coordinator-agent
 ```
 
-**Note**: Ensure Ollama is installed and running on the agent machine before starting the agent. Download Ollama from [ollama.ai](https://ollama.ai).
+**Note**: Ollama is automatically downloaded and installed on first startup if not already present. The agent will:
+- Detect the platform (Linux, macOS, Windows)
+- Download the appropriate Ollama binary
+- Verify integrity with SHA256 checksum
+- Install to `~/.ollama-agent/bin/`
+- Automatically select an appropriate model based on available memory
+- Start Ollama and register with the coordinator
+
+Manual installation is also supported. Download Ollama from [ollama.ai](https://ollama.ai).
 
 #### GPU Detection
 
