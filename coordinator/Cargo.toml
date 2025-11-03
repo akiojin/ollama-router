@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 
 # HTTPクライアント
 reqwest = { workspace = true }
+futures = "0.3"
 
 # ログ
 tracing = { workspace = true }
