@@ -212,7 +212,7 @@ pub enum FilterStatus {
 }
 
 /// フィルタ済みレコード
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FilteredRecords {
     pub records: Vec<RequestResponseRecord>,
     pub total_count: usize,
