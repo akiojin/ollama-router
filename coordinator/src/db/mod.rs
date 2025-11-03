@@ -2,6 +2,8 @@
 //!
 //! JSONファイルベースのデータ永続化
 
+pub mod request_history;
+
 use chrono::Utc;
 use ollama_coordinator_common::{
     error::{CoordinatorError, CoordinatorResult},
