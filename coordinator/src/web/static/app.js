@@ -1635,6 +1635,9 @@ function renderRequestHistory() {
     );
   }
 
+  // 新しい順に並べ替え（降順）
+  filtered = filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
   if (filtered.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="empty-message">履歴がありません</td></tr>`;
     return;
