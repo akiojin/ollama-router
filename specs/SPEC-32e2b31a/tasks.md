@@ -212,7 +212,8 @@
 ### ユーザーストーリーE2Eテスト (並列実行可能)
 
 - [ ] **T076** [P] `tests/e2e/scenarios/agent_registration.rs` にP1エージェント登録E2Eテスト
-- [ ] **T077** [P] `tests/e2e/scenarios/proxy_api.rs` にP2統一APIプロキシE2Eテスト
+- [x] **T077** [P] `tests/e2e/scenarios/proxy_api.rs` にP2統一APIプロキシE2Eテスト  
+  - ✅ `coordinator/tests/e2e_openai_proxy.rs` でコーディネーター＋スタブエージェントを起動し、OpenAI互換APIの成功/ストリーミング/エラーを実リクエストで検証（2025-11-03）
 - [ ] **T078** [P] `tests/e2e/scenarios/load_balancing.rs` にP3ロードバランシングE2Eテスト
 - [ ] **T079** [P] `tests/e2e/scenarios/health_check.rs` にP4ヘルスチェックE2Eテスト
 - [ ] **T080** [P] `tests/e2e/scenarios/dashboard.rs` にP5ダッシュボードE2Eテスト
