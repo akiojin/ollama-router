@@ -1,5 +1,8 @@
 //! Coordinator contract tests entrypoint
 
+#[path = "support/mod.rs"]
+pub mod support;
+
 #[path = "contract/test_health_check.rs"]
 mod test_health_check;
 

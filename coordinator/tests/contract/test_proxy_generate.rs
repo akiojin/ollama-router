@@ -5,18 +5,14 @@
 
 use std::sync::Arc;
 
+use crate::support::{
+    coordinator::{register_agent, spawn_coordinator},
+    http::{spawn_router, TestServer},
+};
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
 use ollama_coordinator_common::protocol::GenerateRequest;
 use reqwest::{Client, StatusCode as ReqStatusCode};
 use serde_json::Value;
-
-#[path = "../support/mod.rs"]
-mod support;
-
-use support::{
-    coordinator::{register_agent, spawn_coordinator},
-    http::{spawn_router, TestServer},
-};
 
 #[derive(Clone)]
 struct AgentStubState {

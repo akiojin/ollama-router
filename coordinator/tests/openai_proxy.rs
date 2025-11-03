@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::http::{header::CONTENT_TYPE, StatusCode};
 use ollama_coordinator_common::{
     protocol::{ChatRequest, ChatResponse, GenerateRequest},
     types::GpuDeviceInfo,
@@ -90,6 +90,58 @@ async fn test_proxy_chat_success() {
         .unwrap();
     let parsed: ChatResponse = serde_json::from_slice(&body).unwrap();
     assert_eq!(parsed.message.content, "hello");
+}
+
+#[tokio::test]
+async fn test_proxy_chat_streaming_passthrough() {
+    let mock_server = MockServer::start().await;
+    let sse_payload = "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n";
+
+    Mock::given(method("POST"))
+        .and(path("/api/chat"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Type", "text/event-stream")
+                .set_body_bytes(sse_payload.as_bytes().to_vec()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let state = build_state_with_mock(&mock_server).await;
+    let router = api::create_router(state);
+
+    let payload = ChatRequest {
+        model: "test-model".into(),
+        messages: vec![ollama_coordinator_common::protocol::ChatMessage {
+            role: "user".into(),
+            content: "stream?".into(),
+        }],
+        stream: true,
+    };
+
+    let response = router
+        .oneshot(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/api/chat")
+                .header("Content-Type", "application/json")
+                .body(axum::body::Body::from(
+                    serde_json::to_vec(&payload).unwrap(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).unwrap(),
+        "text/event-stream"
+    );
+    let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    assert_eq!(std::str::from_utf8(&body).unwrap(), sse_payload);
 }
 
 #[tokio::test]
@@ -212,6 +264,55 @@ async fn test_proxy_generate_success() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_proxy_generate_streaming_passthrough() {
+    let mock_server = MockServer::start().await;
+    let ndjson_payload = "{\"response\":\"chunk-1\"}\n{\"response\":\"chunk-2\"}\n";
+
+    Mock::given(method("POST"))
+        .and(path("/api/generate"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Type", "application/x-ndjson")
+                .set_body_bytes(ndjson_payload.as_bytes().to_vec()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let state = build_state_with_mock(&mock_server).await;
+    let router = api::create_router(state);
+
+    let payload = GenerateRequest {
+        model: "test-model".into(),
+        prompt: "stream please".into(),
+        stream: true,
+    };
+
+    let response = router
+        .oneshot(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/api/generate")
+                .header("Content-Type", "application/json")
+                .body(axum::body::Body::from(
+                    serde_json::to_vec(&payload).unwrap(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get(CONTENT_TYPE).unwrap(),
+        "application/x-ndjson"
+    );
+    let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    assert_eq!(std::str::from_utf8(&body).unwrap(), ndjson_payload);
 }
 
 #[tokio::test]

@@ -5,17 +5,13 @@
 
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
-use ollama_coordinator_common::protocol::{ChatRequest, ChatResponse};
-use reqwest::{Client, StatusCode as ReqStatusCode};
-
-#[path = "../support/mod.rs"]
-mod support;
-
-use support::{
+use crate::support::{
     coordinator::{register_agent, spawn_coordinator},
     http::{spawn_router, TestServer},
 };
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
+use ollama_coordinator_common::protocol::{ChatRequest, ChatResponse};
+use reqwest::{Client, StatusCode as ReqStatusCode};
 
 #[derive(Clone)]
 struct AgentStubState {
