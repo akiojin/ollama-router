@@ -3,15 +3,18 @@
 
 use crate::{api::agent::AppError, balancer::RequestOutcome, AppState};
 use axum::{
+    body::Body,
     extract::State,
+    http::{HeaderName, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
+use futures::TryStreamExt;
 use ollama_coordinator_common::{
     error::CoordinatorError,
     protocol::{ChatRequest, ChatResponse, GenerateRequest},
 };
-use std::time::Instant;
+use std::{io, time::Instant};
 
 /// POST /api/chat - Ollama Chat APIプロキシ
 pub async fn proxy_chat(
@@ -58,8 +61,7 @@ pub async fn proxy_chat(
             .map_err(AppError::from)?;
 
         let status = response.status();
-        let status_code = axum::http::StatusCode::from_u16(status.as_u16())
-            .unwrap_or(axum::http::StatusCode::BAD_GATEWAY);
+        let status_code = StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
         let body_bytes = response.bytes().await.unwrap_or_default();
         let message = if body_bytes.is_empty() {
             status.to_string()
@@ -78,6 +80,19 @@ pub async fn proxy_chat(
         return Ok((status_code, Json(payload)).into_response());
     }
 
+    let stream_enabled = req.stream;
+
+    if stream_enabled {
+        let duration = start.elapsed();
+        state
+            .load_manager
+            .finish_request(agent_id, RequestOutcome::Success, duration)
+            .await
+            .map_err(AppError::from)?;
+
+        return forward_streaming_response(response).map_err(AppError::from);
+    }
+
     let parsed = response.json::<ChatResponse>().await;
     let duration = start.elapsed();
 
@@ -89,7 +104,7 @@ pub async fn proxy_chat(
                 .await
                 .map_err(AppError::from)?;
 
-            Ok((axum::http::StatusCode::OK, Json(payload)).into_response())
+            Ok((StatusCode::OK, Json(payload)).into_response())
         }
         Err(e) => {
             state
@@ -151,8 +166,7 @@ pub async fn proxy_generate(
             .map_err(AppError::from)?;
 
         let status = response.status();
-        let status_code = axum::http::StatusCode::from_u16(status.as_u16())
-            .unwrap_or(axum::http::StatusCode::BAD_GATEWAY);
+        let status_code = StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
         let body_bytes = response.bytes().await.unwrap_or_default();
         let message = if body_bytes.is_empty() {
             status.to_string()
@@ -171,6 +185,19 @@ pub async fn proxy_generate(
         return Ok((status_code, Json(payload)).into_response());
     }
 
+    let stream_enabled = req.stream;
+
+    if stream_enabled {
+        let duration = start.elapsed();
+        state
+            .load_manager
+            .finish_request(agent_id, RequestOutcome::Success, duration)
+            .await
+            .map_err(AppError::from)?;
+
+        return forward_streaming_response(response).map_err(AppError::from);
+    }
+
     let parsed = response.json::<serde_json::Value>().await;
     let duration = start.elapsed();
 
@@ -182,7 +209,7 @@ pub async fn proxy_generate(
                 .await
                 .map_err(AppError::from)?;
 
-            Ok((axum::http::StatusCode::OK, Json(payload)).into_response())
+            Ok((StatusCode::OK, Json(payload)).into_response())
         }
         Err(e) => {
             state
@@ -216,6 +243,28 @@ async fn select_available_agent(
             state.load_manager.select_agent().await
         }
     }
+}
+
+fn forward_streaming_response(response: reqwest::Response) -> Result<Response, CoordinatorError> {
+    let status = response.status();
+    let headers = response.headers().clone();
+    let stream = response.bytes_stream().map_err(io::Error::other);
+    let body = Body::from_stream(stream);
+    let mut axum_response = Response::new(body);
+    *axum_response.status_mut() =
+        axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::OK);
+    {
+        let response_headers = axum_response.headers_mut();
+        for (name, value) in headers.iter() {
+            if let (Ok(header_name), Ok(header_value)) = (
+                HeaderName::from_bytes(name.as_str().as_bytes()),
+                HeaderValue::from_bytes(value.as_bytes()),
+            ) {
+                response_headers.insert(header_name, header_value);
+            }
+        }
+    }
+    Ok(axum_response)
 }
 
 #[cfg(test)]
