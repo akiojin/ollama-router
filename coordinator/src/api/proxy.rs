@@ -251,8 +251,7 @@ fn forward_streaming_response(response: reqwest::Response) -> Result<Response, C
     let stream = response.bytes_stream().map_err(io::Error::other);
     let body = Body::from_stream(stream);
     let mut axum_response = Response::new(body);
-    *axum_response.status_mut() =
-        axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::OK);
+    *axum_response.status_mut() = StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::OK);
     {
         let response_headers = axum_response.headers_mut();
         for (name, value) in headers.iter() {
