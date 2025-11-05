@@ -306,6 +306,18 @@ GitHubリリースには各プラットフォーム向けのバイナリを同�
 
 ## 開発
 
+### コミットフック
+
+HuskyによるGitフックを有効化するため、クローンごとに一度JavaScriptツールチェーンをセットアップしてください。
+
+```bash
+npm install
+```
+
+- `prepare`スクリプト経由でHuskyのフックディレクトリを設定します。
+- `commit-msg`フックで `commitlint --edit "$1"` が実行され、CIの前にローカルで規約違反を検出できます。
+- コミット範囲を手動でチェックしたい場合は `npm run lint:commits`（デフォルト: `origin/main..HEAD`）を利用してください。
+
 ### テストの実行
 
 ```bash
