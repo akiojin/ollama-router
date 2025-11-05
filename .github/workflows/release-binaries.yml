@@ -5,6 +5,11 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      target_branch:
+        description: Branch to build binaries from
+        required: true
+        default: main
 
 permissions:
   contents: write
@@ -13,6 +18,8 @@ jobs:
   build:
     name: Build ${{ matrix.artifact }}
     runs-on: ${{ matrix.os }}
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.target_branch || 'main' }}
     strategy:
       matrix:
         include:
@@ -29,8 +36,26 @@ jobs:
             target: aarch64-apple-darwin
             artifact: macos-arm64
     steps:
+      - name: Ensure main branch release
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            if [[ "${{ github.event.release.target_commitish }}" != "main" ]]; then
+              echo "::error::release target '${{ github.event.release.target_commitish }}' is not main. Merge to main before publishing."
+              exit 1
+            fi
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ env.TARGET_BRANCH }}" != "main" ]]; then
+              echo "::error::Manual runs must specify target_branch=main to avoid pre-merge releases."
+              exit 1
+            fi
+          fi
+
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/heads/{0}', env.TARGET_BRANCH) || github.ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
