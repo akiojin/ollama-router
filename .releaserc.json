@@ -1,6 +1,10 @@
 {
   "branches": [
-    "main"
+    "main",
+    {
+      "name": "develop",
+      "prerelease": "alpha"
+    }
   ],
   "tagFormat": "v${version}",
   "plugins": [
@@ -31,6 +35,18 @@
         ]
       }
     ],
-    "@semantic-release/github"
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "release/*.tar.gz"
+          },
+          {
+            "path": "release/*.zip"
+          }
+        ]
+      }
+    ]
   ]
 }
