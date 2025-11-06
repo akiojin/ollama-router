@@ -90,13 +90,17 @@ jobs:
           [[ "$archive" == *.tar.gz ]] || { echo "::error::expected .tar.gz archive"; exit 1; }
           root_dir=$(tar -tzf "$archive" 2>/dev/null | head -1 | cut -d/ -f1)
           [[ -n "$root_dir" ]] || { echo "::error::failed to detect root directory"; exit 1; }
+          echo "DEBUG: root_dir=$root_dir"
           tar -tzf "$archive" > contents.txt
-          grep -q "^${root_dir}/ollama-coordinator-coordinator\$" contents.txt
-          grep -q "^${root_dir}/ollama-coordinator-agent\$" contents.txt
-          grep -q "^${root_dir}/README.md\$" contents.txt
-          grep -q "^${root_dir}/README.ja.md\$" contents.txt
-          grep -q "^${root_dir}/LICENSE\$" contents.txt
+          echo "DEBUG: Archive contents:"
+          cat contents.txt
+          grep -q "^${root_dir}/ollama-coordinator-coordinator\$" contents.txt || { echo "::error::ollama-coordinator-coordinator not found"; exit 1; }
+          grep -q "^${root_dir}/ollama-coordinator-agent\$" contents.txt || { echo "::error::ollama-coordinator-agent not found"; exit 1; }
+          grep -q "^${root_dir}/README.md\$" contents.txt || { echo "::error::README.md not found"; exit 1; }
+          grep -q "^${root_dir}/README.ja.md\$" contents.txt || { echo "::error::README.ja.md not found"; exit 1; }
+          grep -q "^${root_dir}/LICENSE\$" contents.txt || { echo "::error::LICENSE not found"; exit 1; }
           rm contents.txt
+          echo "DEBUG: Validation passed"
 
       - name: Package binaries (Windows)
         if: runner.os == 'Windows'
