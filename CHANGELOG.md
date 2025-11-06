@@ -1,3 +1,11 @@
+## [1.0.1-alpha.1](https://github.com/akiojin/ollama-coordinator/compare/v1.0.0...v1.0.1-alpha.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* **docs:** CHANGELOGのmarkdownlintエラーを修正 ([b5036da](https://github.com/akiojin/ollama-coordinator/commit/b5036da026a6aaa690368d2472933d06b0d1ba5d))
+* **docs:** CHANGELOGのmarkdownlintエラーを再修正 ([38980ac](https://github.com/akiojin/ollama-coordinator/commit/38980ac6c26f8642d30f1d067497d057a00aadd2))
+
 # 1.0.0 (2025-11-06)
 
 ## Bug Fixes
