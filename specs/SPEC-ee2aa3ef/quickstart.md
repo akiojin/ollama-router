@@ -617,6 +617,169 @@ set -o pipefail
 - ローカル検証でGitHub Actions同等の環境をテスト
 - バイナリ検証ロジックはシンプルに保つ
 
+## ホットフィックスリリース
+
+本番環境（main）で緊急のバグ修正が必要な場合、ホットフィックスフローを使用します。
+
+### 前提条件
+
+- mainブランチが正式版（例: v1.0.0）でリリース済み
+- 緊急修正が必要なバグの特定
+
+### 手順
+
+#### 1. ホットフィックスブランチ作成
+
+```bash
+# mainブランチから分岐
+git checkout main
+git pull origin main
+git checkout -b hotfix/fix-critical-bug
+
+# または gh コマンド
+gh repo clone owner/repo
+git checkout -b hotfix/fix-critical-bug main
+```
+
+**ブランチ命名規則**: `hotfix/<簡潔な説明>`
+
+#### 2. バグ修正の実装
+
+```bash
+# 修正を実装
+vim src/lib.rs
+
+# ローカル検証（必須）
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .git
+
+# コミット（fix: で始めることでパッチバージョン上昇）
+git add .
+git commit -m "fix: クリティカルなバグを修正"
+```
+
+**重要**: コミットメッセージは `fix:` で始める必要があります（パッチバージョン用）。
+
+#### 3. プッシュとPR作成
+
+```bash
+# リモートにプッシュ
+git push origin hotfix/fix-critical-bug
+
+# PR作成（main へマージ）
+gh pr create \
+  --base main \
+  --head hotfix/fix-critical-bug \
+  --title "fix: クリティカルなバグを修正" \
+  --body "## 概要
+本番環境で発生した◯◯のバグを修正
+
+## 変更内容
+- ✅ XXX処理のエラーハンドリング追加
+- ✅ テストケース追加
+
+## テスト
+- ローカル検証完了（cargo test, clippy, fmt）
+- 品質チェック待機中
+"
+```
+
+#### 4. 品質チェック確認
+
+PRが作成されると、自動的に以下のチェックが実行されます：
+
+- ✅ Rust テスト (ubuntu-latest, windows-latest)
+- ✅ Rust lint (clippy)
+- ✅ Rust フォーマット (fmt)
+- ✅ commitlint
+- ✅ markdownlint
+- ✅ タスクチェック
+
+**すべてのチェックが合格するまで待機**。
+
+#### 5. PRマージ
+
+```bash
+# PRマージ（GitHubのUIまたはCLI）
+gh pr merge --squash
+
+# または、auto-merge設定
+gh pr merge --auto --squash
+```
+
+#### 6. パッチリリース自動作成
+
+mainブランチへのマージ後、semantic-releaseが自動的に：
+
+1. コミット履歴を解析（`fix:` → パッチバージョン）
+2. v1.0.0 → v1.0.1 にバージョン上昇
+3. CHANGELOG.md を自動更新
+4. Cargo.toml を自動更新
+5. GitタグとGitHubリリース作成
+6. 4プラットフォームのバイナリビルド＆公開
+
+**所要時間**: 約7〜10分（バイナリビルド含む）
+
+#### 7. リリース確認
+
+```bash
+# 最新リリースの確認
+gh release view
+
+# バイナリダウンロード確認
+gh release view --json assets -q '.assets[].name'
+```
+
+**期待される出力**:
+
+```
+ollama-coordinator-v1.0.1-x86_64-unknown-linux-gnu.tar.gz
+ollama-coordinator-v1.0.1-x86_64-pc-windows-msvc.zip
+ollama-coordinator-v1.0.1-x86_64-apple-darwin.tar.gz
+ollama-coordinator-v1.0.1-aarch64-apple-darwin.tar.gz
+```
+
+#### 8. ブランチ削除
+
+```bash
+# ローカルブランチ削除
+git checkout main
+git branch -d hotfix/fix-critical-bug
+
+# リモートブランチ削除
+git push origin --delete hotfix/fix-critical-bug
+```
+
+### ホットフィックスフローの特徴
+
+**通常リリース (develop → main) との違い**:
+
+| 項目 | 通常リリース | ホットフィックス |
+|------|-------------|----------------|
+| 起点ブランチ | develop | main |
+| マージ先 | main | main |
+| バージョン種別 | メジャー/マイナー | パッチ |
+| コミット接頭辞 | feat:, fix:, etc. | fix: |
+| 所要時間 | 5〜30分 | 7〜10分 |
+| バイナリビルド | ✅ | ✅ |
+
+**自動化されている処理**:
+
+- ✅ バージョン番号の計算・更新
+- ✅ CHANGELOG生成
+- ✅ GitタグとGitHubリリース作成
+- ✅ マルチプラットフォームバイナリビルド
+- ✅ 品質チェック（テスト・lint）
+
+**手動で行う処理**:
+
+- ブランチ作成
+- バグ修正の実装
+- PR作成とマージ
+- リリース確認
+
 ---
 
-*クイックスタートガイド - 最終更新: 2025-11-06 (v1.0.0リリース成功)*
+*クイックスタートガイド - 最終更新: 2025-11-06 (v1.0.0リリース成功、ホットフィックス手順追加)*

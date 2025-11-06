@@ -313,7 +313,34 @@
   - パス: N/A（統合テスト）
   - 説明: hotfix/** ブランチ作成、修正、main PR、パッチリリース確認
   - 依存関係: T022
-  - ステータス: ⚠️ 保留
+  - ステータス: ⚠️ 保留（ブランチ操作制限により実行不可）
+  - **保留理由**:
+    - CLAUDE.md「環境固定ルール」によりブランチ作成が禁止
+    - `.claude/hooks/block-git-branch-ops.sh` が `git branch` をブロック
+    - hotfix/** ブランチの作成がテストの前提条件
+  - **実行条件**:
+    - メンテナによる hotfix/** ブランチの作成
+    - または、別のworktreeでの実施
+    - または、フック一時無効化（非推奨）
+  - **実行手順** (メンテナ向け):
+    1. `git checkout -b hotfix/test-release main` (mainから分岐)
+    2. テスト用の軽微な修正を実施（例: README.md に typo修正）
+    3. `git add . && git commit -m "fix: テスト用パッチ修正"`
+    4. `git push origin hotfix/test-release`
+    5. GitHub で hotfix/test-release → main のPR作成
+    6. 品質チェック通過確認
+    7. PRマージ
+    8. semantic-release が v1.0.1 パッチリリース作成を確認
+    9. バイナリ自動ビルド確認（4プラットフォーム）
+    10. ブランチ削除: `git branch -d hotfix/test-release`
+  - **検証項目**:
+    - ✓ hotfix/** ブランチからのPR作成
+    - ✓ Conventional Commits準拠（fix:）でパッチバージョン上昇
+    - ✓ 品質チェック自動実行・合格
+    - ✓ PRマージ後に自動リリース（v1.0.1）
+    - ✓ CHANGELOG.md自動更新
+    - ✓ Cargo.toml自動更新
+    - ✓ 4プラットフォームバイナリ自動ビルド・公開
 
 ## 依存関係グラフ
 
