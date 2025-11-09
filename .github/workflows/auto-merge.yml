@@ -1,6 +1,6 @@
 # Auto Merge Workflow
 # 機能ID: SPEC-47c6f44c
-# 目的: 品質チェック合格後に自動マージ実行
+# 目的: すべてのPRでGitHubの自動マージを有効化
 # 要件: FR-008, FR-009, FR-010, FR-011, FR-012
 
 name: Auto Merge
