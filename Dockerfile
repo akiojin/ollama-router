@@ -39,6 +39,7 @@ RUN curl -fsSL https://astral.sh/uv/install.sh | bash
 
 RUN npm i -g \
     npm@latest \
+    pnpm@latest \
     bun@latest \
     typescript@latest \
     eslint@latest \
