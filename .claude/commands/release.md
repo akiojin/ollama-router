@@ -5,37 +5,32 @@ tags: [project]
 
 # リリースコマンド
 
-developブランチから`release/vX.Y.Z`ブランチを自動作成し、正式リリースフローを開始します。
+GitHub Actionsワークフローを起動して、developブランチから`release/vX.Y.Z`ブランチを自動作成し、正式リリースフローを開始します。
 
 ## 実行内容
 
-1. 現在のブランチがdevelopであることを確認
-2. developブランチを最新に更新（`git pull`）
-3. semantic-releaseのドライランで次バージョンを判定
-4. `release/vX.Y.Z`ブランチをdevelopから作成
-5. リモートにpush
-6. GitHub Actionsが以下を自動実行：
-   - **releaseブランチ**: semantic-releaseによりCHANGELOG/Cargo.toml/タグ/GitHub Releaseを更新し、releaseブランチをmainへ直接取り込み（バックマージでdevelopも同期）
-   - **mainブランチ**: release.ymlの完了後にpublish.ymlが起動し、`release-binaries.yml`を呼び出して各プラットフォーム向けバイナリを添付
+1. GitHub CLIで`create-release.yml`ワークフローを起動（developブランチを指定）
+2. GitHub Actions側で以下を自動実行：
+   - developブランチでsemantic-releaseのドライランを実行
+   - 次バージョン番号を決定
+   - `release/vX.Y.Z`ブランチを作成してpush
+3. releaseブランチのpushを契機に`release.yml`が起動：
+   - semantic-releaseによりCHANGELOG/Cargo.toml/タグ/GitHub Releaseを更新
+   - releaseブランチをmainへ直接取り込み（バックマージでdevelopも同期）
+4. mainへのマージ後、`publish.yml`が起動：
+   - `release-binaries.yml`を呼び出して各プラットフォーム向けバイナリを添付
 
 ## 前提条件
 
-- developブランチにいること
 - GitHub CLIが認証済みであること（`gh auth status`）
-- コミットがConventional Commits準拠で、semantic-releaseがバージョンを判定できること
+- developブランチにConventional Commits準拠のコミットがあること
 
-## スクリプト実行
+## 使用方法
 
-以下のスクリプトを実行してリリースブランチを作成します：
+以下のスクリプトを実行してリリースフローを開始します：
 
 ```bash
 scripts/create-release-branch.sh
 ```
 
-スクリプトはGitHub Actionsの`create-release.yml`を起動し、リモートで次を実行します：
-
-1. developでsemantic-releaseドライラン
-2. 次バージョン番号の決定
-3. `release/vX.Y.Z`ブランチの作成とpush
-
-その後 release.yml → publish.yml → release-binaries.yml が連鎖的に進み、各プラットフォーム向け成果物を含むリリースが完了します。
+スクリプトは`gh workflow run create-release.yml --ref develop`を実行し、GitHub Actionsワークフローを起動します。その後、create-release.yml → release.yml → publish.yml → release-binaries.yml が連鎖的に実行され、リリースが完了します。
