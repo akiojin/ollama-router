@@ -35,30 +35,38 @@ jobs:
 
       - name: Verify workflow name
         run: |
-          WORKFLOW_NAME=$(grep -A 1 "^name:" .github/workflows/auto-merge.yml | tail -1 | sed 's/name: //' | tr -d '"')
-          if [ "$WORKFLOW_NAME" != "Auto Merge" ]; then
-            echo "❌ ERROR: Workflow name is not 'Auto Merge'"
-            echo "Expected: 'Auto Merge'"
+          WORKFLOW_NAME=$(grep "^name:" .github/workflows/auto-merge.yml | head -1 | cut -d':' -f2- | xargs)
+          if [ "$WORKFLOW_NAME" != "Auto Merge PR" ]; then
+            echo "❌ ERROR: Workflow name is not 'Auto Merge PR'"
+            echo "Expected: 'Auto Merge PR'"
             echo "Actual: '$WORKFLOW_NAME'"
             exit 1
           fi
           echo "✅ Workflow name is correct"
 
-      - name: Verify workflow_run trigger
+      - name: Verify pull_request trigger and branches
         run: |
-          if ! grep -q "workflow_run:" .github/workflows/auto-merge.yml; then
-            echo "❌ ERROR: workflow_run trigger not found"
+          if ! grep -q "^  pull_request:" .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: pull_request trigger not found"
             exit 1
           fi
-          echo "✅ workflow_run trigger found"
+          echo "✅ pull_request trigger found"
 
-          if ! grep -q 'workflows: \["Quality Checks"\]' .github/workflows/auto-merge.yml; then
-            echo "❌ ERROR: 'Quality Checks' workflow not found in workflow_run trigger"
+          if ! grep -q "types: \\[opened, synchronize, reopened, ready_for_review\\]" .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: pull_request types do not match expected list"
             exit 1
           fi
-          echo "✅ Triggers on 'Quality Checks' workflow"
+          echo "✅ pull_request types are correct"
 
-      - name: Verify required permissions
+          for branch in main develop; do
+            if ! grep -q "      - $branch" .github/workflows/auto-merge.yml; then
+              echo "❌ ERROR: Branch '$branch' not included in auto-merge trigger"
+              exit 1
+            fi
+            echo "✅ Branch '$branch' found"
+          done
+
+      - name: Verify required permissions and draft handling
         run: |
           if ! grep -q "contents: write" .github/workflows/auto-merge.yml; then
             echo "❌ ERROR: 'contents: write' permission not found"
@@ -72,15 +80,41 @@ jobs:
           fi
           echo "✅ 'pull-requests: write' permission found"
 
+          if grep -q "if: github.event.pull_request.draft == false" .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: Job-level draft guard should not exist"
+            exit 1
+          fi
+          echo "✅ Job-level draft guard removed"
+
+          if ! grep -q '\${{ github.event.pull_request.draft }}' .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: Inline draft check not found in auto-merge step"
+            exit 1
+          fi
+          echo "✅ Inline draft handling is present"
+
+      - name: Verify auto-merge command
+        run: |
+          if ! grep -q 'GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}' .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: GH_TOKEN fallback env not found"
+            exit 1
+          fi
+          echo "✅ GH_TOKEN env is configured with PAT fallback"
+
+          if ! grep -q "gh pr merge --auto --merge" .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: gh pr merge command not found"
+            exit 1
+          fi
+          echo "✅ gh pr merge command is present"
+
   test-expected-failure:
     runs-on: ubuntu-latest
     steps:
       - name: This test should fail (RED phase)
         run: |
           echo "🔴 RED Phase: This test is expected to FAIL"
-          echo "Reason: auto-merge.yml has not been implemented yet"
+          echo "Reason: Placeholder RED check remains until a passing GREEN suite replaces it"
           echo ""
-          echo "Next step: Implement auto-merge.yml (T007) to make this test PASS (GREEN)"
+          echo "Next step: Replace this placeholder with assertions that exercise the deployed workflow"
 
           # Intentional failure for TDD RED phase
           exit 1
