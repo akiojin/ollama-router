@@ -94,11 +94,17 @@ jobs:
 
       - name: Verify auto-merge command
         run: |
-          if ! grep -q "secrets.PAT || secrets.GITHUB_TOKEN" .github/workflows/auto-merge.yml; then
-            echo "❌ ERROR: GH_TOKEN fallback expression not found"
+          if ! rg -q "GH_TOKEN:.*secrets\.PAT" .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: GH_TOKEN assignment is not restricted to secrets.PAT"
             exit 1
           fi
-          echo "✅ GH_TOKEN env is configured with PAT fallback"
+          echo "✅ GH_TOKEN uses secrets.PAT"
+
+          if ! grep -q "Required secret PAT is not configured" .github/workflows/auto-merge.yml; then
+            echo "❌ ERROR: PAT presence check not found"
+            exit 1
+          fi
+          echo "✅ PAT presence check is present"
 
           if ! grep -q "gh pr merge --auto --merge" .github/workflows/auto-merge.yml; then
             echo "❌ ERROR: gh pr merge command not found"

@@ -19,8 +19,13 @@ jobs:
     steps:
       - name: Enable auto-merge
         env:
-          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT }}
         run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::Required secret PAT is not configured. Set secrets.PAT (Personal Access Token with contents/pull-requests write) to enable auto-merge."
+            exit 1
+          fi
+
           if [ "${{ github.event.pull_request.draft }}" = "true" ]; then
             echo "⏭️ PR #${{ github.event.pull_request.number }} is draft. Auto-merge cannot be enabled yet."
             exit 0
