@@ -68,7 +68,7 @@ jobs:
             echo "❌ ERROR: 'pull-requests: write' permission missing"
             exit 1
           fi
-          if grep -q "if: github.event.pull_request.draft == false" .github/workflows/auto-merge.yml; then
+          if grep -Eq "^[[:space:]]+if:\s*github\.event\.pull_request\.draft == false" .github/workflows/auto-merge.yml; then
             echo "❌ ERROR: Job-level draft guard should not exist"
             exit 1
           fi
