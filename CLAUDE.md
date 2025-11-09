@@ -221,6 +221,23 @@ git rebase -i HEAD~3
 - ブランチ／Worktree の新規作成・削除・切り替えが必要になった場合は、必ずメンテナに相談し指示を受ける。
 - CI やリポジトリ管理スクリプトが環境を制御しているため、手動での操作は重大な不整合を引き起こす可能性がある。
 
+**自動保護機構（Claude Code PreToolUse Hooks）**:
+
+上記のルールを強制するため、Claude Code PreToolUse Hookスクリプトが自動的に以下の操作をブロックします：
+
+- **Git操作ブロック** (`.claude/hooks/block-git-branch-ops.sh`):
+  - `git checkout`, `git switch`: ブランチ切り替えを防止
+  - `git worktree add`: 新しいWorktree作成を防止
+  - `git branch -d/-D/-m/-M`: ブランチ削除・リネームを防止
+  - 読み取り専用操作（`git branch`, `git branch --list`等）は許可
+
+- **ディレクトリ移動ブロック** (`.claude/hooks/block-cd-command.sh`):
+  - Worktree外へのcd（`cd /`, `cd ~`, `cd ../..`等）を防止
+  - Worktree内のcd（`cd .`, `cd src`等）は許可
+
+これらのHookは、コマンド実行前に自動的にチェックし、違反操作を即座にブロックします。
+詳細は [specs/SPEC-dc648675/](specs/SPEC-dc648675/) を参照してください。
+
 ### TDD遵守（妥協不可）
 
 **絶対遵守事項:**
