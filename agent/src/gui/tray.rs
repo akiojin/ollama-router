@@ -1,6 +1,9 @@
 #![cfg(any(target_os = "windows", target_os = "macos"))]
 
-use std::{process::Command, time::Duration};
+use std::process::Command;
+
+#[cfg(target_os = "macos")]
+use std::time::Duration;
 
 #[cfg(target_os = "macos")]
 use std::time::Instant;
@@ -56,6 +59,7 @@ impl TrayOptions {
     }
 }
 
+/// トレイイベントループへランタイム側から通知するためのプロキシ。
 #[derive(Clone)]
 pub struct TrayEventProxy {
     proxy: EventLoopProxy<RuntimeEvent>,
