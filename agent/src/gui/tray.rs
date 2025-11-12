@@ -106,6 +106,7 @@ where
 
     let mut controller = TrayController::new(options);
 
+    #[allow(deprecated)]
     event_loop
         .run(move |event, event_loop| match event {
             Event::NewEvents(StartCause::Init) => controller.ensure_initialized(),
@@ -142,16 +143,21 @@ impl TrayController {
     fn ensure_initialized(&mut self) {
         if self.tray_icon.is_none() {
             let icon = create_icon();
-            let mut builder = TrayIconBuilder::new()
-                .with_tooltip(self.options.tooltip())
-                .with_icon(icon)
-                .with_menu(Box::new(self.menu.menu.clone()))
-                .with_menu_on_left_click(false);
-
-            #[cfg(target_os = "macos")]
-            {
-                builder = builder.with_icon_as_template(true);
-            }
+            let builder = {
+                let base = TrayIconBuilder::new()
+                    .with_tooltip(self.options.tooltip())
+                    .with_icon(icon)
+                    .with_menu(Box::new(self.menu.menu.clone()))
+                    .with_menu_on_left_click(false);
+                #[cfg(target_os = "macos")]
+                {
+                    base.with_icon_as_template(true)
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    base
+                }
+            };
 
             self.tray_icon = Some(builder.build().expect("failed to create tray icon"));
         }
