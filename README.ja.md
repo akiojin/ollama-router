@@ -205,14 +205,21 @@ cargo build --release
 cd agent
 cargo build --release
 
-# Agentを起動
+# Agentを起動（環境変数で上書き）
 COORDINATOR_URL=http://coordinator-host:8080 ./target/release/ollama-coordinator-agent
 
-# または環境変数なしで起動（デフォルト: http://localhost:8080）
+# 環境変数を指定しない場合は設定パネルで保存した値、なければ http://localhost:8080
 ./target/release/ollama-coordinator-agent
 ```
 
 **注意**: Agentは起動時にOllamaの存在を確認し、未インストールなら自動的にバイナリをダウンロード・検証・展開してから起動します。手動インストールが必要な場合は[ollama.ai](https://ollama.ai)から取得できます。
+
+#### システムトレイ & 設定パネル（Windows / macOS）
+
+- Windows 10 以降 / macOS 12 以降では、起動と同時にトレイ常駐します。
+- ダブルクリック、もしくはトレイメニューの **設定パネルを開く** からローカル設定画面を表示し、コーディネーターURL / Ollamaポート / ハートビート間隔を編集できます。値は `~/.ollama-coordinator/agent-settings.json` に保存され、環境変数 (`COORDINATOR_URL` など) を指定しない限りこちらが優先されます。
+- **Dashboardを開く** は `COORDINATOR_URL/dashboard` を開き、**Agentを終了** で常駐プロセスを停止します。
+- Linux 版は従来通り CLI 常駐ですが、起動時にブラウザで開ける設定パネルURLを標準出力に表示します。
 
 ### リリースバイナリの作成と公開
 
@@ -252,6 +259,7 @@ GitHubリリースには各プラットフォーム向けのバイナリを同�
 1. 開発者は `develop` ブランチ上で `/release` コマンド、もしくは `./scripts/create-release-branch.sh` を実行します。内部では `scripts/create-release-branch.sh` が `gh workflow run create-release.yml --ref develop` を呼び出し、semantic-release のドライランで次バージョンを計算しつつ `release/vX.Y.Z` ブランチを作成・push します。
 2. release ブランチの push を契機に `.github/workflows/release.yml` が起動し、semantic-release 本番実行 → CHANGELOG / Cargo.toml / バージョンタグ更新 → main への自動マージ → develop へのバックマージ → release ブランチ削除までを一括で行います。
 3. main へのマージにより `.github/workflows/publish.yml` が動作し、`release-binaries.yml` を呼び出して Linux / macOS (x86_64, ARM64) / Windows 向けバイナリをビルド・検証し、GitHub Release に添付します。
+   - この publish フェーズでは従来の `.tar.gz` / `.zip` アーカイブに加えて、`pkgbuild` で作成した macOS 用 `.pkg` と、WiX Toolset で作成した Windows 用 `.msi` も同時に生成・添付されます。既存のリリース資産は削除せず、そのまま維持します。
 
 人手が必要なのは `/release` の実行と、必要に応じた進捗モニタリング（`gh run watch …`）だけです。バージョン決定からリリースノート生成、develop への同期まで CI が自動で完了させます。
 
