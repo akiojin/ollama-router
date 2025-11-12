@@ -90,6 +90,7 @@ mod tests {
     use crate::{
         balancer::{LoadManager, MetricsUpdate},
         registry::AgentRegistry,
+        tasks::DownloadTaskManager,
     };
     use axum::body::{to_bytes, Body};
     use axum::http::{Request, StatusCode};
@@ -101,10 +102,12 @@ mod tests {
         let load_manager = LoadManager::new(registry.clone());
         let request_history =
             std::sync::Arc::new(crate::db::request_history::RequestHistoryStorage::new().unwrap());
+        let task_manager = DownloadTaskManager::new();
         let state = AppState {
             registry: registry.clone(),
             load_manager,
             request_history,
+            task_manager,
         };
         (state, registry)
     }

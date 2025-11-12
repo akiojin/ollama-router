@@ -47,4 +47,6 @@ pub struct AppState {
     pub load_manager: balancer::LoadManager,
     /// リクエスト履歴ストレージ
     pub request_history: std::sync::Arc<db::request_history::RequestHistoryStorage>,
+    /// ダウンロードタスクマネージャー
+    pub task_manager: tasks::DownloadTaskManager,
 }

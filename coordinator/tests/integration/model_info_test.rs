@@ -19,10 +19,12 @@ fn build_app() -> Router {
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
+    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
     let state = AppState {
         registry,
         load_manager,
         request_history,
+        task_manager,
     };
 
     api::create_router(state)
