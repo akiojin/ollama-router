@@ -44,6 +44,7 @@ fn sample_gpu_devices(model: &str) -> Vec<GpuDeviceInfo> {
     vec![GpuDeviceInfo {
         model: model.to_string(),
         count: 1,
+        memory: None,
     }]
 }
 

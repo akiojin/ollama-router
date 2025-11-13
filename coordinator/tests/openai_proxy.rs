@@ -36,6 +36,7 @@ async fn build_state_with_mock(mock: &MockServer) -> AppState {
             gpu_devices: vec![GpuDeviceInfo {
                 model: "Test GPU".to_string(),
                 count: 1,
+                memory: None,
             }],
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),

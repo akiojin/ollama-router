@@ -13,7 +13,7 @@ use ollama_coordinator_common::{
 };
 use serde::Deserialize;
 use serde_json::json;
-use tracing::info;
+use tracing::{error, info};
 
 /// POST /api/agents - エージェント登録
 pub async fn register_agent(
@@ -59,28 +59,74 @@ pub async fn register_agent(
         req.gpu_model = req.gpu_devices.first().map(|device| device.model.clone());
     }
 
-    let response = state.registry.register(req).await?;
+    // GPUメモリ情報からモデルを選択（reqを移動する前に取得）
+    // gpu_devicesの最大メモリ容量を使用（複数GPU時は最大のものを選ぶ想定）
+    let gpu_memory_bytes = req
+        .gpu_devices
+        .iter()
+        .filter_map(|d| d.memory)
+        .max()
+        .unwrap_or(16_000_000_000); // デフォルトは16GB（gpt-oss:20b）
 
-    // エージェント登録成功後、自動的にデフォルトモデル（gpt-oss:20b）を配布
+    let model_name = crate::models::gpu_selector::select_model_by_gpu_memory(gpu_memory_bytes);
+
+    let mut response = state.registry.register(req).await?;
+
+    // エージェント登録成功後、最適なモデルを自動配布
     let agent_id = response.agent_id;
     let task_manager = state.task_manager.clone();
+    let registry = state.registry.clone();
 
-    // バックグラウンドでモデル配布を実行
+    // タスクを作成（同期的に実行し、レスポンスに含める）
+    let task = task_manager.create_task(agent_id, model_name.clone()).await;
+    let task_id = task.id;
+
+    info!(
+        "Auto-distribution started: agent_id={}, model={}, task_id={}",
+        agent_id, model_name, task_id
+    );
+
+    // レスポンスに自動配布情報を追加
+    response.auto_distributed_model = Some(model_name.clone());
+    response.download_task_id = Some(task_id);
+
+    // エージェントにモデルプル要求を送信（バックグラウンド）
     tokio::spawn(async move {
-        // TODO: GPUメモリ情報からモデルを選択
-        // 現在はデフォルトで gpt-oss:20b を配布
-        let model_name = "gpt-oss:20b".to_string();
+        match registry.get(agent_id).await {
+            Ok(agent) => {
+                // エージェントAPIのポート（デフォルト: Ollama port + 1）
+                let agent_api_port = agent.ollama_port + 1;
+                let agent_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
 
-        // タスクを作成
-        let task = task_manager.create_task(agent_id, model_name.clone()).await;
+                info!("Sending pull request to agent: {}", agent_url);
 
-        info!(
-            "Auto-distribution started: agent_id={}, model={}, task_id={}",
-            agent_id, model_name, task.id
-        );
+                let client = reqwest::Client::new();
+                let pull_request = serde_json::json!({
+                    "model": model_name,
+                    "task_id": task_id,
+                });
 
-        // TODO: エージェントにモデルプル要求を送信（T033, T034で実装）
-        // 現在はタスク作成のみ
+                match client.post(&agent_url).json(&pull_request).send().await {
+                    Ok(response) => {
+                        if response.status().is_success() {
+                            info!("Successfully sent pull request to agent {}", agent_id);
+                        } else {
+                            error!(
+                                "Agent {} returned error status: {}",
+                                agent_id,
+                                response.status()
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to send pull request to agent {}: {}", agent_id, e);
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to get agent {} info: {}", agent_id, e);
+            }
+        }
     });
 
     Ok(Json(response))
@@ -233,6 +279,7 @@ mod tests {
         vec![GpuDeviceInfo {
             model: "Test GPU".to_string(),
             count: 1,
+            memory: None,
         }]
     }
 

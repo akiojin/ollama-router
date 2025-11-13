@@ -186,7 +186,9 @@ async fn test_get_agent_models_contract() {
         .await
         .unwrap();
     let agent: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let agent_id = agent["id"].as_str().expect("Agent must have 'id' field");
+    let agent_id = agent["agent_id"]
+        .as_str()
+        .expect("Agent must have 'agent_id' field");
 
     // モデル一覧を取得
     let response = app
@@ -264,7 +266,9 @@ async fn test_pull_model_contract() {
         .await
         .unwrap();
     let agent: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let agent_id = agent["id"].as_str().expect("Agent must have 'id' field");
+    let agent_id = agent["agent_id"]
+        .as_str()
+        .expect("Agent must have 'agent_id' field");
 
     // モデルプル
     let request_body = json!({
@@ -342,7 +346,9 @@ async fn test_get_task_progress_contract() {
         .await
         .unwrap();
     let agent: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let agent_id = agent["id"].as_str().expect("Agent must have 'id' field");
+    let agent_id = agent["agent_id"]
+        .as_str()
+        .expect("Agent must have 'agent_id' field");
 
     // モデルプルを開始してタスクIDを取得
     let request_body = json!({

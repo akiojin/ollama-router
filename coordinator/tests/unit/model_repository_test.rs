@@ -5,8 +5,7 @@
 #[cfg(test)]
 mod tests {
     use ollama_coordinator_coordinator::{
-        registry::models::{DownloadStatus, DownloadTask},
-        tasks::DownloadTaskManager,
+        registry::models::DownloadStatus, tasks::DownloadTaskManager,
     };
     use uuid::Uuid;
 

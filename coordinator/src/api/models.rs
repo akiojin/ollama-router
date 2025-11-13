@@ -14,7 +14,6 @@ use uuid::Uuid;
 use crate::{
     ollama::OllamaClient,
     registry::models::{DownloadTask, InstalledModel, ModelInfo},
-    tasks::DownloadTaskManager,
     AppState,
 };
 use ollama_coordinator_common::error::CoordinatorError;
@@ -59,6 +58,16 @@ pub struct PullModelRequest {
 pub struct PullModelResponse {
     /// タスクID
     pub task_id: Uuid,
+}
+
+/// タスク進捗更新リクエスト
+#[derive(Debug, Deserialize)]
+pub struct UpdateProgressRequest {
+    /// 進捗（0.0-1.0）
+    pub progress: f32,
+    /// ダウンロード速度（bytes/sec、オプション）
+    #[serde(default)]
+    pub speed: Option<u64>,
 }
 
 /// Axum用のエラーレスポンス型
@@ -113,9 +122,6 @@ pub async fn distribute_models(
     State(state): State<AppState>,
     Json(request): Json<DistributeModelsRequest>,
 ) -> Result<(StatusCode, Json<DistributeModelsResponse>), AppError> {
-    // タスクマネージャーを取得（後で AppState に追加）
-    let _task_manager = DownloadTaskManager::new();
-
     // ターゲットエージェントを決定
     let agent_ids = match request.target.as_str() {
         "all" => {
@@ -132,25 +138,56 @@ pub async fn distribute_models(
         }
     };
 
-    // 各エージェントID が存在することを確認
-    for agent_id in &agent_ids {
-        // get() は Result<Agent, Error> を返し、存在しない場合はエラーを返す
-        state.registry.get(*agent_id).await?;
-    }
-
-    // タスクを作成（実際の配布は後で実装）
+    // 各エージェントID が存在することを確認し、タスクを作成
     let mut task_ids = Vec::new();
     for agent_id in agent_ids {
-        let task_id = Uuid::new_v4(); // Placeholder
+        // エージェントが存在することを確認
+        let agent = state.registry.get(agent_id).await?;
+
+        // タスクを作成
+        let task = state
+            .task_manager
+            .create_task(agent_id, request.model_name.clone())
+            .await;
+        let task_id = task.id;
         task_ids.push(task_id);
 
-        // TODO: 実際のタスクを作成してエージェントに配布
         tracing::info!(
             "Created distribution task {} for agent {} with model {}",
             task_id,
             agent_id,
             request.model_name
         );
+
+        // エージェントにモデルプル要求を送信（バックグラウンド）
+        let agent_api_port = agent.ollama_port + 1;
+        let agent_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
+        let model_name = request.model_name.clone();
+
+        tokio::spawn(async move {
+            let client = reqwest::Client::new();
+            let pull_request = serde_json::json!({
+                "model": model_name,
+                "task_id": task_id,
+            });
+
+            match client.post(&agent_url).json(&pull_request).send().await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        tracing::info!("Successfully sent pull request to agent {}", agent_id);
+                    } else {
+                        tracing::error!(
+                            "Agent {} returned error status: {}",
+                            agent_id,
+                            response.status()
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to send pull request to agent {}: {}", agent_id, e);
+                }
+            }
+        });
     }
 
     Ok((
@@ -183,12 +220,15 @@ pub async fn pull_model_to_agent(
     Json(request): Json<PullModelRequest>,
 ) -> Result<(StatusCode, Json<PullModelResponse>), AppError> {
     // エージェントが存在することを確認
-    let _agent = state.registry.get(agent_id).await?;
+    let agent = state.registry.get(agent_id).await?;
 
     // タスクを作成
-    let task_id = Uuid::new_v4(); // Placeholder
+    let task = state
+        .task_manager
+        .create_task(agent_id, request.model_name.clone())
+        .await;
+    let task_id = task.id;
 
-    // TODO: 実際のタスクを作成してエージェントに配布
     tracing::info!(
         "Created pull task {} for agent {} with model {}",
         task_id,
@@ -196,18 +236,73 @@ pub async fn pull_model_to_agent(
         request.model_name
     );
 
+    // エージェントにモデルプル要求を送信（バックグラウンド）
+    let agent_api_port = agent.ollama_port + 1;
+    let agent_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
+    let model_name = request.model_name.clone();
+
+    tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        let pull_request = serde_json::json!({
+            "model": model_name,
+            "task_id": task_id,
+        });
+
+        match client.post(&agent_url).json(&pull_request).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    tracing::info!("Successfully sent pull request to agent {}", agent_id);
+                } else {
+                    tracing::error!(
+                        "Agent {} returned error status: {}",
+                        agent_id,
+                        response.status()
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to send pull request to agent {}: {}", agent_id, e);
+            }
+        }
+    });
+
     Ok((StatusCode::ACCEPTED, Json(PullModelResponse { task_id })))
 }
 
 /// T031: GET /api/tasks/{task_id} - タスク進捗を取得
 pub async fn get_task_progress(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(task_id): Path<Uuid>,
 ) -> Result<Json<DownloadTask>, AppError> {
-    // タスクマネージャーから取得（後で AppState に追加）
-    let _task_manager = DownloadTaskManager::new();
+    // タスクマネージャーからタスクを取得
+    let task = state
+        .task_manager
+        .get_task(task_id)
+        .await
+        .ok_or_else(|| CoordinatorError::Internal(format!("Task {} not found", task_id)))?;
 
-    // TODO: タスクマネージャーからタスクを取得
-    // 現在はダミーのタスクを返す
-    Err(CoordinatorError::Internal(format!("Task {} not found", task_id)).into())
+    Ok(Json(task))
+}
+
+/// T034: POST /api/tasks/{task_id}/progress - タスク進捗を更新（エージェントから呼ばれる）
+pub async fn update_progress(
+    State(state): State<AppState>,
+    Path(task_id): Path<Uuid>,
+    Json(request): Json<UpdateProgressRequest>,
+) -> Result<StatusCode, AppError> {
+    tracing::debug!(
+        "Updating progress for task {}: progress={}, speed={:?}",
+        task_id,
+        request.progress,
+        request.speed
+    );
+
+    // タスクの進捗を更新
+    state
+        .task_manager
+        .update_progress(task_id, request.progress, request.speed)
+        .await
+        .ok_or_else(|| CoordinatorError::Internal(format!("Task {} not found", task_id)))?;
+
+    Ok(StatusCode::OK)
 }

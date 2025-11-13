@@ -80,6 +80,10 @@ pub fn create_router(state: AppState) -> Router {
             post(models::pull_model_to_agent),
         )
         .route("/api/tasks/:task_id", get(models::get_task_progress))
+        .route(
+            "/api/tasks/:task_id/progress",
+            post(models::update_progress),
+        )
         .nest_service("/dashboard", static_files)
         .with_state(state)
 }
@@ -116,6 +120,7 @@ mod tests {
         vec![GpuDeviceInfo {
             model: "Test GPU".to_string(),
             count: 1,
+            memory: None,
         }]
     }
 

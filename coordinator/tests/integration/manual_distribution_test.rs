@@ -67,7 +67,9 @@ async fn test_manual_distribution_to_specific_agent() {
         .await
         .unwrap();
     let agent: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let agent_id = agent["id"].as_str().expect("Agent must have 'id' field");
+    let agent_id = agent["agent_id"]
+        .as_str()
+        .expect("Agent must have 'agent_id' field");
 
     // 特定のエージェントにモデルを配布
     let distribute_payload = json!({
@@ -215,9 +217,9 @@ async fn test_progress_tracking_multiple_agents() {
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let agent: serde_json::Value = serde_json::from_slice(&body).unwrap();
         agent_ids.push(
-            agent["id"]
+            agent["agent_id"]
                 .as_str()
-                .expect("Agent must have 'id'")
+                .expect("Agent must have 'agent_id'")
                 .to_string(),
         );
     }

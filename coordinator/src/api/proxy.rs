@@ -545,6 +545,7 @@ mod tests {
             gpu_devices: vec![GpuDeviceInfo {
                 model: "Test GPU".to_string(),
                 count: 1,
+                memory: None,
             }],
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
@@ -572,6 +573,7 @@ mod tests {
             gpu_devices: vec![GpuDeviceInfo {
                 model: "Test GPU".to_string(),
                 count: 1,
+                memory: None,
             }],
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
@@ -595,6 +597,7 @@ mod tests {
             gpu_devices: vec![GpuDeviceInfo {
                 model: "Test GPU".to_string(),
                 count: 1,
+                memory: None,
             }],
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),

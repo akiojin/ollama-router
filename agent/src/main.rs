@@ -50,7 +50,7 @@ async fn main() {
     println!("Ollama version: {}", ollama_version);
 
     // Coordinatorクライアントを初期化
-    let mut coordinator_client = CoordinatorClient::new(coordinator_url);
+    let mut coordinator_client = CoordinatorClient::new(coordinator_url.clone());
 
     // メトリクスコレクターを初期化（GPU情報取得のため）
     // ollamaバイナリのパスを渡してollama psコマンドでGPU検出を可能にする
@@ -114,6 +114,7 @@ async fn main() {
 
     let state = api::models::AppState {
         ollama_manager: ollama_manager_for_api,
+        coordinator_url: coordinator_url.clone(),
     };
     let app = api::create_router(state);
     let bind_addr = format!("0.0.0.0:{}", agent_api_port);
@@ -484,6 +485,7 @@ mod tests {
             gpu_devices: vec![GpuDeviceInfo {
                 model: "Test GPU".to_string(),
                 count: 1,
+                memory: None,
             }],
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
@@ -522,6 +524,7 @@ mod tests {
             gpu_devices: vec![GpuDeviceInfo {
                 model: "Test GPU".to_string(),
                 count: 1,
+                memory: None,
             }],
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
