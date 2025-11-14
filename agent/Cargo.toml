@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+build = "build.rs"
 
 [dependencies]
 ollama-coordinator-common = { path = "../common" }
@@ -44,6 +45,9 @@ indicatif = "0.17"
 sha2 = "0.10"
 dirs = "5.0"
 
+[build-dependencies]
+winresource = "0.1.27"
+
 # GPU検出 (プラットフォーム別)
 [target.'cfg(target_os = "macos")'.dependencies]
 metal = "0.29"
@@ -51,6 +55,7 @@ metal = "0.29"
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 tray-icon = "0.21.2"
 winit = "0.30"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

@@ -1,3 +1,60 @@
+## [1.4.1](https://github.com/akiojin/ollama-coordinator/compare/v1.4.0...v1.4.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* **coordinator:** ダッシュボードをバイナリに同梱 ([b8c6c7d](https://github.com/akiojin/ollama-coordinator/commit/b8c6c7de14aec59a740f29d51d13511eff8dcbb4))
+
+# [1.4.0](https://github.com/akiojin/ollama-coordinator/compare/v1.3.1...v1.4.0) (2025-11-14)
+
+
+### Bug Fixes
+
+* **agent:** windows環境でのnvidia gpu検出を修正 ([ef9a8a8](https://github.com/akiojin/ollama-coordinator/commit/ef9a8a8091ad8c44e7b014e1b7147d23bfce968e))
+* **test:** windowsでnvidia gpu検出テストをスキップ ([9cd8a77](https://github.com/akiojin/ollama-coordinator/commit/9cd8a7774d47eb6418424496dd28f4898c36e75e))
+
+
+### Features
+
+* **coordinator:** add system tray support ([78a0ad2](https://github.com/akiojin/ollama-coordinator/commit/78a0ad24b02447dbfb6501ebeabccc758fb92c40))
+* **coordinator:** add system tray support ([15ae54a](https://github.com/akiojin/ollama-coordinator/commit/15ae54ade0f45310dab1c57e4e10b0e8c971f623))
+* **tray:** refresh agent/coordinator icons ([0cf6f7d](https://github.com/akiojin/ollama-coordinator/commit/0cf6f7df2cad819907f50087745615e38334afe6))
+* **tray:** システムトレイアイコンを刷新 ([a44569f](https://github.com/akiojin/ollama-coordinator/commit/a44569f48581b56ee065c805471f3ed6fe6da98d))
+
+## [1.3.1](https://github.com/akiojin/ollama-coordinator/compare/v1.3.0...v1.3.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* **installer:** embed cab into windows msi ([9ad1797](https://github.com/akiojin/ollama-coordinator/commit/9ad1797cea81222f0676d1147f4f95b94ee2ba1b))
+
+# [1.3.0](https://github.com/akiojin/ollama-coordinator/compare/v1.2.3...v1.3.0) (2025-11-14)
+
+
+### Bug Fixes
+
+* **installer:** mark windows components as 64-bit ([2c0e10f](https://github.com/akiojin/ollama-coordinator/commit/2c0e10fac0dcd96ec2da8b7b619983d8059fb909))
+* **lint:** needless_borrows_for_generic_argsエラーを修正 ([f05bc48](https://github.com/akiojin/ollama-coordinator/commit/f05bc481166c05bc2f0c7c6a31359f5cc781ccb3))
+
+
+### Features
+
+* **agent:** エージェント側HTTPサーバーとモデルプルAPI実装 (T033) ([2142f53](https://github.com/akiojin/ollama-coordinator/commit/2142f53bc67d11550d7569bcc5b3c4e8848a36fb))
+* **coordinator:** エージェント登録時の自動モデル配布機能を実装 (T032) ([7935be0](https://github.com/akiojin/ollama-coordinator/commit/7935be05098c0ad458609dc53af66f94caf442bb))
+* **coordinator:** コーディネーター主導のモデル配布機能を実装 (Phase 3.1-3.3) ([62edaf7](https://github.com/akiojin/ollama-coordinator/commit/62edaf7435e82cacd177ae3eb6939a0be72ff129))
+* **error:** エラーハンドリング強化 (T039) ([5350a31](https://github.com/akiojin/ollama-coordinator/commit/5350a31bd9dae6b6c7690d25767ab18e1c3a42cb))
+* **logging:** ロギング強化 (T040) ([8cd8575](https://github.com/akiojin/ollama-coordinator/commit/8cd85758bcaa5eeeef5e77e8d4dbb6ed8091f80e))
+* **models:** 進捗報告機能とエージェント自動配布を実装 (T034, T032拡張) ([9c81c48](https://github.com/akiojin/ollama-coordinator/commit/9c81c4894c25b6403feafc802faf6adabd0b7404))
+* **ui:** モデル管理ダッシュボードUIを実装 (T036-T038) ([4b4ccb7](https://github.com/akiojin/ollama-coordinator/commit/4b4ccb77261482550d9b9dcbebec4a196ec0ed0b))
+
+## [1.2.3](https://github.com/akiojin/ollama-coordinator/compare/v1.2.2...v1.2.3) (2025-11-14)
+
+
+### Bug Fixes
+
+* **ci:** allow wix downgrade on windows ([698c7f6](https://github.com/akiojin/ollama-coordinator/commit/698c7f657517c21ba88fc8a0e145b93cbdd12aac))
+* **ci:** configure macos x86 linker ([fe3af80](https://github.com/akiojin/ollama-coordinator/commit/fe3af8042fd83a8a1ce2d19bc96928ec832a9ede))
+
 ## [1.2.2](https://github.com/akiojin/ollama-coordinator/compare/v1.2.1...v1.2.2) (2025-11-14)
 
 
