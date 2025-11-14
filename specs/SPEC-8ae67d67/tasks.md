@@ -133,13 +133,13 @@
 
 ### ダッシュボードUI拡張
 
-- [ ] **T036** UI: `coordinator/src/web/static/index.html` に「モデル管理」タブを追加
-- [ ] **T037** UI: `coordinator/src/web/static/models.js` を作成
+- [x] **T036** UI: `coordinator/src/web/static/index.html` に「モデル管理」タブを追加
+- [x] **T037** UI: `coordinator/src/web/static/models.js` を作成
   - `fetchAvailableModels()` 関数
   - `distributeModel()` 関数
   - `fetchAgentModels()` 関数
   - `monitorProgress()` 関数（5秒ポーリング）
-- [ ] **T038** UI: `coordinator/src/web/static/app.js` を拡張
+- [x] **T038** UI: `coordinator/src/web/static/app.js` を拡張
   - エージェント詳細モーダルに「インストール済みモデル」セクション追加
   - ダウンロード進捗表示（HTML5 `<progress>` タグ）
 
