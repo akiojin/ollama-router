@@ -26,9 +26,9 @@
 
 ## Phase 3.1: セットアップ (Setup)
 
-- [ ] **T001** [P] データモデル定義: `coordinator/src/registry/models.rs` に `ModelInfo`, `InstalledModel`, `DownloadTask` 構造体を定義
-- [ ] **T002** [P] タスク管理モジュール: `coordinator/src/tasks/mod.rs` に `DownloadTaskManager` 構造体を定義
-- [ ] **T003** [P] Ollama公式API通信モジュール: `coordinator/src/ollama/mod.rs` と `coordinator/src/ollama/client.rs` を作成（構造のみ、実装は後）
+- [x] **T0*01** [P] データモデル定義: `coordinator/src/registry/models.rs` に `ModelInfo`, `InstalledModel`, `DownloadTask` 構造体を定義
+- [x] **T0*02** [P] タスク管理モジュール: `coordinator/src/tasks/mod.rs` に `DownloadTaskManager` 構造体を定義
+- [x] **T0*03** [P] Ollama公式API通信モジュール: `coordinator/src/ollama/mod.rs` と `coordinator/src/ollama/client.rs` を作成（構造のみ、実装は後）
 
 ---
 
@@ -38,37 +38,37 @@
 
 ### Contract Tests
 
-- [ ] **T004** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_get_available_models_contract()` を作成
-- [ ] **T005** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_distribute_models_contract()` を作成
-- [ ] **T006** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_get_agent_models_contract()` を作成
-- [ ] **T007** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_pull_model_contract()` を作成
-- [ ] **T008** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_get_task_progress_contract()` を作成
+- [x] **T0*04** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_get_available_models_contract()` を作成
+- [x] **T0*05** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_distribute_models_contract()` を作成
+- [x] **T0*06** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_get_agent_models_contract()` を作成
+- [x] **T0*07** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_pull_model_contract()` を作成
+- [x] **T0*08** [P] Contract test: `coordinator/tests/contract/models_api_test.rs` に `test_get_task_progress_contract()` を作成
 
 ### Integration Tests - ユーザーストーリー1（自動配布）
 
-- [ ] **T009** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_16gb_gpu()` を作成
-- [ ] **T010** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_8gb_gpu()` を作成
-- [ ] **T011** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_4_5gb_gpu()` を作成
-- [ ] **T012** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_small_gpu()` を作成
-- [ ] **T013** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_progress_display_during_download()` を作成
+- [x] **T0*09** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_16gb_gpu()` を作成
+- [x] **T0*10** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_8gb_gpu()` を作成
+- [x] **T0*11** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_4_5gb_gpu()` を作成
+- [x] **T0*12** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_auto_download_on_registration_small_gpu()` を作成
+- [x] **T0*13** [P] Integration test: `coordinator/tests/integration/auto_download_test.rs` に `test_progress_display_during_download()` を作成
 
 ### Integration Tests - ユーザーストーリー2（手動配布）
 
-- [ ] **T014** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_manual_distribution_to_specific_agent()` を作成
-- [ ] **T015** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_bulk_distribution_to_all_agents()` を作成
-- [ ] **T016** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_progress_tracking_multiple_agents()` を作成
-- [ ] **T017** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_offline_agent_error_handling()` を作成
+- [x] **T0*14** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_manual_distribution_to_specific_agent()` を作成
+- [x] **T0*15** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_bulk_distribution_to_all_agents()` を作成
+- [x] **T0*16** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_progress_tracking_multiple_agents()` を作成
+- [x] **T0*17** [P] Integration test: `coordinator/tests/integration/manual_distribution_test.rs` に `test_offline_agent_error_handling()` を作成
 
 ### Integration Tests - ユーザーストーリー3（可視化）
 
-- [ ] **T018** [P] Integration test: `coordinator/tests/integration/model_info_test.rs` に `test_list_available_models_from_ollama_library()` を作成
-- [ ] **T019** [P] Integration test: `coordinator/tests/integration/model_info_test.rs` に `test_list_installed_models_on_agent()` を作成
-- [ ] **T020** [P] Integration test: `coordinator/tests/integration/model_info_test.rs` に `test_model_matrix_view_multiple_agents()` を作成
+- [x] **T0*18** [P] Integration test: `coordinator/tests/integration/model_info_test.rs` に `test_list_available_models_from_ollama_library()` を作成
+- [x] **T0*19** [P] Integration test: `coordinator/tests/integration/model_info_test.rs` に `test_list_installed_models_on_agent()` を作成
+- [x] **T0*20** [P] Integration test: `coordinator/tests/integration/model_info_test.rs` に `test_model_matrix_view_multiple_agents()` を作成
 
 ### Unit Tests
 
-- [ ] **T021** [P] Unit test: `coordinator/tests/unit/gpu_model_selector_test.rs` に `test_select_model_by_gpu_memory_16gb()` など4ケースを作成
-- [ ] **T022** [P] Unit test: `coordinator/tests/unit/model_repository_test.rs` に `test_task_lifecycle()` を作成
+- [x] **T0*21** [P] Unit test: `coordinator/tests/unit/gpu_model_selector_test.rs` に `test_select_model_by_gpu_memory_16gb()` など4ケースを作成
+- [x] **T0*22** [P] Unit test: `coordinator/tests/unit/model_repository_test.rs` に `test_task_lifecycle()` を作成
 
 ---
 
@@ -76,47 +76,47 @@
 
 ### データモデル実装
 
-- [ ] **T023** データモデル実装: `coordinator/src/registry/models.rs` の構造体にメソッド実装（`new()`, `to_json()` など）
+- [x] **T0*23** データモデル実装: `coordinator/src/registry/models.rs` の構造体にメソッド実装（`new()`, `to_json()` など）
 
 ### タスク管理実装
 
-- [ ] **T024** タスク管理実装: `coordinator/src/tasks/mod.rs` の `DownloadTaskManager` 実装
+- [x] **T0*24** タスク管理実装: `coordinator/src/tasks/mod.rs` の `DownloadTaskManager` 実装
   - `create_task()`, `update_progress()`, `get_task()`, `list_tasks()` メソッド
   - `Arc<Mutex<HashMap<Uuid, DownloadTask>>>` でスレッドセーフな状態管理
 
 ### Ollama公式API通信実装
 
-- [ ] **T025** Ollama通信実装: `coordinator/src/ollama/client.rs` に `OllamaClient` 実装
+- [x] **T0*25** Ollama通信実装: `coordinator/src/ollama/client.rs` に `OllamaClient` 実装
   - エージェント経由でモデル一覧取得（`GET /api/tags`）
   - 事前定義モデルリスト管理
 
 ### GPU能力ベースモデル選択
 
-- [ ] **T026** [P] GPU判定ロジック: `coordinator/src/models/gpu_selector.rs` に `select_model_by_gpu_memory()` 関数を実装
+- [x] **T0*26** [P] GPU判定ロジック: `coordinator/src/models/gpu_selector.rs` に `select_model_by_gpu_memory()` 関数を実装
 
 ### モデル管理API実装
 
-- [ ] **T027** API実装: `coordinator/src/api/models.rs` に `get_available_models` ハンドラーを実装（`GET /api/models/available`）
-- [ ] **T028** API実装: `coordinator/src/api/models.rs` に `distribute_models` ハンドラーを実装（`POST /api/models/distribute`）
-- [ ] **T029** API実装: `coordinator/src/api/models.rs` に `get_agent_models` ハンドラーを実装（`GET /api/agents/{agent_id}/models`）
-- [ ] **T030** API実装: `coordinator/src/api/models.rs` に `pull_model_to_agent` ハンドラーを実装（`POST /api/agents/{agent_id}/models/pull`）
-- [ ] **T031** API実装: `coordinator/src/api/models.rs` に `get_task_progress` ハンドラーを実装（`GET /api/tasks/{task_id}`）
+- [x] **T0*27** API実装: `coordinator/src/api/models.rs` に `get_available_models` ハンドラーを実装（`GET /api/models/available`）
+- [x] **T0*28** API実装: `coordinator/src/api/models.rs` に `distribute_models` ハンドラーを実装（`POST /api/models/distribute`）
+- [x] **T0*29** API実装: `coordinator/src/api/models.rs` に `get_agent_models` ハンドラーを実装（`GET /api/agents/{agent_id}/models`）
+- [x] **T0*30** API実装: `coordinator/src/api/models.rs` に `pull_model_to_agent` ハンドラーを実装（`POST /api/agents/{agent_id}/models/pull`）
+- [x] **T0*31** API実装: `coordinator/src/api/models.rs` に `get_task_progress` ハンドラーを実装（`GET /api/tasks/{task_id}`）
 
 ### エージェント登録時自動配布
 
-- [ ] **T032** 自動配布ロジック: `coordinator/src/api/agent.rs` の `register_agent` ハンドラーを拡張
+- [x] **T0*32** 自動配布ロジック: `coordinator/src/api/agent.rs` の `register_agent` ハンドラーを拡張
   - 登録完了後に `select_model_by_gpu_memory()` を呼び出し
   - バックグラウンドで `distribute_models` を実行（`tokio::spawn`）
 
 ### エージェント側モデルプル拡張
 
-- [ ] **T033** [P] エージェント側API: `agent/src/api/mod.rs` と `agent/src/api/models.rs` を作成
+- [x] **T0*33** [P] エージェント側API: `agent/src/api/mod.rs` と `agent/src/api/models.rs` を作成
   - `POST /pull` エンドポイント（コーディネーターからの指示を受ける）
   - 既存の `agent/src/ollama.rs` の `pull_model()` を呼び出し
 
 ### 進捗報告機能
 
-- [ ] **T034** 進捗報告: `agent/src/api/models.rs` で `pull_model()` の進捗をコーディネーターに送信
+- [x] **T0*34** 進捗報告: `agent/src/api/models.rs` で `pull_model()` の進捗をコーディネーターに送信
   - ストリーミングレスポンスをパースして進捗計算
   - `POST /api/tasks/{task_id}/progress` でコーディネーターに送信
 
@@ -126,7 +126,7 @@
 
 ### ルーター統合
 
-- [ ] **T035** ルーター統合: `coordinator/src/main.rs` のaxumルーターに新しいエンドポイントを追加
+- [x] **T0*35** ルーター統合: `coordinator/src/main.rs` のaxumルーターに新しいエンドポイントを追加
   - `/api/models/*` ルート
   - `/api/tasks/*` ルート
   - `/api/agents/:id/models/*` ルート
@@ -145,7 +145,7 @@
 
 ### エラーハンドリング
 
-- [ ] **T039** エラーハンドリング: 各APIハンドラーにエラーレスポンス実装
+- [x] **T039** エラーハンドリング: 各APIハンドラーにエラーレスポンス実装
   - オフラインエージェントへの配布試行: 503 Service Unavailable
   - ディスク容量不足: 507 Insufficient Storage
   - モデル名不正: 400 Bad Request
@@ -156,23 +156,23 @@
 
 ### ロギング強化
 
-- [ ] **T040** [P] ロギング: すべてのモデル管理操作に構造化ログを追加
+- [x] **T040** [P] ロギング: すべてのモデル管理操作に構造化ログを追加
   - `tracing::info!`, `tracing::error!` を使用
   - ダウンロード開始/完了/失敗をログ記録
 
 ### ドキュメント更新
 
-- [ ] **T041** [P] ドキュメント: `specs/SPEC-8ae67d67/quickstart.md` を作成（3シナリオ）
-- [ ] **T042** [P] ドキュメント: `CLAUDE.md` にモデル自動配布機能のセクションを追加
-- [ ] **T043** [P] ドキュメント: `README.md` に新機能の説明を追加
+- [x] **T041** [P] ドキュメント: `specs/SPEC-8ae67d67/quickstart.md` を作成（3シナリオ）
+- [x] **T042** [P] ドキュメント: `CLAUDE.md` にモデル自動配布機能のセクションを追加
+- [x] **T043** [P] ドキュメント: `README.md` に新機能の説明を追加
 
 ### ローカル品質チェック
 
-- [ ] **T044** 品質チェック: `cargo fmt --check` を実行して合格確認
-- [ ] **T045** 品質チェック: `cargo clippy -- -D warnings` を実行して合格確認
-- [ ] **T046** 品質チェック: `cargo test` を実行してすべてのテスト合格確認
-- [ ] **T047** 品質チェック: `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .git` を実行して合格確認
-- [ ] **T048** 品質チェック: `.specify/scripts/checks/check-tasks.sh` を実行して合格確認
+- [x] **T044** 品質チェック: `cargo fmt --check` を実行して合格確認
+- [x] **T045** 品質チェック: `cargo clippy -- -D warnings` を実行して合格確認
+- [x] **T046** 品質チェック: `cargo test` を実行してすべてのテスト合格確認
+- [x] **T047** 品質チェック: `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .git` を実行して合格確認
+- [x] **T048** 品質チェック: `.specify/scripts/checks/check-tasks.sh` を実行して合格確認
 
 ---
 
