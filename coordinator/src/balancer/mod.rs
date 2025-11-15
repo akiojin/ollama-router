@@ -511,11 +511,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn select_agent_round_robin_when_metrics_missing_for_some_agents() {
+    async fn select_agent_handles_partial_metrics_with_spec_priority() {
         let registry = AgentRegistry::new();
         let manager = LoadManager::new(registry.clone());
 
-        let agent_with_metrics = registry
+        let high_spec_agent = registry
             .register(RegisterRequest {
                 machine_name: "metrics-only".to_string(),
                 ip_address: IpAddr::V4(Ipv4Addr::new(10, 0, 2, 50)),
@@ -530,7 +530,7 @@ mod tests {
             .unwrap()
             .agent_id;
 
-        let agent_without_metrics = registry
+        let fallback_agent = registry
             .register(RegisterRequest {
                 machine_name: "no-metrics".to_string(),
                 ip_address: IpAddr::V4(Ipv4Addr::new(10, 0, 2, 51)),
@@ -547,7 +547,7 @@ mod tests {
 
         manager
             .record_metrics(MetricsUpdate {
-                agent_id: agent_with_metrics,
+                agent_id: high_spec_agent,
                 cpu_usage: 30.0,
                 memory_usage: 30.0,
                 gpu_usage: Some(10.0),
@@ -564,23 +564,14 @@ mod tests {
             .await
             .unwrap();
 
-        let mut distribution: HashMap<Uuid, usize> = HashMap::new();
-        for _ in 0..4 {
-            let selected = manager.select_agent().await.unwrap();
-            *distribution.entry(selected.id).or_default() += 1;
-        }
+        // メトリクスあり＋ハイスペックが最優先
+        let first = manager.select_agent().await.unwrap();
+        assert_eq!(first.id, high_spec_agent);
 
-        assert_eq!(
-            distribution.get(&agent_with_metrics).copied().unwrap_or(0),
-            2
-        );
-        assert_eq!(
-            distribution
-                .get(&agent_without_metrics)
-                .copied()
-                .unwrap_or(0),
-            2
-        );
+        // ハイスペックがビジーになったらフォールバック先のスペックへ切り替え
+        manager.begin_request(high_spec_agent).await.unwrap();
+        let second = manager.select_agent().await.unwrap();
+        assert_eq!(second.id, fallback_agent);
     }
 
     #[tokio::test]
@@ -807,11 +798,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn select_agent_by_metrics_falls_back_to_round_robin_when_partial() {
+    async fn select_agent_by_metrics_handles_partial_metrics_with_spec_priority() {
         let registry = AgentRegistry::new();
         let manager = LoadManager::new(registry.clone());
 
-        let agent_with_metrics = registry
+        let high_spec_agent = registry
             .register(RegisterRequest {
                 machine_name: "metrics-mode".to_string(),
                 ip_address: IpAddr::V4(Ipv4Addr::new(10, 0, 2, 60)),
@@ -826,7 +817,7 @@ mod tests {
             .unwrap()
             .agent_id;
 
-        let agent_without_metrics = registry
+        let fallback_agent = registry
             .register(RegisterRequest {
                 machine_name: "metrics-missing".to_string(),
                 ip_address: IpAddr::V4(Ipv4Addr::new(10, 0, 2, 61)),
@@ -843,7 +834,7 @@ mod tests {
 
         manager
             .record_metrics(MetricsUpdate {
-                agent_id: agent_with_metrics,
+                agent_id: high_spec_agent,
                 cpu_usage: 25.0,
                 memory_usage: 30.0,
                 gpu_usage: Some(20.0),
@@ -860,23 +851,30 @@ mod tests {
             .await
             .unwrap();
 
-        let mut distribution: HashMap<Uuid, usize> = HashMap::new();
-        for _ in 0..4 {
-            let selected = manager.select_agent_by_metrics().await.unwrap();
-            *distribution.entry(selected.id).or_default() += 1;
-        }
+        let first = manager.select_agent_by_metrics().await.unwrap();
+        assert_eq!(first.id, high_spec_agent);
 
-        assert_eq!(
-            distribution.get(&agent_with_metrics).copied().unwrap_or(0),
-            2
-        );
-        assert_eq!(
-            distribution
-                .get(&agent_without_metrics)
-                .copied()
-                .unwrap_or(0),
-            2
-        );
+        manager
+            .record_metrics(MetricsUpdate {
+                agent_id: high_spec_agent,
+                cpu_usage: 88.0,
+                memory_usage: 70.0,
+                gpu_usage: Some(80.0),
+                gpu_memory_usage: Some(85.0),
+                gpu_memory_total_mb: None,
+                gpu_memory_used_mb: None,
+                gpu_temperature: None,
+                gpu_model_name: None,
+                gpu_compute_capability: None,
+                gpu_capability_score: None,
+                active_requests: 4,
+                average_response_time_ms: Some(170.0),
+            })
+            .await
+            .unwrap();
+
+        let second = manager.select_agent_by_metrics().await.unwrap();
+        assert_eq!(second.id, fallback_agent);
     }
 
     #[tokio::test]
@@ -1303,7 +1301,9 @@ impl LoadManager {
             }
         }
 
-        if !fresh_states.is_empty() {
+        let have_full_fresh_metrics = fresh_states.len() == online_agents.len();
+
+        if have_full_fresh_metrics && !fresh_states.is_empty() {
             let mut load_based_candidates: Vec<(Agent, AgentLoadState)> = fresh_states
                 .iter()
                 .filter_map(|(agent, load_state)| {
@@ -1364,20 +1364,31 @@ impl LoadManager {
             return Ok(usage_candidates[0].0.clone());
         }
 
-        // メトリクスが不足している場合はGPUスペック優先で選択（同値時のみラウンドロビン）
+        // メトリクスが不足している場合は「ビジー度 → GPUスペック → ラウンドロビン」で決定
         let mut spec_sorted = online_agents.clone();
         spec_sorted.sort_by(|a, b| {
-            compare_spec_by_state(a, b, &state).then_with(|| {
-                let a_rank = round_robin_priority
-                    .get(&a.id)
-                    .copied()
-                    .unwrap_or(usize::MAX);
-                let b_rank = round_robin_priority
-                    .get(&b.id)
-                    .copied()
-                    .unwrap_or(usize::MAX);
-                a_rank.cmp(&b_rank)
-            })
+            let a_active = state
+                .get(&a.id)
+                .map(|load| load.combined_active())
+                .unwrap_or(0);
+            let b_active = state
+                .get(&b.id)
+                .map(|load| load.combined_active())
+                .unwrap_or(0);
+            a_active
+                .cmp(&b_active)
+                .then_with(|| compare_spec_by_state(a, b, &state))
+                .then_with(|| {
+                    let a_rank = round_robin_priority
+                        .get(&a.id)
+                        .copied()
+                        .unwrap_or(usize::MAX);
+                    let b_rank = round_robin_priority
+                        .get(&b.id)
+                        .copied()
+                        .unwrap_or(usize::MAX);
+                    a_rank.cmp(&b_rank)
+                })
         });
 
         Ok(spec_sorted[0].clone())
