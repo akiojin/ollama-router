@@ -93,7 +93,6 @@ mod tests {
     use super::*;
     use ollama_coordinator_common::protocol::RegisterRequest;
     use ollama_coordinator_common::types::GpuDeviceInfo;
-    use std::collections::HashMap;
     use std::net::{IpAddr, Ipv4Addr};
 
     fn sample_gpu_devices() -> Vec<GpuDeviceInfo> {
