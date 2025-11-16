@@ -3,11 +3,13 @@
 
 use crate::api::models::AppState;
 use axum::{
+    body::Body,
     extract::State,
-    http::StatusCode,
+    http::{StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
+use futures::TryStreamExt;
 use serde_json::Value;
 use tracing::error;
 
@@ -35,6 +37,29 @@ async fn proxy_to_ollama(
     }
     let resp = req.send().await.map_err(proxy_error)?;
     let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+
+    // ストリーム対応: Content-Type が text/event-stream または chunked の場合はボディごと転送
+    if resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|ct| ct.starts_with("text/event-stream"))
+        .unwrap_or(false)
+    {
+        let stream = resp.bytes_stream().map_err(|e| {
+            error!("Stream error: {}", e);
+            std::io::Error::new(std::io::ErrorKind::Other, e)
+        });
+        let body = Body::from_stream(stream);
+        let mut response = Response::new(body);
+        *response.status_mut() = status;
+        response.headers_mut().insert(
+            axum::http::header::CONTENT_TYPE,
+            axum::http::HeaderValue::from_static("text/event-stream"),
+        );
+        return Ok(response);
+    }
+
     let bytes = resp.bytes().await.map_err(proxy_error)?;
     Ok((status, bytes).into_response())
 }
