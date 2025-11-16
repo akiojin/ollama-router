@@ -77,15 +77,19 @@ pub async fn register_agent(
     }
 
     // GPUメモリ情報からモデルを選択（reqを移動する前に取得）
-    // gpu_devicesの最大メモリ容量を使用（複数GPU時は最大のものを選ぶ想定）
+    // GPUメモリに応じた簡易選択（仕様上は gpt-oss:20b をデフォルト、超大容量のみ120b）
     let gpu_memory_bytes = req
         .gpu_devices
         .iter()
         .filter_map(|d| d.memory)
         .max()
-        .unwrap_or(16_000_000_000); // デフォルトは16GB（gpt-oss:20b）
+        .unwrap_or(16_000_000_000); // デフォルトは16GB想定
 
-    let model_name = crate::models::gpu_selector::select_model_by_gpu_memory(gpu_memory_bytes);
+    let model_name = if gpu_memory_bytes >= 80_000_000_000 {
+        "gpt-oss:120b".to_string()
+    } else {
+        "gpt-oss:20b".to_string()
+    };
 
     info!(
         "Selected model for auto-distribution: model={}, gpu_memory_gb={:.2}",
@@ -93,64 +97,89 @@ pub async fn register_agent(
         gpu_memory_bytes as f64 / 1_000_000_000.0
     );
 
+    // ここでの「req」はまだ所有しているので、この段階でヘルスチェックを行う
+    let ollama_base = format!("http://{}:{}", req.ip_address, req.ollama_port);
+    let client = crate::ollama::OllamaClient::new()?;
+    if let Err(e) = client.check_ollama_health(&ollama_base).await {
+        error!(
+            "Agent registration rejected: ollama health check failed at {} ({})",
+            ollama_base, e
+        );
+        return Err(AppError(CoordinatorError::Internal(format!(
+            "Ollama not reachable at {}: {}",
+            ollama_base, e
+        ))));
+    }
+
+    // ヘルスチェックOKなら登録を実施
     let mut response = state.registry.register(req).await?;
 
-    // エージェント登録成功後、最適なモデルを自動配布
+    // エージェント登録成功後、コーディネーターがサポートする全モデルを自動配布
     let agent_id = response.agent_id;
     let task_manager = state.task_manager.clone();
     let registry = state.registry.clone();
+    let supported_models = client.get_predefined_models();
 
-    // タスクを作成（同期的に実行し、レスポンスに含める）
-    let task = task_manager.create_task(agent_id, model_name.clone()).await;
-    let task_id = task.id;
+    let mut created_tasks = Vec::new();
 
-    info!(
-        "Auto-distribution started: agent_id={}, model={}, task_id={}",
-        agent_id, model_name, task_id
-    );
+    for model in supported_models {
+        let task = task_manager
+            .create_task(agent_id, model.name.clone())
+            .await;
+        let task_id = task.id;
+        created_tasks.push((model.name.clone(), task_id));
 
-    // レスポンスに自動配布情報を追加
-    response.auto_distributed_model = Some(model_name.clone());
-    response.download_task_id = Some(task_id);
+        info!(
+            "Auto-distribution started: agent_id={}, model={}, task_id={}",
+            agent_id, model.name, task_id
+        );
 
-    // エージェントにモデルプル要求を送信（バックグラウンド）
-    tokio::spawn(async move {
-        match registry.get(agent_id).await {
-            Ok(agent) => {
-                // エージェントAPIのポート（デフォルト: Ollama port + 1）
-                let agent_api_port = agent.ollama_port + 1;
-                let agent_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
+        // エージェントにモデルプル要求を送信（バックグラウンド）
+        let registry = registry.clone();
+        tokio::spawn(async move {
+            match registry.get(agent_id).await {
+                Ok(agent) => {
+                    // エージェントAPIのポート（デフォルト: Ollama port + 1）
+                    let agent_api_port = agent.ollama_port + 1;
+                    let agent_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
 
-                info!("Sending pull request to agent: {}", agent_url);
+                    info!("Sending pull request to agent: {}", agent_url);
 
-                let client = reqwest::Client::new();
-                let pull_request = serde_json::json!({
-                    "model": model_name,
-                    "task_id": task_id,
-                });
+                    let client = reqwest::Client::new();
+                    let pull_request = serde_json::json!({
+                        "model": model.name,
+                        "task_id": task_id,
+                    });
 
-                match client.post(&agent_url).json(&pull_request).send().await {
-                    Ok(response) => {
-                        if response.status().is_success() {
-                            info!("Successfully sent pull request to agent {}", agent_id);
-                        } else {
-                            error!(
-                                "Agent {} returned error status: {}",
-                                agent_id,
-                                response.status()
-                            );
+                    match client.post(&agent_url).json(&pull_request).send().await {
+                        Ok(response) => {
+                            if response.status().is_success() {
+                                info!("Successfully sent pull request to agent {}", agent_id);
+                            } else {
+                                error!(
+                                    "Agent {} returned error status: {}",
+                                    agent_id,
+                                    response.status()
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            error!("Failed to send pull request to agent {}: {}", agent_id, e);
                         }
                     }
-                    Err(e) => {
-                        error!("Failed to send pull request to agent {}: {}", agent_id, e);
-                    }
+                }
+                Err(e) => {
+                    error!("Failed to get agent {} info: {}", agent_id, e);
                 }
             }
-            Err(e) => {
-                error!("Failed to get agent {} info: {}", agent_id, e);
-            }
-        }
-    });
+        });
+    }
+
+    // レスポンスには先頭のタスク情報だけ添える（後方互換のため）
+    if let Some((first_model, first_task)) = created_tasks.first() {
+        response.auto_distributed_model = Some(first_model.clone());
+        response.download_task_id = Some(*first_task);
+    }
 
     Ok(Json(response))
 }

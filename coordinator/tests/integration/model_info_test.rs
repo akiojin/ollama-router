@@ -75,17 +75,14 @@ async fn test_list_available_models_from_ollama_library() {
         "Should include gpt-oss:20b"
     );
     assert!(
-        model_names.contains(&"gpt-oss:7b".to_string()),
-        "Should include gpt-oss:7b"
+        model_names.contains(&"gpt-oss:120b".to_string()),
+        "Should include gpt-oss:120b"
     );
     assert!(
-        model_names.contains(&"gpt-oss:3b".to_string()),
-        "Should include gpt-oss:3b"
+        model_names.contains(&"qwen3-coder:30b".to_string()),
+        "Should include qwen3-coder:30b"
     );
-    assert!(
-        model_names.contains(&"gpt-oss:1b".to_string()),
-        "Should include gpt-oss:1b"
-    );
+    assert!(!model_names.contains(&"qwen3-72b-instruct:q4_k_m".to_string()));
 
     // 各モデルに必要な情報が含まれることを検証
     for model in models {
