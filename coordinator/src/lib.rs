@@ -45,6 +45,9 @@ pub mod config {
     // 未実装: 設定ファイル読み込み
 }
 
+/// 認証機能（パスワードハッシュ、JWT、ミドルウェア）
+pub mod auth;
+
 /// アプリケーション状態
 #[derive(Clone)]
 pub struct AppState {
