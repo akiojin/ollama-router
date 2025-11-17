@@ -110,7 +110,10 @@ async fn test_complete_auth_flow() {
         .unwrap();
     let users: serde_json::Value = serde_json::from_slice(&users_body).unwrap();
 
-    assert!(users.get("users").is_some(), "Response must have 'users' field");
+    assert!(
+        users.get("users").is_some(),
+        "Response must have 'users' field"
+    );
     assert!(users["users"].is_array(), "'users' must be an array");
     assert_eq!(
         users["users"].as_array().unwrap().len(),

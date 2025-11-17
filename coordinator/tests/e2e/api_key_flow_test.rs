@@ -170,8 +170,14 @@ async fn test_complete_api_key_flow() {
         .unwrap();
     let keys_list: serde_json::Value = serde_json::from_slice(&list_keys_body).unwrap();
 
-    assert!(keys_list.get("api_keys").is_some(), "Response must have 'api_keys' field");
-    assert!(keys_list["api_keys"].is_array(), "'api_keys' must be an array");
+    assert!(
+        keys_list.get("api_keys").is_some(),
+        "Response must have 'api_keys' field"
+    );
+    assert!(
+        keys_list["api_keys"].is_array(),
+        "'api_keys' must be an array"
+    );
     assert_eq!(
         keys_list["api_keys"].as_array().unwrap().len(),
         1,

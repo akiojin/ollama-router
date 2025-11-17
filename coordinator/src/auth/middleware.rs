@@ -79,10 +79,18 @@ pub async fn api_key_auth_middleware(
     next: Next,
 ) -> Result<Response, Response> {
     // X-API-Keyヘッダーまたは Authorization: Bearer トークンを取得
-    let api_key = if let Some(api_key) = request.headers().get("X-API-Key").and_then(|h| h.to_str().ok()) {
+    let api_key = if let Some(api_key) = request
+        .headers()
+        .get("X-API-Key")
+        .and_then(|h| h.to_str().ok())
+    {
         // X-API-Keyヘッダーから取得
         api_key.to_string()
-    } else if let Some(auth_header) = request.headers().get(header::AUTHORIZATION).and_then(|h| h.to_str().ok()) {
+    } else if let Some(auth_header) = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+    {
         // Authorization: Bearer トークンから取得
         if let Some(token) = auth_header.strip_prefix("Bearer ") {
             token.to_string()

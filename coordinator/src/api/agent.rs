@@ -668,7 +668,7 @@ mod tests {
         .await
         .unwrap()
         .1
-        .0
+         .0
         .agent_id;
 
         let payload = UpdateAgentSettingsPayload {
@@ -710,9 +710,12 @@ mod tests {
         .await
         .unwrap();
 
-        let status = delete_agent(State(state.clone()), axum::extract::Path(response.0.agent_id))
-            .await
-            .unwrap();
+        let status = delete_agent(
+            State(state.clone()),
+            axum::extract::Path(response.0.agent_id),
+        )
+        .await
+        .unwrap();
         assert_eq!(status, StatusCode::NO_CONTENT);
 
         let agents = list_agents(State(state)).await.0;
@@ -738,7 +741,7 @@ mod tests {
         .await
         .unwrap()
         .1
-        .0
+         .0
         .agent_id;
 
         let status = disconnect_agent(State(state.clone()), axum::extract::Path(agent_id))
