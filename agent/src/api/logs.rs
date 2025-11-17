@@ -36,7 +36,13 @@ pub async fn list_logs(Query(query): Query<LogQuery>) -> impl IntoResponse {
     let log_path = match logging::log_file_path() {
         Ok(path) => path,
         Err(_) => {
-            return (StatusCode::OK, Json(LogResponse { entries: vec![], path: None }));
+            return (
+                StatusCode::OK,
+                Json(LogResponse {
+                    entries: vec![],
+                    path: None,
+                }),
+            );
         }
     };
 
@@ -76,9 +82,9 @@ async fn read_logs(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::to_bytes;
     use std::fs;
     use tempfile::tempdir;
-    use axum::body::to_bytes;
 
     #[tokio::test]
     async fn returns_empty_when_missing() {
@@ -86,7 +92,9 @@ mod tests {
         let tmp = tempdir().unwrap();
         std::env::set_var("OLLAMA_AGENT_DATA_DIR", tmp.path());
 
-        let res = list_logs(Query(LogQuery { tail: 10 })).await.into_response();
+        let res = list_logs(Query(LogQuery { tail: 10 }))
+            .await
+            .into_response();
         assert_eq!(res.status(), StatusCode::OK);
         let bytes = to_bytes(res.into_body(), usize::MAX).await.unwrap();
         let body: LogResponse = serde_json::from_slice(&bytes).unwrap();

@@ -61,7 +61,6 @@ impl SystemMetrics {
     }
 }
 
-
 impl GpuCapability {
     /// GPU能力スコアを計算
     ///
@@ -116,7 +115,10 @@ impl MetricsCollector {
 
     /// メトリクス収集失敗時のフォールバック（ゼロ値）
     pub fn placeholder() -> Self {
-        MetricsCollector { system: System::new(), gpu: None }
+        MetricsCollector {
+            system: System::new(),
+            gpu: None,
+        }
     }
 
     /// 新しいメトリクスコレクターを作成

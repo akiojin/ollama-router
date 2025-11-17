@@ -210,7 +210,10 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
 
     // コーディネーターがサポートしないモデルは事前に削除して整合性を保つ
     {
-        let supported = model_list.iter().map(|s| s.to_lowercase()).collect::<Vec<_>>();
+        let supported = model_list
+            .iter()
+            .map(|s| s.to_lowercase())
+            .collect::<Vec<_>>();
         let mut manager = ollama_manager_clone.lock().await;
         if let Ok(existing) = manager.list_models().await {
             for m in existing {
@@ -532,7 +535,9 @@ async fn send_heartbeat_once(
         average_response_time_ms: None,
         loaded_models: {
             let st = init_state.lock().await;
-            st.ready_models.map(|(ready, _)| vec![format!("ready:{ready}")]).unwrap_or_default()
+            st.ready_models
+                .map(|(ready, _)| vec![format!("ready:{ready}")])
+                .unwrap_or_default()
         },
         initializing: initializing_flag,
         ready_models,
@@ -891,20 +896,21 @@ mod tests {
         let result = register_with_retry(&mut client, register_req).await;
         assert!(result.is_err());
     }
-}    #[test]
-    fn test_unsupported_models_filters_only_extra_models() {
-        let existing = vec![
-            "gpt-oss:20b".to_string(),
-            "extra-old".to_string(),
-            "gpt-oss:120b".to_string(),
-            "QWEN3-CODER:30B".to_string(),
-        ];
-        let supported = vec![
-            "gpt-oss:20b".to_string(),
-            "gpt-oss:120b".to_string(),
-            "gpt-oss-safeguard:20b".to_string(),
-            "qwen3-coder:30b".to_string(),
-        ];
-        let result = unsupported_models(&existing, &supported);
-        assert_eq!(result, vec!["extra-old"]);
-    }
+}
+#[test]
+fn test_unsupported_models_filters_only_extra_models() {
+    let existing = vec![
+        "gpt-oss:20b".to_string(),
+        "extra-old".to_string(),
+        "gpt-oss:120b".to_string(),
+        "QWEN3-CODER:30B".to_string(),
+    ];
+    let supported = vec![
+        "gpt-oss:20b".to_string(),
+        "gpt-oss:120b".to_string(),
+        "gpt-oss-safeguard:20b".to_string(),
+        "qwen3-coder:30b".to_string(),
+    ];
+    let result = unsupported_models(&existing, &supported);
+    assert_eq!(result, vec!["extra-old"]);
+}

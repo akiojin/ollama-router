@@ -1,5 +1,7 @@
 use axum::{body::to_bytes, Router};
-use ollama_coordinator_coordinator::{api, balancer::LoadManager, registry::AgentRegistry, AppState};
+use ollama_coordinator_coordinator::{
+    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+};
 use tower::ServiceExt;
 
 fn build_app() -> Router {

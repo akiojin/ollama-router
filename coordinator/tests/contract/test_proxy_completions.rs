@@ -5,10 +5,6 @@ use std::sync::Arc;
 #[path = "../support/mod.rs"]
 mod support;
 
-use support::{
-    coordinator::{register_agent, spawn_coordinator},
-    http::{spawn_router, TestServer},
-};
 use axum::{
     extract::State,
     http::StatusCode,
@@ -19,6 +15,10 @@ use axum::{
 use ollama_coordinator_common::protocol::GenerateRequest;
 use reqwest::{Client, StatusCode as ReqStatusCode};
 use serde_json::Value;
+use support::{
+    coordinator::{register_agent, spawn_coordinator},
+    http::{spawn_router, TestServer},
+};
 
 #[derive(Clone)]
 struct AgentStubState {
@@ -299,11 +299,23 @@ async fn proxy_completions_queue_overflow_returns_503() {
         }
     }
 
-    assert!(unexpected.is_empty(), "unexpected responses: {unexpected:?}");
-    assert_eq!(svc_unavailable + ok, total_requests, "response count mismatch");
-    assert!(svc_unavailable >= 1, "at least one request should be rejected when queue is full" );
     assert!(
-        unavailable_bodies.iter().all(|b| b.contains("warming up") || b.contains("Service Unavailable")),
+        unexpected.is_empty(),
+        "unexpected responses: {unexpected:?}"
+    );
+    assert_eq!(
+        svc_unavailable + ok,
+        total_requests,
+        "response count mismatch"
+    );
+    assert!(
+        svc_unavailable >= 1,
+        "at least one request should be rejected when queue is full"
+    );
+    assert!(
+        unavailable_bodies
+            .iter()
+            .all(|b| b.contains("warming up") || b.contains("Service Unavailable")),
         "503 responses should indicate warm-up/queue overflow: {unavailable_bodies:?}"
     );
 }

@@ -1,5 +1,7 @@
 use axum::{body::to_bytes, Router};
-use ollama_coordinator_coordinator::{api, balancer::LoadManager, registry::AgentRegistry, AppState};
+use ollama_coordinator_coordinator::{
+    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+};
 use tower::ServiceExt;
 
 fn build_app() -> Router {
@@ -24,10 +26,12 @@ async fn dashboard_html_has_no_model_panel() {
     // minimal router serving static files
     let app = build_app();
     let body = app
-        .oneshot(axum::http::Request::builder()
-            .uri("/dashboard/")
-            .body(axum::body::Body::empty())
-            .unwrap())
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/dashboard/")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap()
         .into_body();
@@ -35,6 +39,12 @@ async fn dashboard_html_has_no_model_panel() {
     let html = String::from_utf8_lossy(&bytes);
 
     assert!(html.contains("Ollama Coordinator"));
-    assert!(!html.contains("available-models-list"), "model panel should be removed");
-    assert!(!html.contains("loaded-models-list"), "model load panel should be removed");
+    assert!(
+        !html.contains("available-models-list"),
+        "model panel should be removed"
+    );
+    assert!(
+        !html.contains("loaded-models-list"),
+        "model load panel should be removed"
+    );
 }
