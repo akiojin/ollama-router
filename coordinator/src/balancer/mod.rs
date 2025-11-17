@@ -1228,6 +1228,12 @@ impl LoadManager {
         state.values().any(|s| !s.initializing)
     }
 
+    /// 全エージェントが初期化中かを判定
+    pub async fn all_initializing(&self) -> bool {
+        let state = self.state.read().await;
+        !state.is_empty() && state.values().all(|s| s.initializing)
+    }
+
     /// リクエスト開始を記録
     pub async fn begin_request(&self, agent_id: Uuid) -> CoordinatorResult<()> {
         self.registry.get(agent_id).await?;

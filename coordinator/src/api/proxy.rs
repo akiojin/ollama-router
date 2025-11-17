@@ -72,7 +72,7 @@ where
     C: FnOnce(ChatResponse, &ChatRequest) -> Result<Response, AppError>,
 {
     // 全エージェントが初期化中なら待機キュー/再試行を返す
-    if !state.load_manager.has_ready_agents().await {
+    if state.load_manager.all_initializing().await {
         return Err(
             CoordinatorError::ServiceUnavailable("All agents are warming up models".into()).into()
         );
