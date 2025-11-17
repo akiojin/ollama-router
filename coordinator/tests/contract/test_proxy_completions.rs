@@ -2,9 +2,10 @@
 
 use std::sync::Arc;
 
-#[path = "../support/mod.rs"]
-mod support;
-
+use super::support::{
+    coordinator::{register_agent, spawn_coordinator},
+    http::{spawn_router, TestServer},
+};
 use axum::{
     extract::State,
     http::StatusCode,
@@ -15,10 +16,6 @@ use axum::{
 use ollama_coordinator_common::protocol::GenerateRequest;
 use reqwest::{Client, StatusCode as ReqStatusCode};
 use serde_json::Value;
-use support::{
-    coordinator::{register_agent, spawn_coordinator},
-    http::{spawn_router, TestServer},
-};
 
 #[derive(Clone)]
 struct AgentStubState {
