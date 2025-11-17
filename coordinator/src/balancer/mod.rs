@@ -1405,6 +1405,22 @@ impl LoadManager {
         // エージェントが存在することを確認
         self.registry.get(agent_id).await?;
 
+        // レジストリの初期化フラグ/ready_models を最新の値で前倒し更新し、select_agent が stale な状態を返さないようにする
+        if initializing || ready_models.is_some() {
+            let _ = self
+                .registry
+                .update_last_seen(
+                    agent_id,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(initializing),
+                    ready_models,
+                )
+                .await;
+        }
+
         let mut state = self.state.write().await;
         let entry = state.entry(agent_id).or_default();
 
