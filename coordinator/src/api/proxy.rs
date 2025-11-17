@@ -574,6 +574,18 @@ pub(crate) fn forward_streaming_response(
             }
         }
     }
+    use axum::http::header;
+    if !axum_response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .map(|v| v.to_str().unwrap_or("").starts_with("text/event-stream"))
+        .unwrap_or(false)
+    {
+        axum_response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+    }
     Ok(axum_response)
 }
 

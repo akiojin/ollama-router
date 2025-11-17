@@ -45,6 +45,8 @@ pub async fn health_check(
             gpu_capability_score: req.gpu_capability_score,
             active_requests: req.active_requests,
             average_response_time_ms: req.average_response_time_ms,
+            initializing: req.initializing,
+            ready_models: req.ready_models,
         })
         .await?;
 
