@@ -19,7 +19,7 @@ use std::{
     },
     time::Duration as StdDuration,
 };
-use tokio::sync::RwLock;
+use tokio::sync::{Notify, RwLock};
 use uuid::Uuid;
 
 /// メトリクスを新鮮とみなすための許容秒数
@@ -1124,6 +1124,10 @@ pub struct LoadManager {
     history: Arc<RwLock<VecDeque<RequestHistoryPoint>>>,
     /// 待機中リクエスト数（簡易カウンタ）
     pending: Arc<AtomicUsize>,
+    /// ready通知
+    ready_notify: Arc<Notify>,
+    /// 待機中リクエスト数（上限判定用）
+    waiters: Arc<AtomicUsize>,
 }
 
 /// ハートビートから記録するメトリクス値
@@ -1170,6 +1174,8 @@ impl LoadManager {
             round_robin: Arc::new(AtomicUsize::new(0)),
             history: Arc::new(RwLock::new(VecDeque::new())),
             pending: Arc::new(AtomicUsize::new(0)),
+            ready_notify: Arc::new(Notify::new()),
+            waiters: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -1223,6 +1229,9 @@ impl LoadManager {
         entry.push_metrics(metrics);
         entry.initializing = initializing;
         entry.ready_models = ready_models;
+        if !entry.initializing {
+            self.ready_notify.notify_waiters();
+        }
 
         Ok(())
     }
@@ -1237,6 +1246,22 @@ impl LoadManager {
     pub async fn all_initializing(&self) -> bool {
         let state = self.state.read().await;
         !state.is_empty() && state.values().all(|s| s.initializing)
+    }
+
+    /// readyなエージェントが出るまで待機。待ち人数が上限を超えたらfalse。
+    pub async fn wait_for_ready(&self, max_waiters: usize) -> bool {
+        let current = self.waiters.fetch_add(1, AtomicOrdering::SeqCst) + 1;
+        if current > max_waiters {
+            self.waiters.fetch_sub(1, AtomicOrdering::SeqCst);
+            return false;
+        }
+        if self.has_ready_agents().await {
+            self.waiters.fetch_sub(1, AtomicOrdering::SeqCst);
+            return true;
+        }
+        self.ready_notify.notified().await;
+        self.waiters.fetch_sub(1, AtomicOrdering::SeqCst);
+        true
     }
 
     /// リクエスト開始を記録

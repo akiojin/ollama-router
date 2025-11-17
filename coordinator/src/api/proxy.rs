@@ -23,9 +23,11 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
     sync::Arc,
-    time::Instant,
+    time::{Duration as StdDuration, Instant},
 };
 use uuid::Uuid;
+
+const MAX_WAITERS: usize = 1024;
 
 /// POST /api/chat - Ollama Chat APIプロキシ
 pub async fn proxy_chat(
@@ -71,16 +73,18 @@ where
     S: FnOnce(reqwest::Response, &ChatRequest) -> Result<Response, AppError>,
     C: FnOnce(ChatResponse, &ChatRequest) -> Result<Response, AppError>,
 {
-    // 全エージェントが初期化中なら待機キュー/再試行を返す（暫定：503）
+    // 全エージェントが初期化中なら ready 出現を待つ（待機者上限で 503）
     if state.load_manager.all_initializing().await {
         let _ = state
             .load_manager
             .record_request_history(RequestOutcome::Queued, Utc::now())
             .await;
-        return Err(CoordinatorError::ServiceUnavailable(
-            "All agents are warming up models".into(),
-        )
-        .into());
+        if !state.load_manager.wait_for_ready(MAX_WAITERS).await {
+            return Err(
+                CoordinatorError::ServiceUnavailable("All agents are warming up models".into())
+                    .into(),
+            );
+        }
     }
     let record_id = Uuid::new_v4();
     let timestamp = Utc::now();
@@ -297,11 +301,23 @@ pub(crate) async fn proxy_generate_with_handlers<S, C>(
     client_ip: IpAddr,
     stream_handler: S,
     completion_handler: C,
-) -> Result<Response, AppError>
+    ) -> Result<Response, AppError>
 where
     S: FnOnce(reqwest::Response, &GenerateRequest) -> Result<Response, AppError>,
     C: FnOnce(serde_json::Value, &GenerateRequest) -> Result<Response, AppError>,
 {
+    if state.load_manager.all_initializing().await {
+        let _ = state
+            .load_manager
+            .record_request_history(RequestOutcome::Queued, Utc::now())
+            .await;
+        if !state.load_manager.wait_for_ready(MAX_WAITERS).await {
+            return Err(
+                CoordinatorError::ServiceUnavailable("All agents are warming up models".into())
+                    .into(),
+            );
+        }
+    }
     let record_id = Uuid::new_v4();
     let timestamp = Utc::now();
     let request_body = serde_json::to_value(&req).unwrap_or_default();
