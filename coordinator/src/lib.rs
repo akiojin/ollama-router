@@ -59,4 +59,8 @@ pub struct AppState {
     pub request_history: std::sync::Arc<db::request_history::RequestHistoryStorage>,
     /// ダウンロードタスクマネージャー
     pub task_manager: tasks::DownloadTaskManager,
+    /// SQLiteデータベース接続プール
+    pub db_pool: sqlx::SqlitePool,
+    /// JWT署名用シークレットキー
+    pub jwt_secret: String,
 }

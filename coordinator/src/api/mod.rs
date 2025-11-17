@@ -3,6 +3,8 @@
 //! エージェント登録、ヘルスチェック、プロキシAPI
 
 pub mod agent;
+/// 認証API
+pub mod auth;
 pub mod dashboard;
 pub mod health;
 pub mod logs;
@@ -29,6 +31,10 @@ const DASHBOARD_INDEX: &str = "index.html";
 /// APIルーターを作成
 pub fn create_router(state: AppState) -> Router {
     Router::new()
+        // 認証API
+        .route("/api/auth/login", post(auth::login))
+        .route("/api/auth/logout", post(auth::logout))
+        .route("/api/auth/me", get(auth::me))
         .route(
             "/api/agents",
             post(agent::register_agent).get(agent::list_agents),
@@ -163,17 +169,24 @@ mod tests {
     use ollama_coordinator_common::{protocol::RegisterRequest, types::GpuDeviceInfo};
     use tower::Service;
 
-    fn test_state() -> (AppState, AgentRegistry) {
+    async fn test_state() -> (AppState, AgentRegistry) {
         let registry = AgentRegistry::new();
         let load_manager = LoadManager::new(registry.clone());
         let request_history =
             std::sync::Arc::new(crate::db::request_history::RequestHistoryStorage::new().unwrap());
         let task_manager = DownloadTaskManager::new();
+        // テスト用インメモリデータベース
+        let db_pool = sqlx::SqlitePool::connect(":memory:")
+            .await
+            .expect("Failed to create test database");
+        let jwt_secret = "test_jwt_secret_key_for_testing_only".to_string();
         let state = AppState {
             registry: registry.clone(),
             load_manager,
             request_history,
             task_manager,
+            db_pool,
+            jwt_secret,
         };
         (state, registry)
     }
@@ -188,7 +201,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dashboard_static_served() {
-        let (state, _) = test_state();
+        let (state, _) = test_state().await;
         let mut router = create_router(state);
         let response = router
             .call(
@@ -215,7 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dashboard_agents_endpoint_returns_json() {
-        let (state, registry) = test_state();
+        let (state, registry) = test_state().await;
         registry
             .register(RegisterRequest {
                 machine_name: "test-agent".into(),
@@ -250,7 +263,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dashboard_overview_endpoint_returns_all_sections() {
-        let (state, registry) = test_state();
+        let (state, registry) = test_state().await;
         registry
             .register(RegisterRequest {
                 machine_name: "overview-agent".into(),
@@ -288,7 +301,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dashboard_metrics_endpoint_returns_history() {
-        let (state, registry) = test_state();
+        let (state, registry) = test_state().await;
         let agent_id = registry
             .register(RegisterRequest {
                 machine_name: "metrics-route".into(),
