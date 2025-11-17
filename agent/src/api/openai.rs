@@ -1,7 +1,7 @@
 //! エージェント側のOpenAI互換エンドポイント
 //! 受け取ったリクエストをローカルのOllamaにプロキシする
 
-use crate::api::models::AppState;
+use crate::{api::models::AppState, ollama_pool::OllamaPool};
 use axum::{
     body::Body,
     extract::State,
@@ -21,17 +21,24 @@ fn proxy_error(e: impl std::fmt::Display) -> StatusCode {
 /// 共通プロキシ処理
 async fn proxy_to_ollama(
     state: &AppState,
+    model: Option<String>,
     path: &str,
     body: Option<Value>,
 ) -> Result<Response, StatusCode> {
     let client = reqwest::Client::new();
-    let ollama_base = {
-        // lock短時間
+
+    // モデルに応じて Ollama ポートを確保
+    let target_url = if let Some(m) = model {
+        let pool: &OllamaPool = &state.ollama_pool;
+        let port = pool.ensure(&m).await.map_err(proxy_error)?;
+        format!("http://127.0.0.1:{}/{}", port, path.trim_start_matches('/'))
+    } else {
+        // モデル不明の場合はデフォルトOLLAMA（初期ポート）へ
         let mgr = state.ollama_manager.lock().await;
-        mgr.api_base()
+        let ollama_base = mgr.api_base();
+        format!("{}/{}", ollama_base.trim_end_matches('/'), path.trim_start_matches('/'))
     };
-    let url = format!("{}/{}", ollama_base.trim_end_matches('/'), path.trim_start_matches('/'));
-    let mut req = client.post(url);
+    let mut req = client.post(target_url);
     if let Some(json) = body {
         req = req.json(&json);
     }
@@ -69,7 +76,8 @@ pub async fn chat_completions(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Response, StatusCode> {
-    proxy_to_ollama(&state, "/api/chat", Some(body)).await
+    let model = body.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+    proxy_to_ollama(&state, model, "/api/chat", Some(body)).await
 }
 
 /// POST /v1/completions
@@ -77,7 +85,8 @@ pub async fn completions(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Response, StatusCode> {
-    proxy_to_ollama(&state, "/api/generate", Some(body)).await
+    let model = body.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+    proxy_to_ollama(&state, model, "/api/generate", Some(body)).await
 }
 
 /// POST /v1/embeddings
@@ -85,7 +94,8 @@ pub async fn embeddings(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Response, StatusCode> {
-    proxy_to_ollama(&state, "/api/embed", Some(body)).await
+    let model = body.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+    proxy_to_ollama(&state, model, "/api/embed", Some(body)).await
 }
 
 /// GET /v1/models

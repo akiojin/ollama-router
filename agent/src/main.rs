@@ -10,6 +10,7 @@ use ollama_coordinator_agent::{
 };
 mod model_sync;
 use model_sync::fetch_models;
+use ollama_coordinator_agent::ollama_pool::OllamaPool;
 use ollama_coordinator_common::{
     error::{AgentError, AgentResult},
     protocol::{HealthCheckRequest, RegisterRequest, RegisterResponse},
@@ -115,10 +116,12 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
 
     let ollama_manager_for_api = Arc::new(Mutex::new(ollama_manager));
     let ollama_manager_clone = ollama_manager_for_api.clone();
+    let ollama_pool = OllamaPool::new(ollama_port, ollama_port + 200);
 
     let state = api::models::AppState {
         ollama_manager: ollama_manager_for_api,
         coordinator_url: coordinator_url.clone(),
+        ollama_pool,
     };
     let app = api::create_router(state);
     let bind_addr = format!("0.0.0.0:{}", agent_api_port);

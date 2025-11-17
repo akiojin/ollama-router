@@ -17,6 +17,8 @@ pub struct AppState {
     pub ollama_manager: Arc<Mutex<OllamaManager>>,
     /// コーディネーターURL（進捗報告用）
     pub coordinator_url: String,
+    /// モデル→Ollamaのプール
+    pub ollama_pool: crate::ollama_pool::OllamaPool,
 }
 
 /// モデルプルリクエスト
