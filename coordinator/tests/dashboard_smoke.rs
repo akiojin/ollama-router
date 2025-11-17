@@ -3,6 +3,9 @@
 //! Axum router を直接呼び出し、ダッシュボードの主要なHTTP経路が期待通りに
 //! 応答することを確認する。UI機能の最小限のE2E保証として利用する。
 
+#[path = "support/mod.rs"]
+mod support;
+
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -23,18 +26,26 @@ use std::{
 };
 use tower::ServiceExt;
 
-fn build_router() -> (Router, AgentRegistry, LoadManager) {
+async fn build_router() -> (Router, AgentRegistry, LoadManager) {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
     let task_manager = DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
     let state = AppState {
         registry: registry.clone(),
         load_manager: load_manager.clone(),
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
     let router = api::create_router(state);
     (router, registry, load_manager)
@@ -50,7 +61,7 @@ fn sample_gpu_devices(model: &str) -> Vec<GpuDeviceInfo> {
 
 #[tokio::test]
 async fn dashboard_serves_static_index() {
-    let (router, _, _) = build_router();
+    let (router, _, _) = build_router().await;
 
     let response = router
         .clone()
@@ -85,7 +96,7 @@ async fn dashboard_serves_static_index() {
 
 #[tokio::test]
 async fn dashboard_static_index_contains_gpu_labels() {
-    let (router, _, _) = build_router();
+    let (router, _, _) = build_router().await;
 
     let response = router
         .clone()
@@ -114,7 +125,7 @@ async fn dashboard_static_index_contains_gpu_labels() {
 
 #[tokio::test]
 async fn dashboard_agents_and_stats_reflect_registry() {
-    let (router, registry, load_manager) = build_router();
+    let (router, registry, load_manager) = build_router().await;
 
     let agent_id = registry
         .register(RegisterRequest {
@@ -209,7 +220,7 @@ async fn dashboard_agents_and_stats_reflect_registry() {
 
 #[tokio::test]
 async fn dashboard_request_history_tracks_activity() {
-    let (router, registry, load_manager) = build_router();
+    let (router, registry, load_manager) = build_router().await;
 
     let agent_id = registry
         .register(RegisterRequest {
@@ -270,7 +281,7 @@ async fn dashboard_request_history_tracks_activity() {
 
 #[tokio::test]
 async fn dashboard_overview_returns_combined_payload() {
-    let (router, registry, load_manager) = build_router();
+    let (router, registry, load_manager) = build_router().await;
 
     let agent_id = registry
         .register(RegisterRequest {
@@ -319,7 +330,7 @@ async fn dashboard_overview_returns_combined_payload() {
 
 #[tokio::test]
 async fn dashboard_agent_metrics_endpoint_returns_history() {
-    let (router, registry, load_manager) = build_router();
+    let (router, registry, load_manager) = build_router().await;
 
     let agent_id = registry
         .register(RegisterRequest {

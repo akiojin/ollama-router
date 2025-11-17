@@ -162,18 +162,24 @@ mod tests {
         }]
     }
 
-    fn coordinator_state() -> AppState {
+    async fn coordinator_state() -> AppState {
         let registry = AgentRegistry::new();
         let load_manager = LoadManager::new(registry.clone());
         let request_history = Arc::new(
             crate::db::request_history::RequestHistoryStorage::new().expect("history init"),
         );
         let task_manager = DownloadTaskManager::new();
+        let db_pool = sqlx::SqlitePool::connect(":memory:")
+            .await
+            .expect("Failed to create test database");
+        let jwt_secret = "test_jwt_secret_key_for_testing_only".to_string();
         AppState {
             registry,
             load_manager,
             request_history,
             task_manager,
+            db_pool,
+            jwt_secret,
         }
     }
 
@@ -220,7 +226,7 @@ mod tests {
             .mount(&mock)
             .await;
 
-        let state = coordinator_state();
+        let state = coordinator_state().await;
         let register_req = RegisterRequest {
             machine_name: "agent-1".to_string(),
             ip_address: agent_ip,

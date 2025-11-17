@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{io, net::SocketAddr};
 
 use axum::Router;

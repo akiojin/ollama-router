@@ -2,6 +2,7 @@
 //!
 //! GPU情報を含むエージェントのみが登録され、レスポンスへGPU情報が反映されることを検証する。
 
+use crate::support;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -13,18 +14,26 @@ use ollama_coordinator_coordinator::{
 use serde_json::json;
 use tower::ServiceExt;
 
-fn build_app() -> Router {
+async fn build_app() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
     let task_manager = DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
 
     api::create_router(state)
@@ -32,7 +41,7 @@ fn build_app() -> Router {
 
 #[tokio::test]
 async fn register_gpu_agent_success() {
-    let app = build_app();
+    let app = build_app().await;
 
     let payload = json!({
         "machine_name": "gpu-node",
@@ -58,7 +67,7 @@ async fn register_gpu_agent_success() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::CREATED);
 
     let list_response = app
         .oneshot(
@@ -95,7 +104,7 @@ async fn register_gpu_agent_success() {
 
 #[tokio::test]
 async fn register_gpu_agent_missing_devices_is_rejected() {
-    let app = build_app();
+    let app = build_app().await;
 
     let payload = json!({
         "machine_name": "cpu-only",

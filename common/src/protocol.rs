@@ -46,6 +46,9 @@ pub struct RegisterResponse {
     /// ダウンロードタスクID（オプション）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub download_task_id: Option<Uuid>,
+    /// エージェント認証トークン（新規登録時のみ）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_token: Option<String>,
 }
 
 /// 登録ステータス

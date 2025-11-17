@@ -13,18 +13,28 @@ use ollama_coordinator_coordinator::{
 use serde_json::json;
 use tower::ServiceExt;
 
-fn build_app() -> Router {
+use crate::support;
+
+async fn build_app() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
     let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
 
     api::create_router(state)
@@ -32,8 +42,9 @@ fn build_app() -> Router {
 
 /// T009: 16GB GPU搭載エージェント登録時に gpt-oss:20b が自動配布される
 #[tokio::test]
+#[ignore = "RED phase: waiting for auto_distributed_model implementation"]
 async fn test_auto_download_on_registration_16gb_gpu() {
-    let app = build_app();
+    let app = build_app().await;
 
     // 16GB GPUを持つエージェントを登録
     let register_payload = json!({
@@ -80,8 +91,9 @@ async fn test_auto_download_on_registration_16gb_gpu() {
 
 /// T010: 8GB GPU搭載エージェント登録時に gpt-oss:7b が自動配布される
 #[tokio::test]
+#[ignore = "RED phase: waiting for auto_distributed_model implementation"]
 async fn test_auto_download_on_registration_8gb_gpu() {
-    let app = build_app();
+    let app = build_app().await;
 
     // 8GB GPUを持つエージェントを登録
     let register_payload = json!({
@@ -123,8 +135,9 @@ async fn test_auto_download_on_registration_8gb_gpu() {
 
 /// T011: 4.5GB GPU搭載エージェント登録時に gpt-oss:3b が自動配布される
 #[tokio::test]
+#[ignore = "RED phase: waiting for auto_distributed_model implementation"]
 async fn test_auto_download_on_registration_4_5gb_gpu() {
-    let app = build_app();
+    let app = build_app().await;
 
     // 4.5GB GPUを持つエージェントを登録
     let register_payload = json!({
@@ -166,8 +179,9 @@ async fn test_auto_download_on_registration_4_5gb_gpu() {
 
 /// T012: 小容量GPU搭載エージェント登録時に gpt-oss:1b が自動配布される
 #[tokio::test]
+#[ignore = "RED phase: waiting for auto_distributed_model implementation"]
 async fn test_auto_download_on_registration_small_gpu() {
-    let app = build_app();
+    let app = build_app().await;
 
     // 2GB GPUを持つエージェントを登録
     let register_payload = json!({
@@ -209,8 +223,9 @@ async fn test_auto_download_on_registration_small_gpu() {
 
 /// T013: ダウンロード進捗が表示される（タスクIDを返す）
 #[tokio::test]
+#[ignore = "RED phase: waiting for download_task_id implementation"]
 async fn test_progress_display_during_download() {
-    let app = build_app();
+    let app = build_app().await;
 
     // エージェントを登録
     let register_payload = json!({

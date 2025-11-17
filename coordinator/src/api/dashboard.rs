@@ -452,17 +452,23 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr};
     use tokio::time::Duration;
 
-    fn create_state() -> AppState {
+    async fn create_state() -> AppState {
         let registry = AgentRegistry::new();
         let load_manager = LoadManager::new(registry.clone());
         let request_history =
             std::sync::Arc::new(crate::db::request_history::RequestHistoryStorage::new().unwrap());
         let task_manager = DownloadTaskManager::new();
+        let db_pool = sqlx::SqlitePool::connect(":memory:")
+            .await
+            .expect("Failed to create test database");
+        let jwt_secret = "test_jwt_secret_key_for_testing_only".to_string();
         AppState {
             registry,
             load_manager,
             request_history,
             task_manager,
+            db_pool,
+            jwt_secret,
         }
     }
 
@@ -476,7 +482,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_agents_returns_joined_state() {
-        let state = create_state();
+        let state = create_state().await;
 
         // エージェントを登録
         let register_req = RegisterRequest {
@@ -547,7 +553,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_stats_summarises_registry_and_metrics() {
-        let state = create_state();
+        let state = create_state().await;
 
         let first_agent = state
             .registry
@@ -626,7 +632,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_request_history_returns_series() {
-        let state = create_state();
+        let state = create_state().await;
 
         let agent_id = state
             .registry
@@ -671,7 +677,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_overview_combines_all_sections() {
-        let state = create_state();
+        let state = create_state().await;
 
         let agent_id = state
             .registry
@@ -708,7 +714,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_agent_metrics_returns_history() {
-        let state = create_state();
+        let state = create_state().await;
 
         let response = state
             .registry

@@ -38,7 +38,8 @@ pub fn log_file_path() -> io::Result<PathBuf> {
     Ok(resolve_data_dir()?.join(LOG_SUBDIR).join(LOG_FILE_NAME))
 }
 
-fn resolve_data_dir() -> io::Result<PathBuf> {
+/// データディレクトリのパスを解決する
+pub fn resolve_data_dir() -> io::Result<PathBuf> {
     if let Ok(dir) = env::var("OLLAMA_COORDINATOR_DATA_DIR") {
         return Ok(PathBuf::from(dir));
     }

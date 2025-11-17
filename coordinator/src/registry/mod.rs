@@ -231,6 +231,7 @@ impl AgentRegistry {
             status,
             auto_distributed_model: None,
             download_task_id: None,
+            agent_token: None,
         })
     }
 

@@ -57,23 +57,29 @@ mod tests {
     use std::net::IpAddr;
     use uuid::Uuid;
 
-    fn create_test_state() -> AppState {
+    async fn create_test_state() -> AppState {
         let registry = AgentRegistry::new();
         let load_manager = LoadManager::new(registry.clone());
         let request_history =
             std::sync::Arc::new(crate::db::request_history::RequestHistoryStorage::new().unwrap());
         let task_manager = DownloadTaskManager::new();
+        let db_pool = sqlx::SqlitePool::connect(":memory:")
+            .await
+            .expect("Failed to create test database");
+        let jwt_secret = "test_jwt_secret_key_for_testing_only".to_string();
         AppState {
             registry,
             load_manager,
             request_history,
             task_manager,
+            db_pool,
+            jwt_secret,
         }
     }
 
     #[tokio::test]
     async fn test_health_check_success() {
-        let state = create_test_state();
+        let state = create_test_state().await;
 
         // まずエージェントを登録
         let register_req = RegisterRequest {
@@ -128,7 +134,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check_unknown_agent() {
-        let state = create_test_state();
+        let state = create_test_state().await;
 
         let health_req = HealthCheckRequest {
             agent_id: Uuid::new_v4(),

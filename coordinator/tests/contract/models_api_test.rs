@@ -2,30 +2,39 @@
 //!
 //! TDD RED: これらのテストは実装前に失敗する必要があります
 
+use crate::support;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
     Router,
 };
 use ollama_coordinator_coordinator::{
-    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
 use serde_json::json;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-fn build_app() -> Router {
+async fn build_app() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
-    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
+    let task_manager = DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
 
     api::create_router(state)
@@ -34,7 +43,7 @@ fn build_app() -> Router {
 /// T004: GET /api/models/available の契約テスト
 #[tokio::test]
 async fn test_get_available_models_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     let response = app
         .oneshot(
@@ -98,7 +107,7 @@ async fn test_get_available_models_contract() {
 /// T005: POST /api/models/distribute の契約テスト
 #[tokio::test]
 async fn test_distribute_models_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // テスト用リクエスト
     let request_body = json!({
@@ -152,7 +161,7 @@ async fn test_distribute_models_contract() {
 /// T006: GET /api/agents/{agent_id}/models の契約テスト
 #[tokio::test]
 async fn test_get_agent_models_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // テスト用のエージェントを登録
     let register_payload = json!({
@@ -179,7 +188,7 @@ async fn test_get_agent_models_contract() {
         .await
         .unwrap();
 
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), StatusCode::CREATED);
 
     // エージェントIDを取得
     let body = to_bytes(register_response.into_body(), usize::MAX)
@@ -232,7 +241,7 @@ async fn test_get_agent_models_contract() {
 /// T007: POST /api/agents/{agent_id}/models/pull の契約テスト
 #[tokio::test]
 async fn test_pull_model_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // テスト用のエージェントを登録
     let register_payload = json!({
@@ -259,7 +268,7 @@ async fn test_pull_model_contract() {
         .await
         .unwrap();
 
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), StatusCode::CREATED);
 
     // エージェントIDを取得
     let body = to_bytes(register_response.into_body(), usize::MAX)
@@ -312,7 +321,7 @@ async fn test_pull_model_contract() {
 /// T008: GET /api/tasks/{task_id} の契約テスト
 #[tokio::test]
 async fn test_get_task_progress_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // テスト用のエージェントを登録
     let register_payload = json!({
@@ -339,7 +348,7 @@ async fn test_get_task_progress_contract() {
         .await
         .unwrap();
 
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), StatusCode::CREATED);
 
     // エージェントIDを取得
     let body = to_bytes(register_response.into_body(), usize::MAX)

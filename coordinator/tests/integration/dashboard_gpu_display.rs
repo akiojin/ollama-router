@@ -8,30 +8,41 @@ use axum::{
     Router,
 };
 use ollama_coordinator_coordinator::{
-    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, AppState,
 };
 use serde_json::json;
 use tower::ServiceExt;
 
-fn build_router() -> Router {
+use crate::support;
+
+async fn build_router() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
-    let task_manager = DownloadTaskManager::new();
+    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
+
     api::create_router(state)
 }
 
 #[tokio::test]
 async fn dashboard_agents_include_gpu_devices() {
-    let router = build_router();
+    let router = build_router().await;
 
     let payload = json!({
         "machine_name": "dashboard-gpu",
@@ -57,7 +68,7 @@ async fn dashboard_agents_include_gpu_devices() {
         .await
         .unwrap();
 
-    assert_eq!(register_response.status(), StatusCode::OK);
+    assert_eq!(register_response.status(), StatusCode::CREATED);
 
     let response = router
         .oneshot(

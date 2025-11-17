@@ -551,30 +551,36 @@ mod tests {
     use ollama_coordinator_common::{protocol::RegisterRequest, types::GpuDeviceInfo};
     use std::net::IpAddr;
 
-    fn create_test_state() -> AppState {
+    async fn create_test_state() -> AppState {
         let registry = AgentRegistry::new();
         let load_manager = LoadManager::new(registry.clone());
         let request_history =
             std::sync::Arc::new(crate::db::request_history::RequestHistoryStorage::new().unwrap());
         let task_manager = DownloadTaskManager::new();
+        let db_pool = sqlx::SqlitePool::connect(":memory:")
+            .await
+            .expect("Failed to create test database");
+        let jwt_secret = "test_jwt_secret_key_for_testing_only".to_string();
         AppState {
             registry,
             load_manager,
             request_history,
             task_manager,
+            db_pool,
+            jwt_secret,
         }
     }
 
     #[tokio::test]
     async fn test_select_available_agent_no_agents() {
-        let state = create_test_state();
+        let state = create_test_state().await;
         let result = select_available_agent(&state).await;
         assert!(matches!(result, Err(CoordinatorError::NoAgentsAvailable)));
     }
 
     #[tokio::test]
     async fn test_select_available_agent_success() {
-        let state = create_test_state();
+        let state = create_test_state().await;
 
         // エージェントを登録
         let register_req = RegisterRequest {
@@ -602,7 +608,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_select_available_agent_skips_offline() {
-        let state = create_test_state();
+        let state = create_test_state().await;
 
         // エージェント1を登録
         let register_req1 = RegisterRequest {
