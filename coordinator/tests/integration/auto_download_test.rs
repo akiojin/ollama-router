@@ -25,7 +25,7 @@ async fn build_app() -> Router {
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
-    let task_manager = DownloadTaskManager::new();
+    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
     let db_pool = support::coordinator::create_test_db_pool().await;
     let jwt_secret = support::coordinator::test_jwt_secret();
 
