@@ -63,6 +63,7 @@ impl From<User> for UserResponse {
 }
 
 /// Admin権限チェックヘルパー
+#[allow(clippy::result_large_err)]
 fn check_admin(claims: &Claims) -> Result<(), Response> {
     if claims.role != UserRole::Admin {
         return Err((StatusCode::FORBIDDEN, "Admin access required").into_response());
@@ -138,12 +139,17 @@ pub async fn create_user(
     })?;
 
     // ユーザーを作成
-    let user = crate::db::users::create(&app_state.db_pool, &request.username, &password_hash, request.role)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to create user: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-        })?;
+    let user = crate::db::users::create(
+        &app_state.db_pool,
+        &request.username,
+        &password_hash,
+        request.role,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to create user: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+    })?;
 
     Ok((StatusCode::CREATED, Json(UserResponse::from(user))))
 }
@@ -198,12 +204,10 @@ pub async fn update_user(
 
     // パスワードをハッシュ化（指定された場合）
     let password_hash = if let Some(ref password) = request.password {
-        Some(
-            crate::auth::password::hash_password(password).map_err(|e| {
-                tracing::error!("Failed to hash password: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-            })?,
-        )
+        Some(crate::auth::password::hash_password(password).map_err(|e| {
+            tracing::error!("Failed to hash password: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+        })?)
     } else {
         None
     };

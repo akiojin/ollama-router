@@ -26,7 +26,7 @@ pub async fn create(
 
     sqlx::query(
         "INSERT INTO agent_tokens (agent_id, token_hash, created_at)
-         VALUES (?, ?, ?)"
+         VALUES (?, ?, ?)",
     )
     .bind(agent_id.to_string())
     .bind(&token_hash)
@@ -57,7 +57,7 @@ pub async fn find_by_hash(
     token_hash: &str,
 ) -> Result<Option<AgentToken>, CoordinatorError> {
     let row = sqlx::query_as::<_, AgentTokenRow>(
-        "SELECT agent_id, token_hash, created_at FROM agent_tokens WHERE token_hash = ?"
+        "SELECT agent_id, token_hash, created_at FROM agent_tokens WHERE token_hash = ?",
     )
     .bind(token_hash)
     .fetch_optional(pool)
@@ -82,7 +82,7 @@ pub async fn find_by_agent_id(
     agent_id: Uuid,
 ) -> Result<Option<AgentToken>, CoordinatorError> {
     let row = sqlx::query_as::<_, AgentTokenRow>(
-        "SELECT agent_id, token_hash, created_at FROM agent_tokens WHERE agent_id = ?"
+        "SELECT agent_id, token_hash, created_at FROM agent_tokens WHERE agent_id = ?",
     )
     .bind(agent_id.to_string())
     .fetch_optional(pool)

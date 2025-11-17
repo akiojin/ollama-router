@@ -2,15 +2,15 @@
 //!
 //! JSONファイルベースのデータ永続化 + SQLite認証データ
 
-pub mod request_history;
-/// データベースマイグレーション
-pub mod migrations;
-/// ユーザー管理
-pub mod users;
-/// APIキー管理
-pub mod api_keys;
 /// エージェントトークン管理
 pub mod agent_tokens;
+/// APIキー管理
+pub mod api_keys;
+/// データベースマイグレーション
+pub mod migrations;
+pub mod request_history;
+/// ユーザー管理
+pub mod users;
 
 #[cfg(test)]
 pub(crate) mod test_utils {

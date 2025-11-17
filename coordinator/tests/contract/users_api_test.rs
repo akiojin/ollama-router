@@ -3,6 +3,7 @@
 //! TDD RED: これらのテストは実装前に失敗する必要があります
 //! T007-T010: GET/POST/PUT/DELETE /api/users
 
+use crate::support;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -13,7 +14,6 @@ use ollama_coordinator_coordinator::{
 };
 use serde_json::json;
 use tower::ServiceExt;
-use crate::support;
 
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化
@@ -29,11 +29,13 @@ async fn build_app() -> Router {
     let jwt_secret = support::coordinator::test_jwt_secret();
 
     // テスト用の管理者ユーザーを作成
+    let password_hash =
+        ollama_coordinator_coordinator::auth::password::hash_password("password123").unwrap();
     ollama_coordinator_coordinator::db::users::create(
         &db_pool,
         "admin",
-        "password123",
-        ollama_coordinator_common::auth::UserRole::Admin
+        &password_hash,
+        ollama_coordinator_common::auth::UserRole::Admin,
     )
     .await
     .ok();
@@ -72,7 +74,7 @@ async fn test_list_users_contract() {
     let status = response.status();
 
     // REDフェーズ: エンドポイントが未実装なので404を期待
-    if status == StatusCode::OK {
+    if status.is_success() {
         // レスポンスボディの検証
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -82,10 +84,7 @@ async fn test_list_users_contract() {
             body.get("users").is_some(),
             "Response must have 'users' field"
         );
-        assert!(
-            body["users"].is_array(),
-            "'users' field must be an array"
-        );
+        assert!(body["users"].is_array(), "'users' field must be an array");
 
         // users配列の各要素の検証
         if let Some(users) = body["users"].as_array() {
@@ -93,7 +92,10 @@ async fn test_list_users_contract() {
                 assert!(user.get("id").is_some(), "User must have 'id'");
                 assert!(user.get("username").is_some(), "User must have 'username'");
                 assert!(user.get("role").is_some(), "User must have 'role'");
-                assert!(user.get("created_at").is_some(), "User must have 'created_at'");
+                assert!(
+                    user.get("created_at").is_some(),
+                    "User must have 'created_at'"
+                );
                 // password_hashは含まれないこと
                 assert!(
                     user.get("password_hash").is_none(),
@@ -151,7 +153,10 @@ async fn test_create_user_contract() {
         assert_eq!(body["username"], "newuser");
         assert!(body.get("role").is_some(), "User must have 'role'");
         assert_eq!(body["role"], "viewer");
-        assert!(body.get("created_at").is_some(), "User must have 'created_at'");
+        assert!(
+            body.get("created_at").is_some(),
+            "User must have 'created_at'"
+        );
         // password_hashは含まれないこと
         assert!(
             body.get("password_hash").is_none(),
@@ -196,7 +201,7 @@ async fn test_update_user_contract() {
     let status = response.status();
 
     // REDフェーズ: エンドポイントが未実装なので404を期待
-    if status == StatusCode::OK {
+    if status.is_success() {
         // レスポンスボディの検証
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -205,7 +210,10 @@ async fn test_update_user_contract() {
         assert!(body.get("id").is_some(), "User must have 'id'");
         assert!(body.get("username").is_some(), "User must have 'username'");
         assert!(body.get("role").is_some(), "User must have 'role'");
-        assert!(body.get("created_at").is_some(), "User must have 'created_at'");
+        assert!(
+            body.get("created_at").is_some(),
+            "User must have 'created_at'"
+        );
     } else {
         assert_eq!(
             status,

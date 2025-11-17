@@ -26,7 +26,6 @@ use std::{
 };
 use tower::ServiceExt;
 
-
 async fn build_router() -> (Router, AgentRegistry, LoadManager) {
     // AUTH_DISABLED=trueで認証を無効化
     std::env::set_var("AUTH_DISABLED", "true");

@@ -64,9 +64,7 @@ pub async fn create_admin_from_env(
 /// # Returns
 /// * `Ok(username)` - 作成された管理者のユーザー名
 /// * `Err(CoordinatorError)` - 作成失敗
-pub async fn create_admin_interactive(
-    pool: &sqlx::SqlitePool,
-) -> Result<String, CoordinatorError> {
+pub async fn create_admin_interactive(pool: &sqlx::SqlitePool) -> Result<String, CoordinatorError> {
     println!("\n=== Initial Setup: Create Admin User ===");
 
     // ユーザー名を入力
@@ -106,7 +104,10 @@ pub async fn create_admin_interactive(
     match db::users::create(pool, username, &password_hash, UserRole::Admin).await {
         Ok(user) => {
             println!("✓ Admin user '{}' created successfully", user.username);
-            tracing::info!("Created admin user interactively: username={}", user.username);
+            tracing::info!(
+                "Created admin user interactively: username={}",
+                user.username
+            );
             Ok(user.username)
         }
         Err(CoordinatorError::Database(ref e)) if e.contains("UNIQUE constraint failed") => {

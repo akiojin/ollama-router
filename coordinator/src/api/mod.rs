@@ -52,7 +52,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/logout", post(auth::logout))
         .route("/api/auth/me", get(auth::me))
         // ユーザー管理API
-        .route("/api/users", get(users::list_users).post(users::create_user))
+        .route(
+            "/api/users",
+            get(users::list_users).post(users::create_user),
+        )
         .route(
             "/api/users/:user_id",
             put(users::update_user).delete(users::delete_user),

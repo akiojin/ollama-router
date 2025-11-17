@@ -118,16 +118,10 @@ pub async fn register_agent(
         match crate::db::agent_tokens::create(&state.db_pool, agent_id).await {
             Ok(token_with_plaintext) => {
                 response.agent_token = Some(token_with_plaintext.token);
-                info!(
-                    "Generated agent token for new agent: agent_id={}",
-                    agent_id
-                );
+                info!("Generated agent token for new agent: agent_id={}", agent_id);
             }
             Err(e) => {
-                error!(
-                    "Failed to generate agent token for {}: {}",
-                    agent_id, e
-                );
+                error!("Failed to generate agent token for {}: {}", agent_id, e);
                 // エラーだがエージェント登録自体は成功しているので継続
             }
         }
@@ -285,27 +279,15 @@ impl IntoResponse for AppError {
                     (StatusCode::BAD_REQUEST, self.0.to_string())
                 }
             }
-            CoordinatorError::Authentication(_) => {
-                (StatusCode::UNAUTHORIZED, self.0.to_string())
-            }
+            CoordinatorError::Authentication(_) => (StatusCode::UNAUTHORIZED, self.0.to_string()),
             CoordinatorError::PasswordHash(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.0.to_string())
             }
-            CoordinatorError::Jwt(_) => {
-                (StatusCode::UNAUTHORIZED, self.0.to_string())
-            }
-            CoordinatorError::ApiKey(_) => {
-                (StatusCode::UNAUTHORIZED, self.0.to_string())
-            }
-            CoordinatorError::AgentToken(_) => {
-                (StatusCode::UNAUTHORIZED, self.0.to_string())
-            }
-            CoordinatorError::Forbidden(_) => {
-                (StatusCode::FORBIDDEN, self.0.to_string())
-            }
-            CoordinatorError::Unauthorized(_) => {
-                (StatusCode::UNAUTHORIZED, self.0.to_string())
-            }
+            CoordinatorError::Jwt(_) => (StatusCode::UNAUTHORIZED, self.0.to_string()),
+            CoordinatorError::ApiKey(_) => (StatusCode::UNAUTHORIZED, self.0.to_string()),
+            CoordinatorError::AgentToken(_) => (StatusCode::UNAUTHORIZED, self.0.to_string()),
+            CoordinatorError::Forbidden(_) => (StatusCode::FORBIDDEN, self.0.to_string()),
+            CoordinatorError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, self.0.to_string()),
         };
 
         let payload = json!({

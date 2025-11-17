@@ -17,7 +17,6 @@ use tower::ServiceExt;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-
 async fn build_state_with_mock(mock: &MockServer) -> AppState {
     // AUTH_DISABLED=trueで認証を無効化
     std::env::set_var("AUTH_DISABLED", "true");

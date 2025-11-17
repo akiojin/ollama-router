@@ -65,26 +65,18 @@ pub async fn login(
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
         })?
         .ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "Invalid username or password",
-            )
-                .into_response()
+            (StatusCode::UNAUTHORIZED, "Invalid username or password").into_response()
         })?;
 
     // パスワードを検証
     let is_valid = crate::auth::password::verify_password(&request.password, &user.password_hash)
         .map_err(|e| {
-            tracing::error!("Failed to verify password: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-        })?;
+        tracing::error!("Failed to verify password: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+    })?;
 
     if !is_valid {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            "Invalid username or password",
-        )
-            .into_response());
+        return Err((StatusCode::UNAUTHORIZED, "Invalid username or password").into_response());
     }
 
     // 最終ログイン時刻を更新
@@ -98,11 +90,12 @@ pub async fn login(
 
     // JWTを生成（有効期限24時間）
     let expires_in = 86400; // 24時間（秒）
-    let token = crate::auth::jwt::create_jwt(&user.id.to_string(), user.role, &app_state.jwt_secret)
-        .map_err(|e| {
-            tracing::error!("Failed to create JWT: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-        })?;
+    let token =
+        crate::auth::jwt::create_jwt(&user.id.to_string(), user.role, &app_state.jwt_secret)
+            .map_err(|e| {
+                tracing::error!("Failed to create JWT: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+            })?;
 
     Ok(Json(LoginResponse { token, expires_in }))
 }

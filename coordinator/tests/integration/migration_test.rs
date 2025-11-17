@@ -2,7 +2,9 @@
 //!
 //! T014: JSONからSQLiteへのマイグレーション
 
-use ollama_coordinator_coordinator::db::migrations::{initialize_database, import_agents_from_json};
+use ollama_coordinator_coordinator::db::migrations::{
+    import_agents_from_json, initialize_database,
+};
 
 /// T014: JSONからSQLiteへのマイグレーションテスト
 #[tokio::test]
@@ -22,20 +24,25 @@ async fn test_json_to_sqlite_migration() {
     assert!(result.is_ok(), "users table should be created");
 
     // api_keysテーブルが作成されているか確認
-    let result = sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'")
-        .fetch_one(&pool)
-        .await;
+    let result =
+        sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'")
+            .fetch_one(&pool)
+            .await;
     assert!(result.is_ok(), "api_keys table should be created");
 
     // agent_tokensテーブルが作成されているか確認
-    let result = sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='agent_tokens'")
-        .fetch_one(&pool)
-        .await;
+    let result =
+        sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='agent_tokens'")
+            .fetch_one(&pool)
+            .await;
     assert!(result.is_ok(), "agent_tokens table should be created");
 
     // JSONインポート（存在しないファイルでもエラーにならないことを確認）
     let result = import_agents_from_json("/nonexistent/agents.json").await;
-    assert!(result.is_ok(), "Import should succeed even without JSON file");
+    assert!(
+        result.is_ok(),
+        "Import should succeed even without JSON file"
+    );
 }
 
 /// T014: SQLiteスキーマ作成テスト
@@ -66,7 +73,7 @@ async fn test_sqlite_schema_creation() {
 
     // インデックスが作成されているか確認
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND tbl_name='users'"
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND tbl_name='users'",
     )
     .fetch_one(&pool)
     .await

@@ -2,6 +2,7 @@
 //!
 //! GPU情報を含むエージェントのみが登録され、レスポンスへGPU情報が反映されることを検証する。
 
+use crate::support;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -12,7 +13,6 @@ use ollama_coordinator_coordinator::{
 };
 use serde_json::json;
 use tower::ServiceExt;
-use crate::support;
 
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化

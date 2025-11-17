@@ -2,6 +2,7 @@
 //!
 //! TDD RED: これらのテストは実装前に失敗する必要があります
 
+use crate::support;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -13,7 +14,6 @@ use ollama_coordinator_coordinator::{
 use serde_json::json;
 use tower::ServiceExt;
 use uuid::Uuid;
-use crate::support;
 
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化

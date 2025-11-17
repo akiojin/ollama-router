@@ -77,6 +77,7 @@ impl From<ApiKeyWithPlaintext> for CreateApiKeyResponse {
 }
 
 /// Admin権限チェックヘルパー
+#[allow(clippy::result_large_err)]
 fn check_admin(claims: &Claims) -> Result<(), Response> {
     if claims.role != UserRole::Admin {
         return Err((StatusCode::FORBIDDEN, "Admin access required").into_response());
@@ -156,12 +157,13 @@ pub async fn create_api_key(
     };
 
     // APIキーを作成
-    let api_key = crate::db::api_keys::create(&app_state.db_pool, &request.name, user_id, expires_at)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to create API key: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-        })?;
+    let api_key =
+        crate::db::api_keys::create(&app_state.db_pool, &request.name, user_id, expires_at)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to create API key: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+            })?;
 
     Ok((
         StatusCode::CREATED,

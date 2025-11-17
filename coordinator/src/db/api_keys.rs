@@ -32,7 +32,7 @@ pub async fn create(
 
     sqlx::query(
         "INSERT INTO api_keys (id, key_hash, name, created_by, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(id.to_string())
     .bind(&key_hash)

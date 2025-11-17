@@ -15,9 +15,8 @@ const HASH_COST: u32 = 12;
 /// * `Ok(String)` - bcryptハッシュ文字列（$2b$で始まる）
 /// * `Err(CoordinatorError)` - ハッシュ化失敗
 pub fn hash_password(password: &str) -> Result<String, CoordinatorError> {
-    hash(password, HASH_COST).map_err(|e| {
-        CoordinatorError::PasswordHash(format!("Failed to hash password: {}", e))
-    })
+    hash(password, HASH_COST)
+        .map_err(|e| CoordinatorError::PasswordHash(format!("Failed to hash password: {}", e)))
 }
 
 /// パスワードを検証
@@ -31,7 +30,6 @@ pub fn hash_password(password: &str) -> Result<String, CoordinatorError> {
 /// * `Ok(false)` - パスワード不一致
 /// * `Err(CoordinatorError)` - 検証失敗
 pub fn verify_password(password: &str, hash: &str) -> Result<bool, CoordinatorError> {
-    verify(password, hash).map_err(|e| {
-        CoordinatorError::PasswordHash(format!("Failed to verify password: {}", e))
-    })
+    verify(password, hash)
+        .map_err(|e| CoordinatorError::PasswordHash(format!("Failed to verify password: {}", e)))
 }

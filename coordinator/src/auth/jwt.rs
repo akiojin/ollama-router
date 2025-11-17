@@ -18,16 +18,10 @@ const JWT_EXPIRATION_HOURS: i64 = 24;
 /// # Returns
 /// * `Ok(String)` - JWTトークン（3つのドット区切り部分）
 /// * `Err(CoordinatorError)` - 生成失敗
-pub fn create_jwt(
-    user_id: &str,
-    role: UserRole,
-    secret: &str,
-) -> Result<String, CoordinatorError> {
+pub fn create_jwt(user_id: &str, role: UserRole, secret: &str) -> Result<String, CoordinatorError> {
     let expiration = Utc::now()
         .checked_add_signed(chrono::Duration::hours(JWT_EXPIRATION_HOURS))
-        .ok_or_else(|| {
-            CoordinatorError::Jwt("Failed to calculate expiration time".to_string())
-        })?
+        .ok_or_else(|| CoordinatorError::Jwt("Failed to calculate expiration time".to_string()))?
         .timestamp() as usize;
 
     let claims = Claims {

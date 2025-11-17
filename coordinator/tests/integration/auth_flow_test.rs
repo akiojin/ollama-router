@@ -3,11 +3,11 @@
 //! TDD RED: これらのテストは実装前に失敗する必要があります
 //! T015-T017: ログイン成功/失敗、未認証アクセス拒否
 
+use crate::support;
 use axum::Router;
 use ollama_coordinator_coordinator::{
     api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
-use crate::support;
 
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化

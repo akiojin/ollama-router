@@ -1,7 +1,7 @@
 // T040-T041: データベースマイグレーション実行とJSONインポート
 
 use ollama_coordinator_common::error::CoordinatorError;
-use sqlx::{SqlitePool, migrate::MigrateDatabase, Sqlite};
+use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 use std::path::Path;
 
 /// SQLiteデータベース接続プールを作成してマイグレーションを実行
@@ -100,12 +100,15 @@ mod tests {
         // テスト用の一時データベース
         let db_url = "sqlite::memory:";
 
-        let pool = initialize_database(db_url).await.expect("Failed to initialize database");
+        let pool = initialize_database(db_url)
+            .await
+            .expect("Failed to initialize database");
 
         // usersテーブルが作成されているか確認
-        let result = sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-            .fetch_one(&pool)
-            .await;
+        let result =
+            sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+                .fetch_one(&pool)
+                .await;
 
         assert!(result.is_ok(), "users table should exist");
     }
@@ -113,14 +116,19 @@ mod tests {
     #[tokio::test]
     async fn test_run_migrations() {
         let db_url = "sqlite::memory:";
-        let pool = SqlitePool::connect(db_url).await.expect("Failed to connect");
+        let pool = SqlitePool::connect(db_url)
+            .await
+            .expect("Failed to connect");
 
-        run_migrations(&pool).await.expect("Failed to run migrations");
+        run_migrations(&pool)
+            .await
+            .expect("Failed to run migrations");
 
         // api_keysテーブルが作成されているか確認
-        let result = sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'")
-            .fetch_one(&pool)
-            .await;
+        let result =
+            sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'")
+                .fetch_one(&pool)
+                .await;
 
         assert!(result.is_ok(), "api_keys table should exist");
     }

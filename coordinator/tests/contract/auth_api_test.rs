@@ -3,6 +3,7 @@
 //! TDD RED: これらのテストは実装前に失敗する必要があります
 //! T004-T006: POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
 
+use crate::support;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -13,7 +14,6 @@ use ollama_coordinator_coordinator::{
 };
 use serde_json::json;
 use tower::ServiceExt;
-use crate::support;
 
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化
@@ -29,11 +29,13 @@ async fn build_app() -> Router {
     let jwt_secret = support::coordinator::test_jwt_secret();
 
     // テスト用の管理者ユーザーを作成
+    let password_hash =
+        ollama_coordinator_coordinator::auth::password::hash_password("password123").unwrap();
     ollama_coordinator_coordinator::db::users::create(
         &db_pool,
         "admin",
-        "password123",
-        ollama_coordinator_common::auth::UserRole::Admin
+        &password_hash,
+        ollama_coordinator_common::auth::UserRole::Admin,
     )
     .await
     .ok(); // エラーは無視（既に存在する場合）
@@ -90,10 +92,7 @@ async fn test_login_contract() {
             body.get("token").is_some(),
             "Response must have 'token' field"
         );
-        assert!(
-            body["token"].is_string(),
-            "'token' field must be a string"
-        );
+        assert!(body["token"].is_string(), "'token' field must be a string");
 
         assert!(
             body.get("user").is_some(),
@@ -135,16 +134,13 @@ async fn test_logout_contract() {
     let status = response.status();
 
     // REDフェーズ: エンドポイントが未実装なので404を期待
-    if status == StatusCode::OK {
-        // レスポンスボディの検証
-        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        // スキーマ検証（空のオブジェクトまたは成功メッセージ）
-        assert!(
-            body.is_object(),
-            "Response must be a JSON object"
-        );
+    if status == StatusCode::OK || status == StatusCode::NO_CONTENT {
+        // 実装完了：ログアウトは204 No Contentを返す
+        if status == StatusCode::OK {
+            let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert!(body.is_object(), "Response must be a JSON object");
+        }
     } else {
         assert_eq!(
             status,

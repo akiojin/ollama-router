@@ -39,15 +39,13 @@ pub async fn jwt_auth_middleware(
         })?;
 
     // "Bearer {token}" から token を抽出
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "Invalid Authorization header format".to_string(),
-            )
-                .into_response()
-        })?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Invalid Authorization header format".to_string(),
+        )
+            .into_response()
+    })?;
 
     // JWTを検証
     let claims = crate::auth::jwt::verify_jwt(token, &jwt_secret).map_err(|e| {
@@ -102,9 +100,7 @@ pub async fn api_key_auth_middleware(
             tracing::warn!("API key verification failed: {}", e);
             (StatusCode::UNAUTHORIZED, "Invalid API key".to_string()).into_response()
         })?
-        .ok_or_else(|| {
-            (StatusCode::UNAUTHORIZED, "Invalid API key".to_string()).into_response()
-        })?;
+        .ok_or_else(|| (StatusCode::UNAUTHORIZED, "Invalid API key".to_string()).into_response())?;
 
     // 有効期限チェック
     if let Some(expires_at) = api_key_record.expires_at {

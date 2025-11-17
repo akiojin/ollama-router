@@ -33,7 +33,7 @@ pub async fn create(
 
     sqlx::query(
         "INSERT INTO users (id, username, password_hash, role, created_at, last_login)
-         VALUES (?, ?, ?, ?, ?, NULL)"
+         VALUES (?, ?, ?, ?, ?, NULL)",
     )
     .bind(id.to_string())
     .bind(username)
@@ -124,9 +124,9 @@ pub async fn update(
     role: Option<UserRole>,
 ) -> Result<User, CoordinatorError> {
     // 現在のユーザー情報を取得
-    let current = find_by_id(pool, id).await?.ok_or_else(|| {
-        CoordinatorError::Database(format!("User not found: {}", id))
-    })?;
+    let current = find_by_id(pool, id)
+        .await?
+        .ok_or_else(|| CoordinatorError::Database(format!("User not found: {}", id)))?;
 
     let new_username = username.unwrap_or(&current.username);
     let new_password_hash = password_hash.unwrap_or(&current.password_hash);
@@ -136,16 +136,14 @@ pub async fn update(
         UserRole::Viewer => "viewer",
     };
 
-    sqlx::query(
-        "UPDATE users SET username = ?, password_hash = ?, role = ? WHERE id = ?"
-    )
-    .bind(new_username)
-    .bind(new_password_hash)
-    .bind(role_str)
-    .bind(id.to_string())
-    .execute(pool)
-    .await
-    .map_err(|e| CoordinatorError::Database(format!("Failed to update user: {}", e)))?;
+    sqlx::query("UPDATE users SET username = ?, password_hash = ?, role = ? WHERE id = ?")
+        .bind(new_username)
+        .bind(new_password_hash)
+        .bind(role_str)
+        .bind(id.to_string())
+        .execute(pool)
+        .await
+        .map_err(|e| CoordinatorError::Database(format!("Failed to update user: {}", e)))?;
 
     Ok(User {
         id,
@@ -210,7 +208,7 @@ pub async fn delete(pool: &SqlitePool, id: Uuid) -> Result<(), CoordinatorError>
 /// * `Err(CoordinatorError)` - 検索失敗
 pub async fn find_by_id(pool: &SqlitePool, id: Uuid) -> Result<Option<User>, CoordinatorError> {
     let row = sqlx::query_as::<_, UserRow>(
-        "SELECT id, username, password_hash, role, created_at, last_login FROM users WHERE id = ?"
+        "SELECT id, username, password_hash, role, created_at, last_login FROM users WHERE id = ?",
     )
     .bind(id.to_string())
     .fetch_optional(pool)
@@ -250,9 +248,9 @@ pub async fn is_first_boot(pool: &SqlitePool) -> Result<bool, CoordinatorError> 
 /// * `Err(CoordinatorError)` - チェック失敗
 pub async fn is_last_admin(pool: &SqlitePool, user_id: Uuid) -> Result<bool, CoordinatorError> {
     // 対象ユーザーが管理者かチェック
-    let user = find_by_id(pool, user_id).await?.ok_or_else(|| {
-        CoordinatorError::Database(format!("User not found: {}", user_id))
-    })?;
+    let user = find_by_id(pool, user_id)
+        .await?
+        .ok_or_else(|| CoordinatorError::Database(format!("User not found: {}", user_id)))?;
 
     if user.role != UserRole::Admin {
         // 管理者でなければ最後の管理者ではない

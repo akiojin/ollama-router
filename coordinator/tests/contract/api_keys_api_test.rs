@@ -3,6 +3,7 @@
 //! TDD RED: これらのテストは実装前に失敗する必要があります
 //! T011-T013: GET/POST/DELETE /api/api-keys
 
+use crate::support;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -13,7 +14,6 @@ use ollama_coordinator_coordinator::{
 };
 use serde_json::json;
 use tower::ServiceExt;
-use crate::support;
 
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化
@@ -29,11 +29,13 @@ async fn build_app() -> Router {
     let jwt_secret = support::coordinator::test_jwt_secret();
 
     // テスト用の管理者ユーザーを作成
+    let password_hash =
+        ollama_coordinator_coordinator::auth::password::hash_password("password123").unwrap();
     ollama_coordinator_coordinator::db::users::create(
         &db_pool,
         "admin",
-        "password123",
-        ollama_coordinator_common::auth::UserRole::Admin
+        &password_hash,
+        ollama_coordinator_common::auth::UserRole::Admin,
     )
     .await
     .ok();
@@ -72,7 +74,7 @@ async fn test_list_api_keys_contract() {
     let status = response.status();
 
     // REDフェーズ: エンドポイントが未実装なので404を期待
-    if status == StatusCode::OK {
+    if status.is_success() {
         // レスポンスボディの検証
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -152,7 +154,10 @@ async fn test_create_api_key_contract() {
 
         // スキーマ検証（平文キーを含む）
         assert!(body.get("id").is_some(), "ApiKey must have 'id'");
-        assert!(body.get("key").is_some(), "ApiKey must have 'key' (plaintext)");
+        assert!(
+            body.get("key").is_some(),
+            "ApiKey must have 'key' (plaintext)"
+        );
         assert!(
             body["key"].as_str().unwrap().starts_with("sk_"),
             "API key must start with 'sk_'"

@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod jwt_tests {
-    use ollama_coordinator_coordinator::auth::jwt::{create_jwt, verify_jwt};
     use ollama_coordinator_common::auth::UserRole;
+    use ollama_coordinator_coordinator::auth::jwt::{create_jwt, verify_jwt};
 
     const TEST_SECRET: &str = "test_secret_key_for_jwt_testing_12345678";
 
@@ -91,16 +91,16 @@ mod jwt_tests {
         let user_id = "user-roles";
 
         // When: AdminとViewerのトークンを生成
-        let admin_token = create_jwt(user_id, UserRole::Admin, TEST_SECRET)
-            .expect("Failed to create admin JWT");
+        let admin_token =
+            create_jwt(user_id, UserRole::Admin, TEST_SECRET).expect("Failed to create admin JWT");
         let viewer_token = create_jwt(user_id, UserRole::Viewer, TEST_SECRET)
             .expect("Failed to create viewer JWT");
 
         // Then: 両方とも有効だが、ロールが異なる
-        let admin_claims = verify_jwt(&admin_token, TEST_SECRET)
-            .expect("Failed to verify admin JWT");
-        let viewer_claims = verify_jwt(&viewer_token, TEST_SECRET)
-            .expect("Failed to verify viewer JWT");
+        let admin_claims =
+            verify_jwt(&admin_token, TEST_SECRET).expect("Failed to verify admin JWT");
+        let viewer_claims =
+            verify_jwt(&viewer_token, TEST_SECRET).expect("Failed to verify viewer JWT");
 
         assert_eq!(admin_claims.role, UserRole::Admin);
         assert_eq!(viewer_claims.role, UserRole::Viewer);

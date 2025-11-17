@@ -16,7 +16,6 @@ use ollama_coordinator_coordinator::{
 use serde_json::json;
 use tower::ServiceExt;
 
-
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化
     std::env::set_var("AUTH_DISABLED", "true");
