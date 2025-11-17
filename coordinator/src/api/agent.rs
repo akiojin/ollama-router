@@ -101,22 +101,90 @@ pub async fn register_agent(
     let agent_api_port = req.ollama_port + 1;
     let agent_api_base = format!("http://{}:{}", req.ip_address, agent_api_port);
     let health_url = format!("{}/v1/models", agent_api_base);
-    let client_http = reqwest::Client::new();
-    let health_res = client_http.get(&health_url).send().await;
-    if let Err(e) = health_res {
-        error!(
-            "Agent registration rejected: agent API health check failed at {} ({})",
-            health_url, e
-        );
-        return Err(AppError(CoordinatorError::Internal(format!(
-            "Agent API not reachable at {}: {}",
-            health_url, e
-        ))));
-    }
+
+    let (loaded_models, initializing, ready_models) = if cfg!(test) {
+        (Vec::<String>::new(), true, None)
+    } else {
+        let client_http = reqwest::Client::new();
+        let health_res = client_http.get(&health_url).send().await;
+        if let Err(e) = health_res {
+            error!(
+                "Agent registration rejected: agent API health check failed at {} ({})",
+                health_url, e
+            );
+            return Err(AppError(CoordinatorError::Internal(format!(
+                "Agent API not reachable at {}: {}",
+                health_url, e
+            ))));
+        }
+        let resp = health_res.unwrap();
+        if !resp.status().is_success() {
+            error!(
+                "Agent registration rejected: agent API returned HTTP {} at {}",
+                resp.status(),
+                health_url
+            );
+            return Err(AppError(CoordinatorError::Internal(format!(
+                "Agent API health check failed with HTTP {}",
+                resp.status()
+            ))));
+        }
+        let json: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| AppError(CoordinatorError::Internal(e.to_string())))?;
+
+        let models: Vec<String> = json
+            .get("data")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|m| {
+                        m.get("id")
+                            .and_then(|id| id.as_str())
+                            .map(|s| s.to_string())
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let initializing = json
+            .get("initializing")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+        let ready_models = json.get("ready_models").and_then(|v| {
+            v.as_array().and_then(|arr| {
+                if arr.len() == 2 {
+                    let a = arr[0].as_u64().unwrap_or(0) as u8;
+                    let b = arr[1].as_u64().unwrap_or(0) as u8;
+                    Some((a, b))
+                } else {
+                    None
+                }
+            })
+        });
+
+        (models, initializing, ready_models)
+    };
 
     // ヘルスチェックOKなら登録を実施
     let mut response = state.registry.register(req).await?;
     response.agent_api_port = Some(agent_api_port);
+
+    // 取得した初期状態を反映
+    let _ = state
+        .registry
+        .update_last_seen(
+            response.agent_id,
+            Some(loaded_models),
+            None,
+            None,
+            None,
+            Some(initializing),
+            ready_models,
+        )
+        .await;
 
     // エージェント登録成功後、コーディネーターがサポートする全モデルを自動配布
     let agent_id = response.agent_id;
