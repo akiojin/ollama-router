@@ -13,6 +13,8 @@
     html_favicon_url = "https://raw.githubusercontent.com/pest-parser/pest/master/pest-logo.svg"
 )]
 #![warn(missing_docs, rust_2018_idioms, unused_qualifications)]
+// Vendored for CI stability: suppress clippy unused-import warnings
+#![allow(unused_imports)]
 #![recursion_limit = "256"]
 //! # pest generator
 //!
