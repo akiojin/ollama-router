@@ -113,6 +113,26 @@ pub async fn register_agent(
     response.auto_distributed_model = Some(model_name.clone());
     response.download_task_id = Some(task_id);
 
+    // 新規登録時にエージェントトークンを生成
+    if response.status == ollama_coordinator_common::protocol::RegisterStatus::Registered {
+        match crate::db::agent_tokens::create(&state.db_pool, agent_id).await {
+            Ok(token_with_plaintext) => {
+                response.agent_token = Some(token_with_plaintext.token);
+                info!(
+                    "Generated agent token for new agent: agent_id={}",
+                    agent_id
+                );
+            }
+            Err(e) => {
+                error!(
+                    "Failed to generate agent token for {}: {}",
+                    agent_id, e
+                );
+                // エラーだがエージェント登録自体は成功しているので継続
+            }
+        }
+    }
+
     // エージェントにモデルプル要求を送信（バックグラウンド）
     tokio::spawn(async move {
         match registry.get(agent_id).await {
