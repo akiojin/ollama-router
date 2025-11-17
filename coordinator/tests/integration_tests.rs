@@ -1,6 +1,9 @@
 //! Integration tests entrypoint for model management
 //! （現行仕様では手動配布/旧自動配布テストを削除済み）
 
+#[path = "support/mod.rs"]
+mod support;
+
 #[path = "integration/model_info_test.rs"]
 mod model_info_test;
 
