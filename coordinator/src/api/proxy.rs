@@ -666,6 +666,21 @@ mod tests {
     }
 
     async fn mark_ready(state: &AppState, agent_id: Uuid) {
+        // レジストリ側のフラグも更新し、ロードバランサが初期化完了と判断できるようにする
+        state
+            .registry
+            .update_last_seen(
+                agent_id,
+                None,
+                None,
+                None,
+                None,
+                Some(false),
+                Some((4, 4)),
+            )
+            .await
+            .ok();
+
         state
             .load_manager
             .record_metrics(MetricsUpdate {
