@@ -50,8 +50,9 @@ async fn build_state_with_mock(mock: &MockServer) -> AppState {
         .unwrap();
 
     // エージェントをready状態にしておく（初期化待ちで503にならないように）
-    let agent_id = registry.list().await[0].id;
-    load_manager
+    let agent_id = state.registry.list().await[0].id;
+    state
+        .load_manager
         .record_metrics(ollama_coordinator_coordinator::balancer::MetricsUpdate {
             agent_id,
             cpu_usage: 0.0,
