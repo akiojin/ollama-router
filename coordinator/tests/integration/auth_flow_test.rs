@@ -3,16 +3,10 @@
 //! TDD RED: これらのテストは実装前に失敗する必要があります
 //! T015-T017: ログイン成功/失敗、未認証アクセス拒否
 
-use axum::{
-    body::{to_bytes, Body},
-    http::{Request, StatusCode},
-    Router,
-};
+use axum::Router;
 use ollama_coordinator_coordinator::{
     api, balancer::LoadManager, registry::AgentRegistry, AppState,
 };
-use serde_json::json;
-use tower::ServiceExt;
 
 fn build_app() -> Router {
     let registry = AgentRegistry::new();

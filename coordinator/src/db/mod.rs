@@ -1,8 +1,9 @@
 //! データベースアクセス層
 //!
-//! JSONファイルベースのデータ永続化
+//! JSONファイルベースのデータ永続化 + SQLite認証データ
 
 pub mod request_history;
+pub mod migrations;
 
 #[cfg(test)]
 pub(crate) mod test_utils {
