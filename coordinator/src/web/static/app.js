@@ -66,7 +66,6 @@ const state = {
 
 let requestsChart = null;
 let agentMetricsChart = null;
-let modelsInitPromise = null;
 const modalRefs = {
   modal: null,
   close: null,
@@ -416,7 +415,6 @@ async function applyOverviewData(overview) {
   setConnectionStatus("online");
   updateLastRefreshed(new Date(), generatedAt);
 
-  await ensureModelsUiReady();
 }
 
 async function fetchLegacyOverview() {
@@ -2282,44 +2280,3 @@ function initTabs() {
   switchTab('all');
 }
 
-// ========== models.js統合 ==========
-
-/**
- * models.jsを動的にインポートしてモデル管理UIを初期化
- */
-async function initModels() {
-  const modelsModule = await import('/dashboard/models.js');
-
-  if (typeof modelsModule.initModelsUI !== 'function') {
-    throw new Error('models.js is missing initModelsUI export');
-  }
-
-  await modelsModule.initModelsUI(state.agents);
-
-  if (typeof modelsModule.updateModelsUI === 'function') {
-    window.updateModelsUI = modelsModule.updateModelsUI;
-  }
-}
-
-async function ensureModelsUiReady() {
-  if (typeof window.updateModelsUI === 'function') {
-    window.updateModelsUI(state.agents);
-    return;
-  }
-
-  if (!modelsInitPromise) {
-    modelsInitPromise = initModels().catch((error) => {
-      modelsInitPromise = null;
-      throw error;
-    });
-  }
-
-  try {
-    await modelsInitPromise;
-    if (typeof window.updateModelsUI === 'function') {
-      window.updateModelsUI(state.agents);
-    }
-  } catch (error) {
-    console.error('Failed to initialize models UI:', error);
-  }
-}

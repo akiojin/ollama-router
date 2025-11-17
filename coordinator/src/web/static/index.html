@@ -208,70 +208,7 @@
             </dl>
           </header>
 
-          <div class="models-layout">
-            <section class="models-panel models-panel--primary">
-              <header class="models-panel__header">
-                <div>
-                  <h3>利用可能なモデル</h3>
-                  <p class="panel__caption">
-                    <span id="models-source-label">Ollamaライブラリから取得</span>
-                  </p>
-                </div>
-                <label class="input-search">
-                  <span class="sr-only">モデル検索</span>
-                  <input
-                    type="search"
-                    id="model-search-input"
-                    placeholder="モデル名・用途で検索"
-                    autocomplete="off"
-                  />
-                </label>
-              </header>
-
-              <div class="models-guide">
-                <div class="models-guide__item">
-                  <span>80GB+</span>
-                  <strong>gpt-oss:120b</strong>
-                  <p>最高精度のフラッグシップ。A/H100クラス専用。</p>
-                </div>
-                <div class="models-guide__item">
-                  <span>16GB+</span>
-                  <strong>gpt-oss:20b</strong>
-                  <p>汎用＋CoTの定番。セーフガード版も同容量。</p>
-                </div>
-                <div class="models-guide__item">
-                  <span>24GB+</span>
-                  <strong>qwen3-coder:30b</strong>
-                  <p>コード特化の本命。M4 Maxクラスで実用。</p>
-                </div>
-                <div class="models-guide__item">
-                  <span>10GB+</span>
-                </div>
-              </div>
-
-              <div id="available-models-list" class="models-grid">
-                <p class="loading-message">モデル一覧を読み込み中...</p>
-              </div>
-            </section>
-
-            <div class="models-ops-column">
-              <section class="models-panel loaded-models-section">
-                <header class="models-panel__header">
-                  <div>
-                    <h3>ロード済みモデル（全エージェント合算）</h3>
-                    <p class="panel__caption">自動配布されたモデルの状態を集約表示</p>
-                  </div>
-                </header>
-                <div id="loaded-models-list" class="tasks-list">
-                  <p class="empty-message">ロード済みモデルはありません</p>
-                </div>
-              </section>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div class="tab-panel" id="tab-history">
+          <div class="tab-panel" id="tab-history">
       <section class="request-history-section">
         <header class="section-header">
           <h2>リクエスト履歴一覧</h2>
