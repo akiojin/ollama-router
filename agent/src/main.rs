@@ -210,15 +210,6 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
 
     let mut ready: u8 = 0;
     for m in &model_list {
-        if config
-            .skip_models
-            .iter()
-            .any(|skip| skip == &m.to_lowercase())
-        {
-            warn!("Skipping model {} due to OLLAMA_SKIP_MODELS", m);
-            continue;
-        }
-
         match state.ollama_pool.ensure(m).await {
             Ok(_) => {
                 ready = ready.saturating_add(1);
@@ -427,7 +418,6 @@ struct LaunchConfig {
     coordinator_url: String,
     ollama_port: u16,
     heartbeat_interval_secs: u64,
-    skip_models: Vec<String>,
 }
 
 impl LaunchConfig {
@@ -445,21 +435,10 @@ impl LaunchConfig {
             .or(stored.heartbeat_interval_secs)
             .unwrap_or(10);
 
-        let skip_models = std::env::var("OLLAMA_SKIP_MODELS")
-            .ok()
-            .map(|v| {
-                v.split(',')
-                    .map(|s| s.trim().to_lowercase())
-                    .filter(|s| !s.is_empty())
-                    .collect()
-            })
-            .unwrap_or_default();
-
         Self {
             coordinator_url,
             ollama_port,
             heartbeat_interval_secs,
-            skip_models,
         }
     }
 }

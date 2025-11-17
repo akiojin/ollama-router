@@ -74,7 +74,6 @@ async fn test_list_available_models_from_ollama_library() {
     assert!(model_names.contains(&"gpt-oss:120b".to_string()));
     assert!(model_names.contains(&"gpt-oss-safeguard:20b".to_string()));
     assert!(model_names.contains(&"qwen3-coder:30b".to_string()));
-    assert!(model_names.contains(&"glm4:9b-chat-q4_K_M".to_string()));
 
     // 各モデルに必要な情報が含まれることを検証
     for model in models {
@@ -308,11 +307,10 @@ async fn test_v1_models_returns_fixed_list() {
         "gpt-oss:20b",
         "gpt-oss:120b",
         "gpt-oss-safeguard:20b",
-        "glm4:9b-chat-q4_K_M",
         "qwen3-coder:30b",
     ];
 
-    assert_eq!(ids.len(), expected.len(), "should return exactly 5 models");
+    assert_eq!(ids.len(), expected.len(), "should return exactly 4 models");
     for id in expected {
         assert!(ids.contains(&id.to_string()), "missing {id}");
     }
