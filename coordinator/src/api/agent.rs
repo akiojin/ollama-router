@@ -265,6 +265,27 @@ impl IntoResponse for AppError {
                     (StatusCode::BAD_REQUEST, self.0.to_string())
                 }
             }
+            CoordinatorError::Authentication(_) => {
+                (StatusCode::UNAUTHORIZED, self.0.to_string())
+            }
+            CoordinatorError::PasswordHash(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.0.to_string())
+            }
+            CoordinatorError::Jwt(_) => {
+                (StatusCode::UNAUTHORIZED, self.0.to_string())
+            }
+            CoordinatorError::ApiKey(_) => {
+                (StatusCode::UNAUTHORIZED, self.0.to_string())
+            }
+            CoordinatorError::AgentToken(_) => {
+                (StatusCode::UNAUTHORIZED, self.0.to_string())
+            }
+            CoordinatorError::Forbidden(_) => {
+                (StatusCode::FORBIDDEN, self.0.to_string())
+            }
+            CoordinatorError::Unauthorized(_) => {
+                (StatusCode::UNAUTHORIZED, self.0.to_string())
+            }
         };
 
         let payload = json!({

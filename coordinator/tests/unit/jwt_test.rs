@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod jwt_tests {
     use ollama_coordinator_coordinator::auth::jwt::{create_jwt, verify_jwt};
-    use ollama_coordinator_common::auth::{Claims, UserRole};
+    use ollama_coordinator_common::auth::UserRole;
 
     const TEST_SECRET: &str = "test_secret_key_for_jwt_testing_12345678";
 
