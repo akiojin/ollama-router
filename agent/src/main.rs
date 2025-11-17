@@ -239,6 +239,19 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
         );
     }
 
+    // 初回ハートビートを送信（登録直後に状態を同期）
+    if let Err(e) = send_heartbeat_once(
+        &mut coordinator_client,
+        agent_id,
+        &mut metrics_collector,
+        &gpu_capability,
+        &init_state,
+    )
+    .await
+    {
+        warn!("Initial heartbeat failed: {}", e);
+    }
+
     // ハートビート送信タスク
     let mut heartbeat_timer = interval(Duration::from_secs(heartbeat_interval_secs));
 
@@ -271,6 +284,13 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
             let st = init_state.lock().await;
             st.ready_models
         };
+        let initializing_flag = match ready_models {
+            Some((ready, total)) if total > 0 => ready < total,
+            _ => {
+                let st = init_state.lock().await;
+                st.initializing
+            }
+        };
 
         let heartbeat_req = HealthCheckRequest {
             agent_id,
@@ -291,10 +311,7 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
             active_requests: 0,
             average_response_time_ms: None,
             loaded_models: models,
-            initializing: {
-                let st = init_state.lock().await;
-                st.initializing
-            },
+            initializing: initializing_flag,
             ready_models,
         };
 
@@ -421,6 +438,56 @@ fn env_u64(key: &str) -> Option<u64> {
     std::env::var(key)
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
+}
+
+async fn send_heartbeat_once(
+    coordinator_client: &mut CoordinatorClient,
+    agent_id: uuid::Uuid,
+    metrics_collector: &mut MetricsCollector,
+    gpu_capability: &Option<ollama_coordinator_agent::metrics::GpuCapability>,
+    init_state: &Arc<Mutex<api::models::InitState>>,
+) -> AgentResult<()> {
+    let metrics = metrics_collector.collect_metrics()?;
+    let ready_models = {
+        let st = init_state.lock().await;
+        st.ready_models
+    };
+    let initializing_flag = match ready_models {
+        Some((ready, total)) if total > 0 => ready < total,
+        _ => {
+            let st = init_state.lock().await;
+            st.initializing
+        }
+    };
+
+    let heartbeat_req = HealthCheckRequest {
+        agent_id,
+        cpu_usage: metrics.cpu_usage,
+        memory_usage: metrics.memory_usage,
+        gpu_usage: metrics.gpu_usage,
+        gpu_memory_usage: metrics.gpu_memory_usage,
+        gpu_memory_total_mb: metrics.gpu_memory_total_mb,
+        gpu_memory_used_mb: metrics.gpu_memory_used_mb,
+        gpu_temperature: metrics.gpu_temperature,
+        gpu_model_name: gpu_capability.as_ref().map(|c| c.model_name.clone()),
+        gpu_compute_capability: gpu_capability
+            .as_ref()
+            .map(|c| format!("{}.{}", c.compute_capability.0, c.compute_capability.1)),
+        gpu_capability_score: gpu_capability.as_ref().map(|c| c.score()),
+        active_requests: 0,
+        average_response_time_ms: None,
+        loaded_models: {
+            let st = init_state.lock().await;
+            st.ready_models.map(|(ready, _)| vec![format!("ready:{ready}")]).unwrap_or_default()
+        },
+        initializing: initializing_flag,
+        ready_models,
+    };
+
+    coordinator_client
+        .send_heartbeat(heartbeat_req)
+        .await
+        .map_err(AgentError::from)
 }
 
 /// ローカルIPアドレスを取得

@@ -126,11 +126,16 @@ pub async fn list_models(State(state): State<AppState>) -> Result<Response, Stat
             })
         })
         .collect();
+    let ready_models = state.ready_models().await;
+    let initializing = match ready_models {
+        Some((ready, total)) if total > 0 => ready < total,
+        _ => state.initializing().await,
+    };
     let body = serde_json::json!({
         "object": "list",
         "data": data,
-        "initializing": state.initializing().await,
-        "ready_models": state.ready_models().await,
+        "initializing": initializing,
+        "ready_models": ready_models,
     });
     Ok((StatusCode::OK, Json(body)).into_response())
 }
