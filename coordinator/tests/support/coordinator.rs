@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::net::SocketAddr;
 
 use ollama_coordinator_coordinator::{

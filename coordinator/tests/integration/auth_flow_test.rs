@@ -6,7 +6,7 @@
 use crate::support;
 use axum::Router;
 use ollama_coordinator_coordinator::{
-    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, AppState,
 };
 
 async fn build_app() -> Router {

@@ -236,7 +236,7 @@ async fn test_delete_user_contract() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri(&format!("/api/users/{}", user_id))
+                .uri(format!("/api/users/{}", user_id))
                 .header("authorization", "Bearer admin_token")
                 .body(Body::empty())
                 .unwrap(),

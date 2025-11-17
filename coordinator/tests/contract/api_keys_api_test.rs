@@ -197,7 +197,7 @@ async fn test_delete_api_key_contract() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri(&format!("/api/api-keys/{}", api_key_id))
+                .uri(format!("/api/api-keys/{}", api_key_id))
                 .header("authorization", "Bearer admin_token")
                 .body(Body::empty())
                 .unwrap(),
