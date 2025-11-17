@@ -9,23 +9,42 @@ use axum::{
     Router,
 };
 use ollama_coordinator_coordinator::{
-    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
 use serde_json::json;
 use tower::ServiceExt;
+use crate::support;
 
-fn build_app() -> Router {
+async fn build_app() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
-    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
+    let task_manager = DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
+    // テスト用の管理者ユーザーを作成
+    ollama_coordinator_coordinator::db::users::create(
+        &db_pool,
+        "admin",
+        "password123",
+        ollama_coordinator_common::auth::UserRole::Admin
+    )
+    .await
+    .ok();
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
 
     api::create_router(state)
@@ -34,7 +53,7 @@ fn build_app() -> Router {
 /// T007: GET /api/users の契約テスト
 #[tokio::test]
 async fn test_list_users_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // Act: GET /api/users
     let response = app
@@ -94,7 +113,7 @@ async fn test_list_users_contract() {
 /// T008: POST /api/users の契約テスト
 #[tokio::test]
 async fn test_create_user_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // Arrange: ユーザー作成リクエスト
     let request_body = json!({
@@ -150,7 +169,7 @@ async fn test_create_user_contract() {
 /// T009: PUT /api/users/:id の契約テスト
 #[tokio::test]
 async fn test_update_user_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // Arrange: ユーザー更新リクエスト
     let user_id = "550e8400-e29b-41d4-a716-446655440000";
@@ -199,7 +218,7 @@ async fn test_update_user_contract() {
 /// T010: DELETE /api/users/:id の契約テスト
 #[tokio::test]
 async fn test_delete_user_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // Arrange: 削除対象ユーザーID
     let user_id = "550e8400-e29b-41d4-a716-446655440000";

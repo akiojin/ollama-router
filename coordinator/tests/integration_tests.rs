@@ -1,5 +1,8 @@
 //! Integration tests entrypoint for model management
 
+#[path = "support/mod.rs"]
+pub mod support;
+
 #[path = "integration/auto_download_test.rs"]
 mod auto_download_test;
 

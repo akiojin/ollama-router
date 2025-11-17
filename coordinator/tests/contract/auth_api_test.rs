@@ -9,23 +9,42 @@ use axum::{
     Router,
 };
 use ollama_coordinator_coordinator::{
-    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
 use serde_json::json;
 use tower::ServiceExt;
+use crate::support;
 
-fn build_app() -> Router {
+async fn build_app() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
-    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
+    let task_manager = DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
+    // テスト用の管理者ユーザーを作成
+    ollama_coordinator_coordinator::db::users::create(
+        &db_pool,
+        "admin",
+        "password123",
+        ollama_coordinator_common::auth::UserRole::Admin
+    )
+    .await
+    .ok(); // エラーは無視（既に存在する場合）
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
 
     api::create_router(state)
@@ -34,7 +53,7 @@ fn build_app() -> Router {
 /// T004: POST /api/auth/login の契約テスト
 #[tokio::test]
 async fn test_login_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // Arrange: ログインリクエスト
     let request_body = json!({
@@ -97,7 +116,7 @@ async fn test_login_contract() {
 /// T005: POST /api/auth/logout の契約テスト
 #[tokio::test]
 async fn test_logout_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // Act: POST /api/auth/logout
     let response = app
@@ -138,7 +157,7 @@ async fn test_logout_contract() {
 /// T006: GET /api/auth/me の契約テスト
 #[tokio::test]
 async fn test_get_current_user_contract() {
-    let app = build_app();
+    let app = build_app().await;
 
     // Act: GET /api/auth/me
     let response = app

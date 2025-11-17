@@ -87,6 +87,7 @@ async fn run_server(config: ServerConfig) {
     // データベース初期化
     info!("Initializing authentication database");
     let db_path = ollama_coordinator_coordinator::logging::resolve_data_dir()
+        .expect("Failed to resolve data directory")
         .join("coordinator.db")
         .to_string_lossy()
         .to_string();

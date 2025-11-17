@@ -5,21 +5,30 @@
 
 use axum::Router;
 use ollama_coordinator_coordinator::{
-    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
+use crate::support;
 
-fn build_app() -> Router {
+async fn build_app() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
-    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
+    let task_manager = DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
 
     api::create_router(state)

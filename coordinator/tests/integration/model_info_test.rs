@@ -2,29 +2,41 @@
 //!
 //! TDD RED: モデル一覧とエージェント別インストール状況の表示
 
+#[path = "../support/mod.rs"]
+mod support;
+
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
     Router,
 };
 use ollama_coordinator_coordinator::{
-    api, balancer::LoadManager, registry::AgentRegistry, AppState,
+    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
 use serde_json::json;
 use tower::ServiceExt;
 
-fn build_app() -> Router {
+
+async fn build_app() -> Router {
+    // AUTH_DISABLED=trueで認証を無効化
+    std::env::set_var("AUTH_DISABLED", "true");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
         ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
-    let task_manager = ollama_coordinator_coordinator::tasks::DownloadTaskManager::new();
+    let task_manager = DownloadTaskManager::new();
+    let db_pool = support::coordinator::create_test_db_pool().await;
+    let jwt_secret = support::coordinator::test_jwt_secret();
+
     let state = AppState {
         registry,
         load_manager,
         request_history,
         task_manager,
+        db_pool,
+        jwt_secret,
     };
 
     api::create_router(state)
@@ -33,7 +45,7 @@ fn build_app() -> Router {
 /// T018: Ollamaライブラリから利用可能なモデル一覧を取得
 #[tokio::test]
 async fn test_list_available_models_from_ollama_library() {
-    let app = build_app();
+    let app = build_app().await;
 
     let response = app
         .oneshot(
@@ -106,7 +118,7 @@ async fn test_list_available_models_from_ollama_library() {
 /// T019: 特定エージェントのインストール済みモデル一覧を取得
 #[tokio::test]
 async fn test_list_installed_models_on_agent() {
-    let app = build_app();
+    let app = build_app().await;
 
     // テスト用エージェントを登録
     let register_payload = json!({
@@ -186,7 +198,7 @@ async fn test_list_installed_models_on_agent() {
 /// T020: 全エージェントのモデルマトリックス表示
 #[tokio::test]
 async fn test_model_matrix_view_multiple_agents() {
-    let app = build_app();
+    let app = build_app().await;
 
     // 複数のエージェントを登録
     let mut agent_ids = Vec::new();
