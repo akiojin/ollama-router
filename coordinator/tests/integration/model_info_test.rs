@@ -2,9 +2,6 @@
 //!
 //! TDD RED: モデル一覧とエージェント別インストール状況の表示
 
-#[path = "../support/mod.rs"]
-mod support;
-
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -15,6 +12,8 @@ use ollama_coordinator_coordinator::{
 };
 use serde_json::json;
 use tower::ServiceExt;
+
+use crate::support;
 
 async fn build_app() -> Router {
     // AUTH_DISABLED=trueで認証を無効化

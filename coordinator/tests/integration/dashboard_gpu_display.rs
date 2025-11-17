@@ -2,9 +2,6 @@
 //!
 //! ダッシュボードエンドポイントがエージェントのGPU情報（モデル名・枚数）を返すことを検証する。
 
-#[path = "../support/mod.rs"]
-mod support;
-
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -15,6 +12,8 @@ use ollama_coordinator_coordinator::{
 };
 use serde_json::json;
 use tower::ServiceExt;
+
+use crate::support;
 
 async fn build_router() -> Router {
     // AUTH_DISABLED=trueで認証を無効化

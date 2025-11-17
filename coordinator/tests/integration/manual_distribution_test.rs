@@ -2,9 +2,6 @@
 //!
 //! TDD RED: ダッシュボードからの手動モデル配布機能
 
-#[path = "../support/mod.rs"]
-mod support;
-
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -15,6 +12,8 @@ use ollama_coordinator_coordinator::{
 };
 use serde_json::json;
 use tower::ServiceExt;
+
+use crate::support;
 use uuid::Uuid;
 
 async fn build_app() -> Router {
