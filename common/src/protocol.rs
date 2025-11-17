@@ -102,6 +102,12 @@ pub struct HealthCheckRequest {
     /// エージェントがロード済みのモデル一覧
     #[serde(default)]
     pub loaded_models: Vec<String>,
+    /// モデル起動中フラグ
+    #[serde(default)]
+    pub initializing: bool,
+    /// 起動済みモデル数/総数
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ready_models: Option<(u8, u8)>,
 }
 
 /// Ollamaチャットリクエスト

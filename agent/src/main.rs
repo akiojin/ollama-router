@@ -9,7 +9,7 @@ use ollama_coordinator_agent::{
     registration::gpu_devices_valid,
 };
 mod model_sync;
-use model_sync::sync_all_models;
+use model_sync::fetch_models;
 use ollama_coordinator_common::{
     error::{AgentError, AgentResult},
     protocol::{HealthCheckRequest, RegisterRequest, RegisterResponse},
@@ -179,10 +179,22 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
     let agent_id = register_response.agent_id;
     info!("Registered successfully! Agent ID: {}", agent_id);
 
+    // 対応モデルを取得し、全モデルを先に確保
+    let model_list = fetch_models(&coordinator_url).await.unwrap_or_default();
+    let total_models = model_list.len().min(u8::MAX as usize) as u8;
+    let mut initializing = true;
+    let mut ready_models = Some((0u8, total_models));
+
     {
         let mut guard = ollama_manager_clone.lock().await;
-        sync_all_models(&coordinator_url, &mut *guard).await;
+        for m in &model_list {
+            if let Err(e) = guard.ensure_model(m).await {
+                warn!("Failed to ensure model {}: {}", m, e);
+            }
+        }
     }
+    initializing = false;
+    ready_models = Some((total_models, total_models));
 
     // GPU能力情報を取得（静的な情報、起動時のみ）
     let gpu_capability = metrics_collector.get_gpu_capability();
@@ -226,6 +238,13 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
             }
         };
 
+        let ready_models = ready_models.clone().or_else(|| {
+            Some((
+                models.len().min(u8::MAX as usize) as u8,
+                total_models,
+            ))
+        });
+
         let heartbeat_req = HealthCheckRequest {
             agent_id,
             cpu_usage: metrics.cpu_usage,
@@ -245,6 +264,8 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
             active_requests: 0,
             average_response_time_ms: None,
             loaded_models: models,
+            initializing,
+            ready_models,
         };
 
         match coordinator_client.send_heartbeat(heartbeat_req).await {
@@ -327,11 +348,6 @@ async fn fetch_coordinator_models(coordinator_url: &str) -> AgentResult<Vec<Stri
     Err(last_err.unwrap_or_else(|| AgentError::CoordinatorConnection(
         "list models failed without details".to_string(),
     )))
-}
-
-/// コーディネーターが返すモデルをすべて確保（ベストエフォート）
-async fn ensure_all_coordinator_models(coordinator_url: &str, ollama_manager: &mut OllamaManager) {
-    sync_all_models(coordinator_url, ollama_manager).await;
 }
 
 #[derive(Clone)]

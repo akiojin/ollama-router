@@ -186,6 +186,9 @@ impl AgentRegistry {
             agent.gpu_model = req.gpu_model.clone();
             agent.status = AgentStatus::Online;
             agent.last_seen = Utc::now();
+            agent.agent_api_port = Some(req.ollama_port + 1);
+            agent.initializing = true;
+            agent.ready_models = Some((0, 0));
             (id, RegisterStatus::Updated, agent.clone())
         } else {
             // 新規エージェントを登録
@@ -211,6 +214,9 @@ impl AgentRegistry {
                 gpu_model_name: None,
                 gpu_compute_capability: None,
                 gpu_capability_score: None,
+                agent_api_port: Some(req.ollama_port + 1),
+                initializing: true,
+                ready_models: Some((0, 0)),
             };
             agents.insert(agent_id, agent.clone());
             (agent_id, RegisterStatus::Registered, agent)
@@ -223,6 +229,7 @@ impl AgentRegistry {
         Ok(RegisterResponse {
             agent_id,
             status,
+            agent_api_port: Some(agent.ollama_port + 1),
             auto_distributed_model: None,
             download_task_id: None,
         })
@@ -253,6 +260,8 @@ impl AgentRegistry {
         gpu_model_name: Option<String>,
         gpu_compute_capability: Option<String>,
         gpu_capability_score: Option<u32>,
+        initializing: Option<bool>,
+        ready_models: Option<(u8, u8)>,
     ) -> CoordinatorResult<()> {
         let agent_to_save = {
             let mut agents = self.agents.write().await;
@@ -274,11 +283,46 @@ impl AgentRegistry {
             if gpu_capability_score.is_some() {
                 agent.gpu_capability_score = gpu_capability_score;
             }
+            if let Some(init) = initializing {
+                agent.initializing = init;
+            }
+            if ready_models.is_some() {
+                agent.ready_models = ready_models;
+            }
             agent.clone()
         };
 
         // ロック解放後にストレージ保存
         self.save_to_storage(&agent_to_save).await?;
+        Ok(())
+    }
+
+    /// モデルを「インストール済み」としてマーク
+    pub async fn mark_model_loaded(&self, agent_id: Uuid, model_name: &str) -> CoordinatorResult<()> {
+        let normalized = normalize_models(vec![model_name.to_string()]);
+        let model = normalized.first().cloned().unwrap_or_default();
+
+        let agent_to_save = {
+            let mut agents = self.agents.write().await;
+            let agent = agents
+                .get_mut(&agent_id)
+                .ok_or(CoordinatorError::AgentNotFound(agent_id))?;
+            if !agent.loaded_models.contains(&model) {
+                agent.loaded_models.push(model);
+                agent.loaded_models.sort();
+            }
+            agent.clone()
+        };
+
+        // 永続化（失敗しても致命ではないがログとして残す）
+        if let Err(e) = self.save_to_storage(&agent_to_save).await {
+            warn!(
+                agent_id = %agent_id,
+                error = %e,
+                "Failed to persist loaded_models update"
+            );
+        }
+
         Ok(())
     }
 

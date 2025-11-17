@@ -23,6 +23,8 @@ pub async fn health_check(
             req.gpu_model_name.clone(),
             req.gpu_compute_capability.clone(),
             req.gpu_capability_score,
+            Some(req.initializing),
+            req.ready_models,
         )
         .await?;
 
@@ -108,6 +110,8 @@ mod tests {
             active_requests: 3,
             average_response_time_ms: Some(110.0),
             loaded_models: vec!["gpt-oss:20b".into()],
+            initializing: false,
+            ready_models: Some((1, 5)),
         };
 
         let result = health_check(State(state.clone()), Json(health_req)).await;
