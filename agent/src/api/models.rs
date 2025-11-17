@@ -24,10 +24,12 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// エージェントが初期化中かどうか
     pub async fn initializing(&self) -> bool {
         self.init_state.lock().await.initializing
     }
 
+    /// 起動済みモデル数/総数を返す
     pub async fn ready_models(&self) -> Option<(u8, u8)> {
         self.init_state.lock().await.ready_models
     }
@@ -36,7 +38,9 @@ impl AppState {
 /// 初期化進捗を共有するための状態
 #[derive(Debug, Clone, Copy)]
 pub struct InitState {
+    /// 初期化中フラグ
     pub initializing: bool,
+    /// 起動済みモデル数/総数
     pub ready_models: Option<(u8, u8)>,
 }
 

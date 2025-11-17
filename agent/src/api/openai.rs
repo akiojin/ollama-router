@@ -5,7 +5,7 @@ use crate::{api::models::AppState, ollama_pool::OllamaPool};
 use axum::{
     body::Body,
     extract::State,
-    http::{StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
@@ -36,7 +36,11 @@ async fn proxy_to_ollama(
         // モデル不明の場合はデフォルトOLLAMA（初期ポート）へ
         let mgr = state.ollama_manager.lock().await;
         let ollama_base = mgr.api_base();
-        format!("{}/{}", ollama_base.trim_end_matches('/'), path.trim_start_matches('/'))
+        format!(
+            "{}/{}",
+            ollama_base.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        )
     };
     let mut req = client.post(target_url);
     if let Some(json) = body {
@@ -55,7 +59,7 @@ async fn proxy_to_ollama(
     {
         let stream = resp.bytes_stream().map_err(|e| {
             error!("Stream error: {}", e);
-            std::io::Error::new(std::io::ErrorKind::Other, e)
+            std::io::Error::other(e)
         });
         let body = Body::from_stream(stream);
         let mut response = Response::new(body);
@@ -76,7 +80,10 @@ pub async fn chat_completions(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Response, StatusCode> {
-    let model = body.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let model = body
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
     proxy_to_ollama(&state, model, "/api/chat", Some(body)).await
 }
 
@@ -85,7 +92,10 @@ pub async fn completions(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Response, StatusCode> {
-    let model = body.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let model = body
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
     proxy_to_ollama(&state, model, "/api/generate", Some(body)).await
 }
 
@@ -94,7 +104,10 @@ pub async fn embeddings(
     State(state): State<AppState>,
     Json(body): Json<Value>,
 ) -> Result<Response, StatusCode> {
-    let model = body.get("model").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let model = body
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
     proxy_to_ollama(&state, model, "/api/embed", Some(body)).await
 }
 
@@ -118,13 +131,15 @@ pub async fn list_models(State(state): State<AppState>) -> Result<Response, Stat
         .unwrap_or_default();
     let data: Vec<Value> = models
         .into_iter()
-        .filter_map(|m| m.get("name").and_then(|n| n.as_str()).map(|id| {
-            serde_json::json!({
-                "id": id,
-                "object": "model",
-                "owned_by": "agent",
+        .filter_map(|m| {
+            m.get("name").and_then(|n| n.as_str()).map(|id| {
+                serde_json::json!({
+                    "id": id,
+                    "object": "model",
+                    "owned_by": "agent",
+                })
             })
-        }))
+        })
         .collect();
     let body = serde_json::json!({
         "object": "list",

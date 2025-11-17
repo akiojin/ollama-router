@@ -128,9 +128,7 @@ pub async fn register_agent(
     let mut created_tasks = Vec::new();
 
     for model in supported_models {
-        let task = task_manager
-            .create_task(agent_id, model.name.clone())
-            .await;
+        let task = task_manager.create_task(agent_id, model.name.clone()).await;
         let task_id = task.id;
         created_tasks.push((model.name.clone(), task_id));
 
@@ -547,6 +545,8 @@ mod tests {
                 gpu_capability_score: None,
                 active_requests: 1,
                 average_response_time_ms: None,
+                initializing: false,
+                ready_models: None,
             })
             .await
             .unwrap();
@@ -613,6 +613,8 @@ mod tests {
                 gpu_capability_score: None,
                 active_requests: 2,
                 average_response_time_ms: Some(150.0),
+                initializing: false,
+                ready_models: None,
             })
             .await
             .unwrap();

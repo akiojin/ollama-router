@@ -146,6 +146,8 @@ async fn dashboard_agents_and_stats_reflect_registry() {
             gpu_capability_score: None,
             active_requests: 2,
             average_response_time_ms: Some(110.0),
+            initializing: false,
+            ready_models: None,
         })
         .await
         .unwrap();
@@ -351,6 +353,8 @@ async fn dashboard_agent_metrics_endpoint_returns_history() {
             gpu_capability_score: None,
             active_requests: 2,
             average_response_time_ms: Some(105.0),
+            initializing: false,
+            ready_models: None,
         })
         .await
         .unwrap();

@@ -73,11 +73,15 @@ fn validate_model_name(model_name: &str) -> Result<(), CoordinatorError> {
 /// 利用可能なモデル一覧のレスポンスDTO
 #[derive(Debug, Serialize)]
 pub struct AvailableModelView {
+    /// モデルID（例: gpt-oss:20b）
     pub name: String,
+    /// UI表示名
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
+    /// 説明文
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// タグの一覧
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     /// GB単位のサイズ
@@ -88,6 +92,7 @@ pub struct AvailableModelView {
     pub required_memory_gb: Option<f64>,
 }
 
+/// 利用可能なモデル一覧レスポンス
 #[derive(Debug, Serialize)]
 pub struct AvailableModelsResponse {
     /// モデル一覧（UI表示用に整形済み）
@@ -99,11 +104,17 @@ pub struct AvailableModelsResponse {
 /// 複数エージェントにまたがるロード済みモデルの集計
 #[derive(Debug, Serialize)]
 pub struct LoadedModelSummary {
+    /// モデル名
     pub model_name: String,
+    /// 該当モデルを報告したエージェント数
     pub total_agents: usize,
+    /// 待機中エージェント数
     pub pending: usize,
+    /// ダウンロード中エージェント数
     pub downloading: usize,
+    /// 完了エージェント数
     pub completed: usize,
+    /// 失敗エージェント数
     pub failed: usize,
 }
 

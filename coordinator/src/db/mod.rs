@@ -251,6 +251,9 @@ mod tests {
             gpu_model_name: None,
             gpu_compute_capability: None,
             gpu_capability_score: None,
+            agent_api_port: Some(11435),
+            initializing: false,
+            ready_models: None,
         };
 
         // 保存
@@ -299,6 +302,9 @@ mod tests {
             gpu_model_name: None,
             gpu_compute_capability: None,
             gpu_capability_score: None,
+            agent_api_port: Some(11435),
+            initializing: false,
+            ready_models: None,
         };
 
         save_agent(&agent).await.unwrap();
@@ -345,6 +351,9 @@ mod tests {
             gpu_model_name: None,
             gpu_compute_capability: None,
             gpu_capability_score: None,
+            agent_api_port: Some(11435),
+            initializing: false,
+            ready_models: None,
         };
 
         save_agent(&agent1).await.unwrap();
@@ -374,6 +383,9 @@ mod tests {
             gpu_model_name: None,
             gpu_compute_capability: None,
             gpu_capability_score: None,
+            agent_api_port: Some(11435),
+            initializing: false,
+            ready_models: None,
         };
 
         save_agent(&agent2).await.unwrap();

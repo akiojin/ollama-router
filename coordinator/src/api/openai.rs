@@ -78,7 +78,7 @@ pub async fn embeddings(
 }
 
 /// GET /v1/models - モデル一覧取得
-pub async fn list_models(State(state): State<AppState>) -> Result<Response, AppError> {
+pub async fn list_models(State(_state): State<AppState>) -> Result<Response, AppError> {
     // コーディネーターがサポートするモデルを返す（プロキシせずローカルリストを使用）
     let client = crate::ollama::OllamaClient::new()?;
     let models = client.get_predefined_models();
@@ -107,7 +107,7 @@ pub async fn list_models(State(state): State<AppState>) -> Result<Response, AppE
 
 /// GET /v1/models/:id - モデル詳細取得
 pub async fn get_model(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(model_id): Path<String>,
 ) -> Result<Response, AppError> {
     let client = crate::ollama::OllamaClient::new()?;
@@ -397,6 +397,7 @@ async fn proxy_openai_post(
     }
 }
 
+#[allow(dead_code)]
 async fn proxy_openai_get(state: &AppState, target_path: &str) -> Result<Response, AppError> {
     let agent = select_available_agent(state).await?;
     let agent_id = agent.id;

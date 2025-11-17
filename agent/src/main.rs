@@ -131,7 +131,10 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
     let app = api::create_router(state);
     let bind_addr = format!("0.0.0.0:{}", agent_api_port);
 
-    info!("Starting agent HTTP server on {} (pre-registration)", bind_addr);
+    info!(
+        "Starting agent HTTP server on {} (pre-registration)",
+        bind_addr
+    );
 
     // HTTPサーバーをバックグラウンドで起動
     tokio::spawn(async move {
@@ -197,7 +200,7 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
     }
 
     {
-        let mut guard = ollama_manager_clone.lock().await;
+        let guard = ollama_manager_clone.lock().await;
         for m in &model_list {
             if let Err(e) = guard.ensure_model(m).await {
                 warn!("Failed to ensure model {}: {}", m, e);
@@ -315,6 +318,7 @@ async fn run_agent(config: LaunchConfig) -> AgentResult<()> {
     }
 }
 
+#[allow(dead_code)]
 async fn fetch_coordinator_models(coordinator_url: &str) -> AgentResult<Vec<String>> {
     let url = format!("{}/v1/models", coordinator_url.trim_end_matches('/'));
     let client = reqwest::Client::new();
@@ -328,20 +332,20 @@ async fn fetch_coordinator_models(coordinator_url: &str) -> AgentResult<Vec<Stri
                         resp.status()
                     )));
                 } else {
-                    let body: serde_json::Value = resp
-                        .json()
-                        .await
-                        .map_err(|e| AgentError::Internal(format!(
-                            "Failed to parse models response: {}",
-                            e
-                        )))?;
+                    let body: serde_json::Value = resp.json().await.map_err(|e| {
+                        AgentError::Internal(format!("Failed to parse models response: {}", e))
+                    })?;
 
                     let models = body
                         .get("data")
                         .and_then(|d| d.as_array())
                         .map(|arr| {
                             arr.iter()
-                                .filter_map(|m| m.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()))
+                                .filter_map(|m| {
+                                    m.get("id")
+                                        .and_then(|id| id.as_str())
+                                        .map(|s| s.to_string())
+                                })
                                 .collect::<Vec<_>>()
                         })
                         .unwrap_or_default();
@@ -360,9 +364,9 @@ async fn fetch_coordinator_models(coordinator_url: &str) -> AgentResult<Vec<Stri
         tokio::time::sleep(std::time::Duration::from_secs(attempt)).await;
     }
 
-    Err(last_err.unwrap_or_else(|| AgentError::CoordinatorConnection(
-        "list models failed without details".to_string(),
-    )))
+    Err(last_err.unwrap_or_else(|| {
+        AgentError::CoordinatorConnection("list models failed without details".to_string())
+    }))
 }
 
 #[derive(Clone)]

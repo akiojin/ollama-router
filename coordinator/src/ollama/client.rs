@@ -3,9 +3,9 @@
 //! エージェント経由でモデル情報を取得し、事前定義リストと統合
 
 use crate::registry::models::ModelInfo;
-use reqwest::StatusCode;
 use ollama_coordinator_common::error::{CoordinatorError, CoordinatorResult};
 use reqwest::Client;
+use reqwest::StatusCode;
 use serde::Deserialize;
 use std::time::Duration;
 use tracing::{debug, warn};
@@ -124,7 +124,12 @@ impl OllamaClient {
                 14_000_000_000, // ≈14GB (Q4_K_M)
                 "GPT-OSS 20B parameter model".to_string(),
                 16_000_000_000, // 推奨16GB VRAMクラス
-                vec!["llm".to_string(), "text".to_string(), "code".to_string(), "cot".to_string()],
+                vec![
+                    "llm".to_string(),
+                    "text".to_string(),
+                    "code".to_string(),
+                    "cot".to_string(),
+                ],
             ),
             ModelInfo::new(
                 "gpt-oss-safeguard:20b".to_string(),
@@ -138,14 +143,23 @@ impl OllamaClient {
                 65_000_000_000, // ≈65GB Q4_K_M
                 "GPT-OSS 120B flagship model (high accuracy)".to_string(),
                 80_000_000_000, // 推奨80GB級
-                vec!["llm".to_string(), "text".to_string(), "analysis".to_string()],
+                vec![
+                    "llm".to_string(),
+                    "text".to_string(),
+                    "analysis".to_string(),
+                ],
             ),
             ModelInfo::new(
                 "glm4:9b-chat-q4_K_M".to_string(),
                 6_300_000_000,
                 "GLM-4 9B Chat (Q4_K_M)".to_string(),
                 10_000_000_000,
-                vec!["llm".to_string(), "text".to_string(), "code".to_string(), "multilingual".to_string()],
+                vec![
+                    "llm".to_string(),
+                    "text".to_string(),
+                    "code".to_string(),
+                    "multilingual".to_string(),
+                ],
             ),
             ModelInfo::new(
                 "qwen3-coder:30b".to_string(),

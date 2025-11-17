@@ -253,6 +253,7 @@ impl AgentRegistry {
     }
 
     /// エージェントの最終確認時刻を更新
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_last_seen(
         &self,
         agent_id: Uuid,
@@ -298,7 +299,11 @@ impl AgentRegistry {
     }
 
     /// モデルを「インストール済み」としてマーク
-    pub async fn mark_model_loaded(&self, agent_id: Uuid, model_name: &str) -> CoordinatorResult<()> {
+    pub async fn mark_model_loaded(
+        &self,
+        agent_id: Uuid,
+        model_name: &str,
+    ) -> CoordinatorResult<()> {
         let normalized = normalize_models(vec![model_name.to_string()]);
         let model = normalized.first().cloned().unwrap_or_default();
 
@@ -666,6 +671,8 @@ mod tests {
                     "".into(),
                     "phi-3".into(),
                 ]),
+                None,
+                None,
                 None,
                 None,
                 None,

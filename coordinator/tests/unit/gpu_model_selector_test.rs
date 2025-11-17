@@ -1,8 +1,7 @@
-//! GPU能力ベースモデル選択ユニットテスト
-//!
-//! TDD GREEN: GPUメモリに基づいて最適なモデルを選択するロジック
+#![cfg(all(test, feature = "gpu_selector_tests"))]
+//! GPU能力ベースモデル選択ユニットテスト（GPU自動選択機能は仕様簡略化で無効化）
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu_selector_tests"))]
 mod tests {
     use ollama_coordinator_coordinator::models::gpu_selector::select_model_by_gpu_memory;
 

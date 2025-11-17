@@ -15,6 +15,7 @@ pub struct OllamaPool {
 }
 
 impl OllamaPool {
+    /// プールを初期化し、使用可能なポート範囲を指定する
     pub fn new(base_port: u16, max_port: u16) -> Self {
         Self {
             base_port,

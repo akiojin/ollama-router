@@ -224,6 +224,9 @@ mod tests {
             gpu_model_name: Some("NVIDIA GeForce RTX 4090".to_string()),
             gpu_compute_capability: Some("8.9".to_string()),
             gpu_capability_score: Some(9850),
+            agent_api_port: Some(11435),
+            initializing: false,
+            ready_models: Some((1, 1)),
         };
 
         let json = serde_json::to_string(&agent).unwrap();

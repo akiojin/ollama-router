@@ -265,6 +265,8 @@ mod tests {
             active_requests: 3,
             average_response_time_ms: Some(123.4),
             loaded_models: vec!["gpt-oss:20b".to_string()],
+            initializing: true,
+            ready_models: Some((1, 2)),
         };
 
         let json = serde_json::to_string(&request).unwrap();
@@ -299,6 +301,8 @@ mod tests {
             active_requests: 2,
             average_response_time_ms: Some(100.0),
             loaded_models: vec!["llama3:8b".to_string()],
+            initializing: false,
+            ready_models: Some((1, 1)),
         };
 
         let json = serde_json::to_string(&request).unwrap();

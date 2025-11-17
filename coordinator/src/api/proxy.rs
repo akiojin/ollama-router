@@ -23,7 +23,7 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
     sync::Arc,
-    time::{Duration as StdDuration, Instant},
+    time::Instant,
 };
 use uuid::Uuid;
 
@@ -80,10 +80,10 @@ where
             .record_request_history(RequestOutcome::Queued, Utc::now())
             .await;
         if !state.load_manager.wait_for_ready(MAX_WAITERS).await {
-            return Err(
-                CoordinatorError::ServiceUnavailable("All agents are warming up models".into())
-                    .into(),
-            );
+            return Err(CoordinatorError::ServiceUnavailable(
+                "All agents are warming up models".into(),
+            )
+            .into());
         }
     }
     let record_id = Uuid::new_v4();
@@ -109,7 +109,10 @@ where
         .map_err(AppError::from)?;
 
     let client = reqwest::Client::new();
-    let ollama_url = format!("http://{}:{}/v1/chat/completions", agent.ip_address, agent_api_port);
+    let ollama_url = format!(
+        "http://{}:{}/v1/chat/completions",
+        agent.ip_address, agent_api_port
+    );
     let start = Instant::now();
 
     let response = match client.post(&ollama_url).json(&req).send().await {
@@ -301,7 +304,7 @@ pub(crate) async fn proxy_generate_with_handlers<S, C>(
     client_ip: IpAddr,
     stream_handler: S,
     completion_handler: C,
-    ) -> Result<Response, AppError>
+) -> Result<Response, AppError>
 where
     S: FnOnce(reqwest::Response, &GenerateRequest) -> Result<Response, AppError>,
     C: FnOnce(serde_json::Value, &GenerateRequest) -> Result<Response, AppError>,
@@ -312,10 +315,10 @@ where
             .record_request_history(RequestOutcome::Queued, Utc::now())
             .await;
         if !state.load_manager.wait_for_ready(MAX_WAITERS).await {
-            return Err(
-                CoordinatorError::ServiceUnavailable("All agents are warming up models".into())
-                    .into(),
-            );
+            return Err(CoordinatorError::ServiceUnavailable(
+                "All agents are warming up models".into(),
+            )
+            .into());
         }
     }
     let record_id = Uuid::new_v4();
@@ -532,14 +535,16 @@ pub(crate) async fn select_available_agent_for_model(
     state: &AppState,
     model: &str,
 ) -> Result<ollama_coordinator_common::types::Agent, CoordinatorError> {
-    let mode = std::env::var("LOAD_BALANCER_MODE").unwrap_or_else(|_| "auto".to_string());
+    let _mode = std::env::var("LOAD_BALANCER_MODE").unwrap_or_else(|_| "auto".to_string());
 
     // まずモデルを保持しているオンラインエージェントを優先
     let required = model.trim().to_lowercase();
     let agents = state.registry.list().await;
     let mut candidates: Vec<_> = agents
         .into_iter()
-        .filter(|a| a.status == AgentStatus::Online && a.loaded_models.iter().any(|m| m == &required))
+        .filter(|a| {
+            a.status == AgentStatus::Online && a.loaded_models.iter().any(|m| m == &required)
+        })
         .collect();
 
     if candidates.is_empty() {
@@ -549,7 +554,7 @@ pub(crate) async fn select_available_agent_for_model(
 
     // 簡易: 最終確認が新しい順で選択
     candidates.sort_by(|a, b| b.last_seen.cmp(&a.last_seen));
-    return Ok(candidates.remove(0));
+    Ok(candidates.remove(0))
 }
 
 pub(crate) async fn select_available_agent(

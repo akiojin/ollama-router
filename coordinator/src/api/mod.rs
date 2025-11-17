@@ -321,6 +321,8 @@ mod tests {
                 gpu_capability_score: None,
                 active_requests: 1,
                 average_response_time_ms: Some(90.0),
+                initializing: false,
+                ready_models: None,
             })
             .await
             .unwrap();

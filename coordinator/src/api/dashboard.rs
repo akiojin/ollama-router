@@ -504,6 +504,8 @@ mod tests {
                 gpu_capability_score: None,
                 active_requests: 2,
                 average_response_time_ms: Some(110.0),
+                initializing: false,
+                ready_models: None,
             })
             .await
             .unwrap();
@@ -589,6 +591,8 @@ mod tests {
                 gpu_capability_score: None,
                 active_requests: 3,
                 average_response_time_ms: Some(95.0),
+                initializing: false,
+                ready_models: None,
             })
             .await
             .unwrap();
@@ -734,6 +738,8 @@ mod tests {
                 gpu_capability_score: None,
                 active_requests: 1,
                 average_response_time_ms: Some(110.0),
+                initializing: false,
+                ready_models: None,
             })
             .await
             .unwrap();
@@ -753,6 +759,8 @@ mod tests {
                 gpu_capability_score: None,
                 active_requests: 0,
                 average_response_time_ms: Some(95.0),
+                initializing: false,
+                ready_models: None,
             })
             .await
             .unwrap();

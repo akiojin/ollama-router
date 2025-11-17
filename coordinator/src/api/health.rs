@@ -151,6 +151,8 @@ mod tests {
             active_requests: 3,
             average_response_time_ms: None,
             loaded_models: Vec::new(),
+            initializing: false,
+            ready_models: None,
         };
 
         let result = health_check(State(state), Json(health_req)).await;
