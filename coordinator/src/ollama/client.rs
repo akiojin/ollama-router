@@ -121,7 +121,7 @@ impl OllamaClient {
         vec![
             ModelInfo::new(
                 "gpt-oss:20b".to_string(),
-                14_000_000_000, // ≈14GB (Q4_K_M)
+                14_500_000_000, // ≈14.5GB (Q4_K_M)
                 "GPT-OSS 20B parameter model".to_string(),
                 16_000_000_000, // 推奨16GB VRAMクラス
                 vec![
@@ -132,8 +132,8 @@ impl OllamaClient {
                 ],
             ),
             ModelInfo::new(
-                "gpt-oss-safeguard:20b".to_string(),
-                14_000_000_000, // ≈14GB (Q4_K_M)
+                "gpt-safeguard:20b".to_string(),
+                14_000_000_000,
                 "GPT-OSS Safeguard 20B safety classifier".to_string(),
                 16_000_000_000,
                 vec!["safety".to_string(), "moderation".to_string()],
@@ -150,9 +150,9 @@ impl OllamaClient {
                 ],
             ),
             ModelInfo::new(
-                "glm4:9b-chat-q4_K_M".to_string(),
-                6_300_000_000,
-                "GLM-4 9B Chat (Q4_K_M)".to_string(),
+                "glm4:6b-chat".to_string(),
+                6_800_000_000, // Q4_K_M換算
+                "GLM-4 6B Chat (quantized)".to_string(),
                 10_000_000_000,
                 vec![
                     "llm".to_string(),
@@ -162,9 +162,9 @@ impl OllamaClient {
                 ],
             ),
             ModelInfo::new(
-                "qwen3-coder:30b".to_string(),
-                17_300_000_000, // ≈17.3GB (Q4_K_M)
-                "Qwen3-Coder 30B Instruct".to_string(),
+                "qwen3-coder:32b".to_string(),
+                19_000_000_000, // ≈19GB (Q4_K_M)
+                "Qwen3-Coder 32B Instruct".to_string(),
                 24_000_000_000,
                 vec!["code".to_string(), "llm".to_string(), "text".to_string()],
             ),
@@ -250,8 +250,11 @@ mod tests {
 
         assert!(!models.is_empty());
         assert!(models.iter().any(|m| m.name == "gpt-oss:20b"));
-        assert!(models.iter().any(|m| m.name == "qwen3-coder:30b"));
-        assert!(models.iter().any(|m| m.name == "gpt-oss:7b"));
+        assert!(models.iter().any(|m| m.name == "gpt-oss:120b"));
+        assert!(models.iter().any(|m| m.name == "gpt-safeguard:20b"));
+        assert!(models.iter().any(|m| m.name == "qwen3-coder:32b"));
+        assert!(models.iter().any(|m| m.name == "glm4:6b-chat"));
+        assert_eq!(models.len(), 5);
     }
 
     #[test]

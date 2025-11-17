@@ -10,9 +10,9 @@ const MODEL_PRESETS = {
     gpuHint: '推奨GPU: 16GB以上',
     badge: 'GPT-OSS 20B',
     usage: '高精度・長文向けの汎用/コード両対応',
-    sizeGb: 14,
+    sizeGb: 14.5,
   },
-  'gpt-oss-safeguard:20b': {
+  'gpt-safeguard:20b': {
     gpuHint: '推奨GPU: 16GB以上',
     badge: 'Safety 20B',
     usage: 'モデレーション・セーフティ判定用',
@@ -20,46 +20,21 @@ const MODEL_PRESETS = {
   },
   'gpt-oss:120b': {
     gpuHint: '推奨GPU: 80GB以上',
-    badge: '120B Heavy',
+    badge: 'GPT-OSS 120B',
     usage: '最高精度だが超大規模GPU向け',
     sizeGb: 65,
   },
-  'glm4:9b-chat-q4_K_M': {
+  'glm4:6b-chat': {
     gpuHint: '推奨GPU: 10GB以上',
-    badge: 'GLM4 9B',
+    badge: 'GLM4 6B',
     usage: '多言語・コードに強い軽量モデル',
-    sizeGb: 6.3,
+    sizeGb: 6.8,
   },
-  'qwen3-coder:30b': {
+  'qwen3-coder:32b': {
     gpuHint: '推奨GPU: 24GB以上',
-    badge: 'Qwen3 Coder 30B',
-    usage: '最新世代の大規模コード生成',
+    badge: 'Qwen3 Coder 32B',
+    usage: '最新世代のコード生成',
     sizeGb: 19,
-  },
-  // Qwen3 72B はサポート外に戻しました
-  'deepseek-coder-v2:16b': {
-    gpuHint: '推奨GPU: 12GB以上',
-    badge: 'DeepSeek Coder V2',
-    usage: '効率重視のコード特化',
-    sizeGb: 8.9,
-  },
-  'codestral:22b': {
-    gpuHint: '推奨GPU: 16GB以上',
-    badge: 'Codestral 22B',
-    usage: 'ミドルレンジのコード生成',
-    sizeGb: 13,
-  },
-  'llama3.1:8b': {
-    gpuHint: '推奨GPU: 8GB以上',
-    badge: 'Llama 3.1 8B',
-    usage: '軽量・常駐向け',
-    sizeGb: 4.9,
-  },
-  'qwen3-8b-instruct:q4_k_m': {
-    gpuHint: '推奨GPU: 8GB以上',
-    badge: 'Qwen3 8B',
-    usage: '軽量な汎用/Q&A',
-    sizeGb: 5.5,
   },
 };
 

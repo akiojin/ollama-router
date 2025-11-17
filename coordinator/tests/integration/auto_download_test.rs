@@ -32,6 +32,7 @@ fn build_app() -> Router {
 
 /// T009: 16GB GPU搭載エージェント登録時に gpt-oss:20b が自動配布される
 #[tokio::test]
+#[ignore = "GPUメモリ別自動配布は仕様変更により廃止。全モデル自動起動へ移行"]
 async fn test_auto_download_on_registration_16gb_gpu() {
     let app = build_app();
 
@@ -80,6 +81,7 @@ async fn test_auto_download_on_registration_16gb_gpu() {
 
 /// T010: 8GB GPU搭載エージェント登録時に gpt-oss:7b が自動配布される
 #[tokio::test]
+#[ignore = "GPUメモリ別自動配布は仕様変更により廃止。全モデル自動起動へ移行"]
 async fn test_auto_download_on_registration_8gb_gpu() {
     let app = build_app();
 
@@ -123,6 +125,7 @@ async fn test_auto_download_on_registration_8gb_gpu() {
 
 /// T011: 4.5GB GPU搭載エージェント登録時に gpt-oss:3b が自動配布される
 #[tokio::test]
+#[ignore = "GPUメモリ別自動配布は仕様変更により廃止。全モデル自動起動へ移行"]
 async fn test_auto_download_on_registration_4_5gb_gpu() {
     let app = build_app();
 
@@ -166,6 +169,7 @@ async fn test_auto_download_on_registration_4_5gb_gpu() {
 
 /// T012: 小容量GPU搭載エージェント登録時に gpt-oss:1b が自動配布される
 #[tokio::test]
+#[ignore = "GPUメモリ別自動配布は仕様変更により廃止。全モデル自動起動へ移行"]
 async fn test_auto_download_on_registration_small_gpu() {
     let app = build_app();
 

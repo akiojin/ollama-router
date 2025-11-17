@@ -102,7 +102,7 @@ async fn test_distribute_models_contract() {
 
     // テスト用リクエスト
     let request_body = json!({
-        "model_name": "gpt-oss:7b",
+        "model_name": "gpt-oss:20b",
         "target": "all",
         "agent_ids": []
     });

@@ -31,8 +31,9 @@ fn build_app() -> Router {
     api::create_router(state)
 }
 
-/// T014: 特定のエージェントへ手動配布
+/// T014: 特定のエージェントへ手動配布（現行仕様では無効化）
 #[tokio::test]
+#[ignore = "手動配布UI/APIは廃止方向"]
 async fn test_manual_distribution_to_specific_agent() {
     let app = build_app();
 
@@ -111,8 +112,9 @@ async fn test_manual_distribution_to_specific_agent() {
     assert_eq!(task_ids.len(), 1, "Should have exactly 1 task for 1 agent");
 }
 
-/// T015: 全エージェントへ一括配布
+/// T015: 全エージェントへ一括配布（現行仕様では無効化）
 #[tokio::test]
+#[ignore = "手動配布UI/APIは廃止方向"]
 async fn test_bulk_distribution_to_all_agents() {
     let app = build_app();
 
