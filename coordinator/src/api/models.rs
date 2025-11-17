@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     ollama::OllamaClient,
-    registry::models::{DownloadTask, InstalledModel, ModelInfo},
+    registry::models::{DownloadStatus, DownloadTask, InstalledModel, ModelInfo},
     AppState,
 };
 use ollama_coordinator_common::error::CoordinatorError;
@@ -70,13 +70,60 @@ fn validate_model_name(model_name: &str) -> Result<(), CoordinatorError> {
     Ok(())
 }
 
-/// 利用可能なモデル一覧のレスポンス
+/// 利用可能なモデル一覧のレスポンスDTO
+#[derive(Debug, Serialize)]
+pub struct AvailableModelView {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    /// GB単位のサイズ
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size_gb: Option<f64>,
+    /// 推奨GPUメモリ(GB)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required_memory_gb: Option<f64>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct AvailableModelsResponse {
-    /// モデル一覧
-    pub models: Vec<ModelInfo>,
+    /// モデル一覧（UI表示用に整形済み）
+    pub models: Vec<AvailableModelView>,
     /// ソース（"ollama_library" または "agents"）
     pub source: String,
+}
+
+/// 複数エージェントにまたがるロード済みモデルの集計
+#[derive(Debug, Serialize)]
+pub struct LoadedModelSummary {
+    pub model_name: String,
+    pub total_agents: usize,
+    pub pending: usize,
+    pub downloading: usize,
+    pub completed: usize,
+    pub failed: usize,
+}
+
+fn model_info_to_view(model: ModelInfo) -> AvailableModelView {
+    let size_gb = (model.size as f64) / (1024.0 * 1024.0 * 1024.0);
+    let required_memory_gb = (model.required_memory as f64) / (1024.0 * 1024.0 * 1024.0);
+    let display_name = if let Some((prefix, tag)) = model.name.split_once(':') {
+        Some(format!("{} {}", prefix.to_uppercase(), tag.to_uppercase()))
+    } else {
+        Some(model.name.clone())
+    };
+
+    AvailableModelView {
+        name: model.name,
+        display_name,
+        description: Some(model.description),
+        tags: Some(model.tags),
+        size_gb: Some(size_gb),
+        required_memory_gb: Some(required_memory_gb),
+    }
 }
 
 /// モデル配布リクエスト
@@ -139,6 +186,9 @@ impl IntoResponse for AppError {
             CoordinatorError::NoAgentsAvailable => {
                 (StatusCode::SERVICE_UNAVAILABLE, self.0.to_string())
             }
+            CoordinatorError::ServiceUnavailable(msg) => {
+                (StatusCode::SERVICE_UNAVAILABLE, msg.clone())
+            }
             CoordinatorError::AgentOffline(_) => {
                 (StatusCode::SERVICE_UNAVAILABLE, self.0.to_string())
             }
@@ -174,10 +224,49 @@ pub async fn get_available_models(
 
     tracing::info!("Available models retrieved: count={}", models.len());
 
+    let models_view = models.into_iter().map(model_info_to_view).collect();
+
     Ok(Json(AvailableModelsResponse {
-        models,
+        models: models_view,
         source: "ollama_library".to_string(),
     }))
+}
+
+/// GET /api/models/loaded - コーディネーター全体のロード済みモデル集計
+pub async fn get_loaded_models(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<LoadedModelSummary>>, AppError> {
+    // 現状はダウンロードタスクの状態を元に集計（エージェント別ではなく全体）
+    let tasks = state.task_manager.list_tasks().await;
+
+    use std::collections::HashMap;
+    let mut map: HashMap<String, LoadedModelSummary> = HashMap::new();
+
+    for task in tasks {
+        let entry = map
+            .entry(task.model_name.clone())
+            .or_insert(LoadedModelSummary {
+                model_name: task.model_name.clone(),
+                total_agents: 0,
+                pending: 0,
+                downloading: 0,
+                completed: 0,
+                failed: 0,
+            });
+
+        entry.total_agents += 1;
+        match task.status {
+            DownloadStatus::Pending => entry.pending += 1,
+            DownloadStatus::InProgress => entry.downloading += 1,
+            DownloadStatus::Completed => entry.completed += 1,
+            DownloadStatus::Failed => entry.failed += 1,
+        }
+    }
+
+    let mut list: Vec<LoadedModelSummary> = map.into_values().collect();
+    list.sort_by(|a, b| a.model_name.cmp(&b.model_name));
+
+    Ok(Json(list))
 }
 
 /// T028: POST /api/models/distribute - モデルを配布
@@ -432,6 +521,19 @@ pub async fn update_progress(
             );
             CoordinatorError::Internal(format!("Task {} not found", task_id))
         })?;
+
+    // 進捗が完了に到達したら、エージェントのloaded_modelsに反映
+    if request.progress >= 1.0 {
+        if let Some(task) = state.task_manager.get_task(task_id).await {
+            if task.status == DownloadStatus::Completed {
+                // モデルの完了を登録
+                let _ = state
+                    .registry
+                    .mark_model_loaded(task.agent_id, &task.model_name)
+                    .await;
+            }
+        }
+    }
 
     // 完了時に特別なログを出力
     if request.progress >= 1.0 {

@@ -56,6 +56,10 @@ pub enum CoordinatorError {
     #[error("タイムアウトエラー: {0}")]
     Timeout(String),
 
+    /// サービス利用不可（初期化中など）
+    #[error("サービス利用不可: {0}")]
+    ServiceUnavailable(String),
+
     /// 内部エラー
     #[error("内部エラー: {0}")]
     Internal(String),

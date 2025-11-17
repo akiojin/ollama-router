@@ -116,6 +116,7 @@ pub async fn register_agent(
 
     // ヘルスチェックOKなら登録を実施
     let mut response = state.registry.register(req).await?;
+    response.agent_api_port = Some(agent_api_port);
 
     // エージェント登録成功後、コーディネーターがサポートする全モデルを自動配布
     let agent_id = response.agent_id;
@@ -144,7 +145,7 @@ pub async fn register_agent(
             match registry.get(agent_id).await {
                 Ok(agent) => {
                     // エージェントAPIのポート（デフォルト: Ollama port + 1）
-                    let agent_api_port = agent.ollama_port + 1;
+                    let agent_api_port = agent.agent_api_port.unwrap_or(agent.ollama_port + 1);
                     let agent_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
 
                     info!("Sending pull request to agent: {}", agent_url);
@@ -271,6 +272,9 @@ impl IntoResponse for AppError {
             CoordinatorError::AgentNotFound(_) => (StatusCode::NOT_FOUND, self.0.to_string()),
             CoordinatorError::NoAgentsAvailable => {
                 (StatusCode::SERVICE_UNAVAILABLE, self.0.to_string())
+            }
+            CoordinatorError::ServiceUnavailable(msg) => {
+                (StatusCode::SERVICE_UNAVAILABLE, msg.clone())
             }
             CoordinatorError::AgentOffline(_) => {
                 (StatusCode::SERVICE_UNAVAILABLE, self.0.to_string())
