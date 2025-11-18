@@ -174,6 +174,18 @@ pub async fn register_agent(
     let mut response = state.registry.register(req).await?;
     response.agent_api_port = Some(agent_api_port);
 
+    // エージェントトークンを生成して保存
+    let agent_token_with_plaintext = crate::db::agent_tokens::create(&state.db_pool, response.agent_id)
+        .await
+        .map_err(|e| {
+            error!("Failed to create agent token: {}", e);
+            AppError(CoordinatorError::Internal(format!(
+                "Failed to create agent token: {}",
+                e
+            )))
+        })?;
+    response.agent_token = Some(agent_token_with_plaintext.token);
+
     // 取得した初期状態を反映
     let _ = state
         .registry

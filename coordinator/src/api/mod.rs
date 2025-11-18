@@ -3,6 +3,8 @@
 //! エージェント登録、ヘルスチェック、プロキシAPI
 
 pub mod agent;
+pub mod api_keys;
+pub mod auth;
 pub mod dashboard;
 pub mod health;
 pub mod logs;
@@ -10,12 +12,14 @@ pub mod metrics;
 pub mod models;
 pub mod openai;
 pub mod proxy;
+pub mod users;
 
 use crate::AppState;
 use axum::{
     body::Body,
     extract::Path as AxumPath,
     http::{header, StatusCode},
+    middleware,
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Router,
@@ -28,7 +32,43 @@ const DASHBOARD_INDEX: &str = "index.html";
 
 /// APIルーターを作成
 pub fn create_router(state: AppState) -> Router {
+    // JWT認証が必要な保護されたルート
+    let protected_routes = Router::new()
+        .route("/api/auth/me", get(auth::me))
+        .route(
+            "/api/users",
+            get(users::list_users).post(users::create_user),
+        )
+        .route(
+            "/api/users/:id",
+            put(users::update_user).delete(users::delete_user),
+        )
+        .route(
+            "/api/api-keys",
+            get(api_keys::list_api_keys).post(api_keys::create_api_key),
+        )
+        .route("/api/api-keys/:id", delete(api_keys::delete_api_key))
+        .layer(middleware::from_fn_with_state(
+            state.jwt_secret.clone(),
+            crate::auth::middleware::jwt_auth_middleware,
+        ));
+
+    // エージェントトークン認証が必要なルート
+    let agent_protected_routes = Router::new()
+        .route("/api/health", post(health::health_check))
+        .layer(middleware::from_fn_with_state(
+            state.db_pool.clone(),
+            crate::auth::middleware::agent_token_auth_middleware,
+        ));
+
     Router::new()
+        // 認証エンドポイント（認証不要）
+        .route("/api/auth/login", post(auth::login))
+        .route("/api/auth/logout", post(auth::logout))
+        // 保護されたルート
+        .merge(protected_routes)
+        .merge(agent_protected_routes)
+        // 既存のルート
         .route(
             "/api/agents",
             post(agent::register_agent).get(agent::list_agents),
@@ -81,7 +121,6 @@ pub fn create_router(state: AppState) -> Router {
         )
         // FR-002: agent log proxy (spec path)
         .route("/api/agents/:agent_id/logs", get(logs::get_agent_logs))
-        .route("/api/health", post(health::health_check))
         .route("/api/chat", post(proxy::proxy_chat))
         .route("/api/generate", post(proxy::proxy_generate))
         .route("/v1/chat/completions", post(openai::chat_completions))
