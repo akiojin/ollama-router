@@ -16,6 +16,9 @@ use serde_json::json;
 use tower::ServiceExt;
 
 async fn build_app() -> Router {
+    // 認証を有効化（他のテストの影響を受けないように明示的に設定）
+    std::env::remove_var("AUTH_DISABLED");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(

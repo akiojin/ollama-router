@@ -17,7 +17,9 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 async fn build_app() -> Router {
-    // エージェントトークンのテストには認証無効化モードは不要
+    // 認証を有効化（他のテストの影響を受けないように明示的に設定）
+    std::env::remove_var("AUTH_DISABLED");
+
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
