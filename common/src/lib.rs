@@ -1,4 +1,4 @@
-//! Ollama Coordinator Common Library
+//! Ollama Router Common Library
 //!
 //! 共通型定義、プロトコル、設定、エラー型を提供
 
@@ -18,3 +18,6 @@ pub mod error;
 
 /// ログユーティリティ
 pub mod log;
+
+/// 認証・認可関連の型定義
+pub mod auth;

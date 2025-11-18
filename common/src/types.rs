@@ -1,6 +1,6 @@
 //! 共通型定義
 //!
-//! Agent, HealthMetrics, Request等のコアデータ型
+//! Node, HealthMetrics, Request等のコアデータ型
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -26,9 +26,9 @@ impl GpuDeviceInfo {
     }
 }
 
-/// エージェント
+/// ノード
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Agent {
+pub struct Node {
     /// 一意識別子
     pub id: Uuid,
     /// マシン名
@@ -40,11 +40,14 @@ pub struct Agent {
     /// Ollamaポート番号
     pub ollama_port: u16,
     /// 状態（オンライン/オフライン）
-    pub status: AgentStatus,
+    pub status: NodeStatus,
     /// 登録日時
     pub registered_at: DateTime<Utc>,
     /// 最終ヘルスチェック時刻
     pub last_seen: DateTime<Utc>,
+    /// 直近でオンライン状態に遷移した時刻（オンライン時のみ Some）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub online_since: Option<DateTime<Utc>>,
     /// カスタム表示名
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_name: Option<String>,
@@ -77,12 +80,21 @@ pub struct Agent {
     /// GPU能力スコア (0-10000)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gpu_capability_score: Option<u32>,
+    /// OpenAI互換APIポート（標準は ollama_port+1）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_api_port: Option<u16>,
+    /// モデル起動中フラグ（全対応モデルが揃うまで true）
+    #[serde(default)]
+    pub initializing: bool,
+    /// 起動済みモデル数/総数
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ready_models: Option<(u8, u8)>,
 }
 
-/// エージェント状態
+/// ノード状態
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum AgentStatus {
+pub enum NodeStatus {
     /// オンライン
     Online,
     /// オフライン
@@ -92,8 +104,8 @@ pub enum AgentStatus {
 /// ヘルスメトリクス
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HealthMetrics {
-    /// エージェントID
-    pub agent_id: Uuid,
+    /// ノードID
+    pub node_id: Uuid,
     /// CPU使用率 (0.0-100.0)
     pub cpu_usage: f32,
     /// メモリ使用率 (0.0-100.0)
@@ -138,8 +150,8 @@ pub struct HealthMetrics {
 pub struct Request {
     /// リクエストID
     pub id: Uuid,
-    /// 振り分け先エージェントID
-    pub agent_id: Uuid,
+    /// 振り分け先ノードID
+    pub node_id: Uuid,
     /// エンドポイント ("/api/chat" など)
     pub endpoint: String,
     /// ステータス
@@ -166,13 +178,13 @@ pub enum RequestStatus {
     Failed,
 }
 
-/// エージェントメトリクス
+/// ノードメトリクス
 ///
-/// エージェントから定期的に送信される負荷情報
+/// ノードから定期的に送信される負荷情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMetrics {
-    /// エージェントID
-    pub agent_id: Uuid,
+    /// ノードID
+    pub node_id: Uuid,
     /// CPU使用率（0.0〜100.0）
     pub cpu_usage: f64,
     /// メモリ使用率（0.0〜100.0）
@@ -191,15 +203,16 @@ mod tests {
 
     #[test]
     fn test_agent_serialization() {
-        let agent = Agent {
+        let agent = Node {
             id: Uuid::new_v4(),
             machine_name: "test-machine".to_string(),
             ip_address: "192.168.1.100".parse().unwrap(),
             ollama_version: "0.1.0".to_string(),
             ollama_port: 11434,
-            status: AgentStatus::Online,
+            status: NodeStatus::Online,
             registered_at: Utc::now(),
             last_seen: Utc::now(),
+            online_since: Some(Utc::now()),
             custom_name: Some("Custom".to_string()),
             tags: vec!["primary".to_string()],
             notes: Some("memo".to_string()),
@@ -215,10 +228,13 @@ mod tests {
             gpu_model_name: Some("NVIDIA GeForce RTX 4090".to_string()),
             gpu_compute_capability: Some("8.9".to_string()),
             gpu_capability_score: Some(9850),
+            agent_api_port: Some(11435),
+            initializing: false,
+            ready_models: Some((1, 1)),
         };
 
         let json = serde_json::to_string(&agent).unwrap();
-        let deserialized: Agent = serde_json::from_str(&json).unwrap();
+        let deserialized: Node = serde_json::from_str(&json).unwrap();
 
         assert_eq!(agent, deserialized);
     }
@@ -237,7 +253,7 @@ mod tests {
             "gpu_available": false
         }"#;
 
-        let agent: Agent = serde_json::from_str(json).unwrap();
+        let agent: Node = serde_json::from_str(json).unwrap();
         assert!(agent.custom_name.is_none());
         assert!(agent.tags.is_empty());
         assert!(agent.notes.is_none());
@@ -249,16 +265,17 @@ mod tests {
         assert!(agent.gpu_model_name.is_none());
         assert!(agent.gpu_compute_capability.is_none());
         assert!(agent.gpu_capability_score.is_none());
+        assert!(agent.online_since.is_none());
     }
 
     #[test]
     fn test_agent_status_serialization() {
         assert_eq!(
-            serde_json::to_string(&AgentStatus::Online).unwrap(),
+            serde_json::to_string(&NodeStatus::Online).unwrap(),
             "\"online\""
         );
         assert_eq!(
-            serde_json::to_string(&AgentStatus::Offline).unwrap(),
+            serde_json::to_string(&NodeStatus::Offline).unwrap(),
             "\"offline\""
         );
     }
@@ -309,13 +326,13 @@ mod tests {
 
     #[test]
     fn test_agent_metrics_serialization() {
-        let agent_id = Uuid::parse_str("12345678-1234-1234-1234-123456789012").unwrap();
+        let node_id = Uuid::parse_str("12345678-1234-1234-1234-123456789012").unwrap();
         let timestamp = DateTime::parse_from_rfc3339("2025-11-02T10:00:00Z")
             .unwrap()
             .with_timezone(&Utc);
 
         let metrics = AgentMetrics {
-            agent_id,
+            node_id,
             cpu_usage: 45.5,
             memory_usage: 60.2,
             active_requests: 3,
@@ -325,7 +342,7 @@ mod tests {
 
         // JSON serialization
         let json = serde_json::to_string(&metrics).unwrap();
-        assert!(json.contains("\"agent_id\":\"12345678-1234-1234-1234-123456789012\""));
+        assert!(json.contains("\"node_id\":\"12345678-1234-1234-1234-123456789012\""));
         assert!(json.contains("\"cpu_usage\":45.5"));
         assert!(json.contains("\"memory_usage\":60.2"));
         assert!(json.contains("\"active_requests\":3"));
@@ -333,7 +350,7 @@ mod tests {
 
         // JSON deserialization
         let deserialized: AgentMetrics = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.agent_id, agent_id);
+        assert_eq!(deserialized.node_id, node_id);
         assert_eq!(deserialized.cpu_usage, 45.5);
         assert_eq!(deserialized.memory_usage, 60.2);
         assert_eq!(deserialized.active_requests, 3);
@@ -344,7 +361,7 @@ mod tests {
     #[test]
     fn test_agent_metrics_deserialization_without_avg_response_time() {
         let json = r#"{
-            "agent_id": "12345678-1234-1234-1234-123456789012",
+            "node_id": "12345678-1234-1234-1234-123456789012",
             "cpu_usage": 30.0,
             "memory_usage": 40.0,
             "active_requests": 2,
