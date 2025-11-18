@@ -57,7 +57,11 @@ async fn build_state_with_mock(mock: &MockServer) -> AppState {
         .registry
         .update_last_seen(
             agent_id,
-            Some(vec!["gpt-oss:20b".to_string(), "gpt-oss:120b".to_string()]),
+            Some(vec![
+                "gpt-oss:20b".to_string(),
+                "gpt-oss:120b".to_string(),
+                "test-model".to_string(),
+            ]),
             None,
             None,
             None,
