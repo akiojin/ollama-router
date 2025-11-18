@@ -9,7 +9,7 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use ollama_coordinator_coordinator::{
+use or_router::{
     api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
 use serde_json::json;
@@ -22,7 +22,7 @@ async fn build_app() -> Router {
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history = std::sync::Arc::new(
-        ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
+        or_router::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
     let task_manager = DownloadTaskManager::new();
     let db_pool = support::coordinator::create_test_db_pool().await;
@@ -30,14 +30,14 @@ async fn build_app() -> Router {
 
     // テスト用の管理者ユーザーを作成（ダミーClaims注入ミドルウェアと同じUUID）
     let password_hash =
-        ollama_coordinator_coordinator::auth::password::hash_password("password123").unwrap();
+        or_router::auth::password::hash_password("password123").unwrap();
     let dummy_uuid = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-    ollama_coordinator_coordinator::db::users::create_with_id(
+    or_router::db::users::create_with_id(
         &db_pool,
         dummy_uuid,
         "admin",
         &password_hash,
-        ollama_coordinator_common::auth::UserRole::Admin,
+        ollama_router_common::auth::UserRole::Admin,
     )
     .await
     .ok();

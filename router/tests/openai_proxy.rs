@@ -2,7 +2,7 @@ use axum::{
     extract::connect_info::ConnectInfo,
     http::{header::CONTENT_TYPE, StatusCode},
 };
-use ollama_coordinator_common::{
+use ollama_router_common::{
     protocol::{ChatRequest, ChatResponse, GenerateRequest},
     types::GpuDeviceInfo,
 };
@@ -40,7 +40,7 @@ async fn build_state_with_mock(mock: &MockServer) -> (AppState, String) {
     // 登録済みエージェントを追加
     state
         .registry
-        .register(ollama_coordinator_common::protocol::RegisterRequest {
+        .register(ollama_router_common::protocol::RegisterRequest {
             machine_name: "mock-agent".into(),
             ip_address: mock.address().ip(),
             ollama_version: "0.0.0".into(),
@@ -107,7 +107,7 @@ async fn build_state_with_mock(mock: &MockServer) -> (AppState, String) {
         &db_pool,
         "test-user",
         "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyWpLF5JRSia", // bcrypt hash of "password"
-        ollama_coordinator_common::auth::UserRole::Admin,
+        ollama_router_common::auth::UserRole::Admin,
     )
     .await
     .expect("Failed to create test user");
@@ -131,7 +131,7 @@ async fn test_proxy_chat_success() {
     let mock_server = MockServer::start().await;
 
     let chat_response = ChatResponse {
-        message: ollama_coordinator_common::protocol::ChatMessage {
+        message: ollama_router_common::protocol::ChatMessage {
             role: "assistant".into(),
             content: "hello".into(),
         },
@@ -149,7 +149,7 @@ async fn test_proxy_chat_success() {
 
     let payload = ChatRequest {
         model: "test-model".into(),
-        messages: vec![ollama_coordinator_common::protocol::ChatMessage {
+        messages: vec![ollama_router_common::protocol::ChatMessage {
             role: "user".into(),
             content: "hi".into(),
         }],
@@ -198,7 +198,7 @@ async fn test_proxy_chat_streaming_passthrough() {
 
     let payload = ChatRequest {
         model: "test-model".into(),
-        messages: vec![ollama_coordinator_common::protocol::ChatMessage {
+        messages: vec![ollama_router_common::protocol::ChatMessage {
             role: "user".into(),
             content: "stream?".into(),
         }],
@@ -245,7 +245,7 @@ async fn test_proxy_chat_missing_model_returns_openai_error() {
 
     let payload = ChatRequest {
         model: "missing".into(),
-        messages: vec![ollama_coordinator_common::protocol::ChatMessage {
+        messages: vec![ollama_router_common::protocol::ChatMessage {
             role: "user".into(),
             content: "hi".into(),
         }],
@@ -305,7 +305,7 @@ async fn test_proxy_chat_no_agents() {
 
     let payload = ChatRequest {
         model: "test-model".into(),
-        messages: vec![ollama_coordinator_common::protocol::ChatMessage {
+        messages: vec![ollama_router_common::protocol::ChatMessage {
             role: "user".into(),
             content: "hi".into(),
         }],

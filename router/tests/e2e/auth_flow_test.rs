@@ -7,8 +7,8 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use ollama_coordinator_common::auth::UserRole;
-use ollama_coordinator_coordinator::{
+use ollama_router_common::auth::UserRole;
+use or_router::{
     api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
 };
 use serde_json::json;
@@ -19,24 +19,17 @@ use crate::support;
 async fn build_app() -> (Router, sqlx::SqlitePool) {
     let registry = AgentRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
-    let request_history = std::sync::Arc::new(
-        ollama_coordinator_coordinator::db::request_history::RequestHistoryStorage::new().unwrap(),
-    );
+    let request_history =
+        std::sync::Arc::new(or_router::db::request_history::RequestHistoryStorage::new().unwrap());
     let task_manager = DownloadTaskManager::new();
     let db_pool = support::coordinator::create_test_db_pool().await;
     let jwt_secret = support::coordinator::test_jwt_secret();
 
     // テスト用の管理者ユーザーを作成
-    let password_hash =
-        ollama_coordinator_coordinator::auth::password::hash_password("password123").unwrap();
-    ollama_coordinator_coordinator::db::users::create(
-        &db_pool,
-        "admin",
-        &password_hash,
-        UserRole::Admin,
-    )
-    .await
-    .ok();
+    let password_hash = or_router::auth::password::hash_password("password123").unwrap();
+    or_router::db::users::create(&db_pool, "admin", &password_hash, UserRole::Admin)
+        .await
+        .ok();
 
     let state = AppState {
         registry,

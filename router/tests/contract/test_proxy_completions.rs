@@ -13,7 +13,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use ollama_coordinator_common::protocol::GenerateRequest;
+use ollama_router_common::protocol::GenerateRequest;
 use reqwest::{Client, StatusCode as ReqStatusCode};
 use serde_json::Value;
 

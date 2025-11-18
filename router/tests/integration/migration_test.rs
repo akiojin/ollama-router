@@ -2,7 +2,7 @@
 //!
 //! T014: JSONからSQLiteへのマイグレーション
 
-use ollama_coordinator_coordinator::db::migrations::{
+use or_router::db::migrations::{
     import_agents_from_json, initialize_database,
 };
 

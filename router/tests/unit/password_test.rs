@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod password_tests {
-    use ollama_coordinator_coordinator::auth::password::{hash_password, verify_password};
+    use or_router::auth::password::{hash_password, verify_password};
 
     #[test]
     fn test_hash_password_creates_valid_hash() {
