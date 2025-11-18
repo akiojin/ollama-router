@@ -9,7 +9,7 @@ use axum::{
 };
 use ollama_router_common::auth::UserRole;
 use or_router::{
-    api, balancer::LoadManager, registry::AgentRegistry, tasks::DownloadTaskManager, AppState,
+    api, balancer::LoadManager, registry::NodeRegistry, tasks::DownloadTaskManager, AppState,
 };
 use serde_json::json;
 use tower::ServiceExt;
@@ -17,7 +17,7 @@ use tower::ServiceExt;
 use crate::support;
 
 async fn build_app() -> (Router, sqlx::SqlitePool) {
-    let registry = AgentRegistry::new();
+    let registry = NodeRegistry::new();
     let load_manager = LoadManager::new(registry.clone());
     let request_history =
         std::sync::Arc::new(or_router::db::request_history::RequestHistoryStorage::new().unwrap());
