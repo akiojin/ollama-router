@@ -49,8 +49,24 @@ async fn build_state_with_mock(mock: &MockServer) -> AppState {
         .await
         .unwrap();
 
-    // エージェントをready状態にしておく（初期化待ちで503にならないように）
+    // エージェントをready状態にしておく（初期化待ちやモデル未ロードで404/503にならないように）
     let agent_id = state.registry.list().await[0].id;
+
+    // レジストリにロード済みモデル・初期化解除を反映
+    state
+        .registry
+        .update_last_seen(
+            agent_id,
+            Some(vec!["gpt-oss:20b".to_string(), "gpt-oss:120b".to_string()]),
+            None,
+            None,
+            None,
+            Some(false),
+            Some((4, 4)),
+        )
+        .await
+        .ok();
+
     state
         .load_manager
         .record_metrics(ollama_coordinator_coordinator::balancer::MetricsUpdate {
