@@ -26,8 +26,8 @@ async fn build_app() -> Router {
         or_router::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
     let task_manager = or_router::tasks::DownloadTaskManager::new();
-    let db_pool = support::coordinator::create_test_db_pool().await;
-    let jwt_secret = support::coordinator::test_jwt_secret();
+    let db_pool = support::router::create_test_db_pool().await;
+    let jwt_secret = support::router::test_jwt_secret();
 
     // テスト用の管理者ユーザーを作成（認証無効モードでは使用されないが、データベースの整合性のため）
     let password_hash =

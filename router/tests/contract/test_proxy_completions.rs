@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::support::{
-    coordinator::{register_node, spawn_test_router},
+    router::{register_node, spawn_test_router},
     http::{spawn_router, TestServer},
 };
 use axum::{

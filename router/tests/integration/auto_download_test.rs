@@ -26,8 +26,8 @@ async fn build_app() -> Router {
         or_router::db::request_history::RequestHistoryStorage::new().unwrap(),
     );
     let task_manager = or_router::tasks::DownloadTaskManager::new();
-    let db_pool = support::coordinator::create_test_db_pool().await;
-    let jwt_secret = support::coordinator::test_jwt_secret();
+    let db_pool = support::router::create_test_db_pool().await;
+    let jwt_secret = support::router::test_jwt_secret();
 
     let state = AppState {
         registry,

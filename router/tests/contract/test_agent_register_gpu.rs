@@ -12,7 +12,6 @@ use or_router::{
 };
 use serde_json::json;
 use tower::ServiceExt;
-use uuid;
 
 async fn build_app() -> Router {
     // テスト用に一時ディレクトリを設定
