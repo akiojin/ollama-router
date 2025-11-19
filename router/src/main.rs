@@ -130,7 +130,11 @@ async fn run_server(config: ServerConfig) {
             let db_path = std::path::Path::new(normalized);
             if let Some(parent) = db_path.parent() {
                 if let Err(err) = std::fs::create_dir_all(parent) {
-                    panic!("Failed to create database directory {}: {}", parent.display(), err);
+                    panic!(
+                        "Failed to create database directory {}: {}",
+                        parent.display(),
+                        err
+                    );
                 }
             }
         }
