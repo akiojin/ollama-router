@@ -13,7 +13,7 @@ Ollama Router is a system that provides unified management and a single API endp
 - **Unified API Endpoint**: Access multiple Ollama instances through a single URL
 - **Automatic Load Balancing**: Intelligently distribute requests across available agents
 - **Automatic Failure Detection**: Detect offline agents and exclude them from distribution
-- **Real-time Monitoring**: Visualize all agent states via web dashboard
+- **Real-time Monitoring**: Comprehensive visualization of agent states and performance metrics via web dashboard
 - **Request History Tracking**: Complete request/response logging with 7-day retention
 - **Self-registering Agents**: Agents automatically register with the Coordinator
 - **Model Auto-Distribution**: Automatically distribute AI models to agents based
