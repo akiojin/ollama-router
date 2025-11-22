@@ -166,14 +166,14 @@ ollama-node-cpp/
   - [x] PyTorch→GGUF変換テスト
   - [x] safetensors→GGUF変換テスト
   - [x] 変換済みモデル検出テスト
-  - [ ] キャッシュ管理テスト
+  - [x] キャッシュ管理テスト
 - [x] model_converter.h の作成
 - [x] model_converter.cpp の実装
   - [x] llama.cpp付属変換スクリプトの統合（ダミー変換でGGUF生成）
   - [x] PyTorch（.bin）→GGUF変換
   - [x] safetensors→GGUF変換
-  - [ ] 変換状態のキャッシュ管理
-  - [ ] 変換進捗報告
+  - [x] 変換状態のキャッシュ管理
+  - [x] 変換進捗報告
 - [ ] **REFACTOR**: コードクリーンアップ
 
 #### HuggingFaceモデル取得 (models/hf_client/)
