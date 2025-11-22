@@ -252,7 +252,7 @@ ollama-node-cpp/
   - [x] エラーハンドリング
   - [x] CORS対応
   - [x] ミドルウェア機構
-- [ ] **REFACTOR**: コードクリーンアップ
+- [ ] **REFACTOR**: コードクリーンアップ（残: 共通ログ/CORS設定抽出）
 
 #### OpenAI互換API (api/) - RED-GREEN-REFACTOR
 - [x] **TEST FIRST**: tests/integration/openai_endpoints_test.cpp
@@ -267,7 +267,7 @@ ollama-node-cpp/
   - [x] GET /v1/models
   - [x] POST /v1/embeddings
   - [x] Server-Sent Events（SSE）ストリーミング
-- [ ] **REFACTOR**: コードクリーンアップ
+- [x] **REFACTOR**: コードクリーンアップ（モデル存在検証・共通JSON応答・エラー整備）
 
 #### ノード管理API (api/) - RED-GREEN-REFACTOR
 - [x] **TEST FIRST**: tests/integration/node_endpoints_test.cpp
@@ -279,7 +279,7 @@ ollama-node-cpp/
   - [x] POST /pull（モデルプル要求受信）
   - [x] GET /health（ヘルスチェック）
   - [x] GET /metrics（メトリクス）
-- [ ] **REFACTOR**: コードクリーンアップ
+- [ ] **REFACTOR**: コードクリーンアップ（残: メトリクスJSON/共通レスポンス）
 
 ### Phase 5: 統合とテスト
 
