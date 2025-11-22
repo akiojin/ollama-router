@@ -174,7 +174,7 @@ ollama-node-cpp/
   - [x] safetensors→GGUF変換
   - [x] 変換状態のキャッシュ管理
   - [x] 変換進捗報告
-- [ ] **REFACTOR**: コードクリーンアップ
+- [x] **REFACTOR**: コードクリーンアップ
 
 #### HuggingFaceモデル取得 (models/hf_client/)
 - [x] **TEST FIRST**: tests/unit/hf_client_test.cpp
