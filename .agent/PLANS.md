@@ -98,7 +98,7 @@ ollama-node-cpp/
   - [x] CUDA検出（NVML使用）
   - [x] Metal検出（macOS）
   - [x] ROCm検出（AMD）
-  - [ ] GPU必須チェック
+  - [x] GPU必須チェック
 - [ ] **REFACTOR**: コードクリーンアップ
 
 #### ルータークライアント (api/) - RED-GREEN-REFACTOR
