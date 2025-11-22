@@ -205,7 +205,7 @@ ollama-node-cpp/
   - [x] コンテキスト管理
   - [x] GPU/CPUレイヤー分割
   - [x] エラーハンドリング
-- [ ] **REFACTOR**: コードクリーンアップ
+- [x] **REFACTOR**: コードクリーンアップ
 
 #### モデルプール (core/) - RED-GREEN-REFACTOR
 - [ ] **TEST FIRST**: tests/unit/model_pool_test.cpp
