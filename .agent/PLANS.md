@@ -197,7 +197,7 @@ ollama-node-cpp/
   - [x] モデルロードテスト
   - [x] コンテキスト作成テスト
   - [x] GPU/CPUレイヤー分割テスト
-  - [ ] メモリ管理テスト
+  - [x] メモリ管理テスト
 - [x] llama_manager.h の作成
 - [x] llama_manager.cpp の実装
   - [x] llama.cpp初期化（ダミー）
