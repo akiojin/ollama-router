@@ -88,16 +88,16 @@ ollama-node-cpp/
 ### Phase 2: コア機能実装（TDD） 🚧
 
 #### GPU検出 (system/) - RED-GREEN-REFACTOR
-- [ ] **TEST FIRST**: tests/unit/gpu_detector_test.cpp
-  - [ ] GPU検出成功テスト
-  - [ ] GPU検出失敗テスト（エラー処理）
-  - [ ] メモリ計算テスト
-  - [ ] 能力スコア計算テスト
+- [x] **TEST FIRST**: tests/unit/gpu_detector_test.cpp
+  - [x] GPU検出成功テスト
+  - [x] GPU検出失敗テスト（エラー処理）
+  - [x] メモリ計算テスト
+  - [x] 能力スコア計算テスト
 - [x] gpu_detector.h の作成
 - [x] gpu_detector.cpp の実装
-  - [ ] CUDA検出（NVML使用）
-  - [ ] Metal検出（macOS）
-  - [ ] ROCm検出（AMD）
+  - [x] CUDA検出（NVML使用）
+  - [x] Metal検出（macOS）
+  - [x] ROCm検出（AMD）
   - [ ] GPU必須チェック
 - [ ] **REFACTOR**: コードクリーンアップ
 
