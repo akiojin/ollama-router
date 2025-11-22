@@ -128,7 +128,7 @@ ollama-node-cpp/
   - [x] ローカルモデルとの差分チェック
   - [x] 不要モデルの削除
   - [x] 同期ステータス管理
-- [ ] **REFACTOR**: コードクリーンアップ
+- [x] **REFACTOR**: コードクリーンアップ
 
 #### Ollamaモデル互換 (models/) - RED-GREEN-REFACTOR
 - [x] **TEST FIRST**: tests/unit/ollama_compat_test.cpp
@@ -157,7 +157,7 @@ ollama-node-cpp/
   - [x] 進捗報告機能
   - [x] ~/.ollama/models/ への保存
   - [x] チェックサムの検証
-- [ ] **REFACTOR**: コードクリーンアップ
+- [x] **REFACTOR**: コードクリーンアップ
 
 ### Phase 2.5: HuggingFaceモデル対応 🆕
 
