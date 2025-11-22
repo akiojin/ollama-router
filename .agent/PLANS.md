@@ -279,7 +279,7 @@ ollama-node-cpp/
   - [x] POST /pull（モデルプル要求受信）
   - [x] GET /health（ヘルスチェック）
   - [x] GET /metrics（メトリクス）
-- [ ] **REFACTOR**: コードクリーンアップ（残: メトリクスJSON/共通レスポンス）
+- [x] **REFACTOR**: コードクリーンアップ（メトリクスJSON化、プル回数カウント）
 
 ### Phase 5: 統合とテスト
 
