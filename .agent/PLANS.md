@@ -177,16 +177,16 @@ ollama-node-cpp/
 - [ ] **REFACTOR**: コードクリーンアップ
 
 #### HuggingFaceモデル取得 (models/hf_client/)
-- [ ] **TEST FIRST**: tests/unit/hf_client_test.cpp
-  - [ ] モデルダウンロードテスト
+- [x] **TEST FIRST**: tests/unit/hf_client_test.cpp
+  - [x] モデルダウンロードテスト
   - [ ] TheBloke等の事前変換モデル検出テスト
   - [ ] LoRA検出・エラー処理テスト
-- [ ] hf_client.h の作成
-- [ ] hf_client.cpp の実装
-  - [ ] HuggingFace Hub APIクライアント
-  - [ ] モデルファイルダウンロード
-  - [ ] GGUF形式モデルの直接利用（TheBloke等）
-  - [ ] 変換が必要なモデルの検出
+- [x] hf_client.h の作成
+- [x] hf_client.cpp の実装
+  - [x] HuggingFace Hub APIクライアント（ダミーリスト）
+  - [x] モデルファイルダウンロード
+  - [x] GGUF形式モデルの直接利用（TheBloke等）
+  - [x] 変換が必要なモデルの検出
   - [ ] LoRAやDiffusersモデルの除外
 - [ ] **REFACTOR**: コードクリーンアップ
 
