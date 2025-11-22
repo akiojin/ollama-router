@@ -208,18 +208,18 @@ ollama-node-cpp/
 - [x] **REFACTOR**: コードクリーンアップ
 
 #### モデルプール (core/) - RED-GREEN-REFACTOR
-- [ ] **TEST FIRST**: tests/unit/model_pool_test.cpp
-  - [ ] 複数モデル管理テスト
+- [x] **TEST FIRST**: tests/unit/model_pool_test.cpp
+  - [x] 複数モデル管理テスト
   - [ ] スレッド安全性テスト
   - [ ] 動的ロード/アンロードテスト
   - [ ] メモリ制限テスト
-- [ ] model_pool.h の作成
-- [ ] model_pool.cpp の実装
-  - [ ] 複数モデルインスタンス管理
+- [x] model_pool.h の作成
+- [x] model_pool.cpp の実装
+  - [x] 複数モデルインスタンス管理（最低限）
   - [ ] スレッドごとのモデル割り当て
   - [ ] 動的ロード/アンロード
   - [ ] メモリ管理とGC
-  - [ ] ロック機構
+  - [x] ロック機構
 - [ ] **REFACTOR**: コードクリーンアップ
 
 #### 推論エンジン (core/) - RED-GREEN-REFACTOR
