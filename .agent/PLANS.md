@@ -1,70 +1,460 @@
-# マルチモデル自動起動 ExecPlan (2025-11-17)
+# C++ Node Implementation Plan (Complete)
 
-このプランは、CLAUDE.md で要求されるフローと SPEC 群（特に SPEC-8ae67d67, SPEC-1f2a9c3d, SPEC-ee2aa3ef, SPEC-5cd7b614）に沿って、ルーター／ノードが「対応モデルを全自動で起動・同期し、OpenAI互換APIは必ずノード経由」となる状態を完成させるための実行計画です。完了条件と検証方法を明示し、進捗を逐次更新します。
+## 概要
 
-## 目的 (Purpose)
-- 対応モデルセット（gpt-oss:20b / gpt-oss:120b / gpt-oss-safeguard:20b / qwen3-coder:30b）をルーターが正として提示し、/v1/models でも同一内容を返す。
-- ノードは登録後ただちに全対応モデルを自動ダウンロードし、モデルごとに独立した Ollama プロセスを起動（ポート衝突なし、同一ホストで複数進行可）。
-- ルーターはノード経由の OpenAI互換API だけを利用し、ノードがすべての対応モデルを ready にするまでリクエストを待機（上限1024、超過は503）。
-- 登録時ヘルスチェック: ノードAPI /v1/models が応答し、少なくとも1モデルが起動済みでないと登録を拒否し「起動中」を示す。
-- UI: 手動配布UIを残さず、ロード済みモデルは「全ノード合算」表示のみ。ノード表からモデル列を除去。
+Rustノードをllama.cpp統合のC++ノードに置き換える完全実装計画書。Ollamaプロセス依存を排除し、llama.cppを直接統合して高性能なマルチモデルホスティングを実現する。
 
-## 参照 (References)
-- SPEC-8ae67d67: `specs/SPEC-8ae67d67/spec.md` (モデル自動配布・対応モデルセット、モデルリスト4件)
-- SPEC-ee2aa3ef: `specs/SPEC-ee2aa3ef/tasks.md` (T025 ホットフィックスフロー/統合テスト)
-- SPEC-5cd7b614: `specs/SPEC-5cd7b614/tasks.md` (PRマージ後の動作確認)
-- SPEC-1f2a9c3d: `specs/SPEC-1f2a9c3d/` (ログAPI要件) — Agent `/api/logs` と Coordinator プロキシ `/api/agents/:id/logs`
-- SPEC-712c20cf: `specs/SPEC-712c20cf/` (ダッシュボードUX/NFR) — モデル管理パネル削除後のUI整合
+## 重要な要件
 
-## 作業計画 (Plan of Work)
-1. **対応モデルセット確定と仕様反映** ✅ 実装済み（4モデル固定で /api/models /v1/models / UI に反映）
-   - common/coordinator で定数化済み。サイズ/推奨VRAMを更新。
-2. **ノード: マルチ Ollama オーケストレーター** ✅ 実装済み
-   - モデルごとに `OllamaPool` で serve 起動・再利用。/v1/models はルーター対応モデルを返す。
-   - ready_models / initializing を報告。
-3. **ルーター: 登録・待機制御の強化** ⏳ 部分完了
-   - 登録時にノード `/v1/models` を取得し初期状態を同期済み。
-   - 待機キュー(1024上限)は LoadManager で実装済み。503 文言/溢れケースのAPIレベル検証を追加する（SPEC-8ae67d67 FR-009 整合）。
-   - リロード時に詳細モーダルが自動表示されないことをUI回帰テストで保証（SPEC-712c20cf）。
-4. **テスト (TDD)** ⏳ 部分完了
-   - unit: ready待機・ポート衝突なし → 済。  
-   - integration: 全ノード initializing→ready で復帰 → 済。  
-   - integration: `/v1/completions` ハッピー経路 → 済。  
-   - integration: 待機キュー溢れ→HTTP 503 を追加（本プランで実装）。  
-   - UIスナップショット: タブ撤去＆モデル管理パネル削除を確認するメモ・テスト (`coordinator/tests/ui/model_panel_removed.rs`)。モーダル自動表示しない回帰を追加予定。
-5. **ドキュメント/運用** ⏳ 進行中
-   - README.ja.md に最新アーキ要点を追記済み。ポート表・起動手順は未更新。
-   - SPEC-8ae67d67 はモデル一覧・手動配布廃止を更新済み。
-6. **ログAPIの要件化とTDD** 🆕
-   - 要件: ノードの最新ログをHTTPで取得でき、ルーター経由でも同等に参照できること（tail件数指定可、デフォルト200行、JSONLテキスト返却）。
-   - スコープ: Agent `/api/logs` (tail), Coordinator `/api/agents/:id/logs` プロキシ、DashboardのログパネルをこのAPIに接続。
-   - TDD方針: 
-     1) Agent単体: `/api/logs?tail=5` が末尾5行を返し、存在しないファイルでも空文字+200となることをテスト。
-     2) Coordinator契約: ノードが200を返すケース・タイムアウト/接続不可で502となるケースをカバー。
-     3) UIはスモーク（fetchが成功し、テキストが表示される）で確認。
+### 必須要件
+- **TDD（Test-Driven Development）遵守**: Red-Green-Refactorサイクル厳守
+- **GPU必須**: ノード登録にはGPU検出が必須（GPUなしでは動作不可）
+- **ルーター互換性**: 既存のRustルーターとの完全な互換性
+- **モデル同期**: ルーターの`/v1/models`から自動同期
+- **Ollamaモデル互換**: `~/.ollama/models/`の既存モデルを活用
+- **自動リリース**: semantic-releaseによる自動バージョニング
 
-- [x] 2025-11-17T15:10Z  ready待機キューの挙動テストを追加し、clippy/test/markdownlint/タスクチェックを通過。
-- [x] 2025-11-17 モデルセット統一（5モデル固定→後に4モデルへ移行）、UIプリセット更新。
-- [x] 2025-11-17 ノード側マルチモデル自動起動（OllamaPool）と /v1/models 同期を実装。
-- [x] 2025-11-17 ルーター登録時にノード /v1/models を取り込み、初期状態を同期。
-- [x] 2025-11-18 API統合テスト追加（待機キュー溢れ→HTTP503、env override付き）を完了。UI再チェックとREADME.ja.md ポート表整理は未。
-- [x] 2025-11-18 対応モデルを実在リスト4件に修正（gpt-oss:20b/120b, gpt-oss-safeguard:20b, qwen3-coder:30b）し、UI・spec・テストを更新。
-- [x] 2025-11-19 UI回帰: モデル管理パネル削除の自動テスト、リロード時にノード/リクエスト詳細モーダルが初期状態で閉じていることをテストで担保。
-- [ ] README.ja.md ポート表追記と UI 文言最終確認。
-- [ ] ログAPI実装: Agent `/api/logs`, Coordinator `/api/agents/:id/logs`, UI接続、テスト追加（上記TDD方針）。
-- [ ] specs 未完了タスク (自動継承)
-  - SPEC-ee2aa3ef: **T025 ホットフィックスフロー確認／統合テスト(T023–T025)実行**
-  - SPEC-5cd7b614: **PRマージ後の動作確認（メンテナ作業）**
-  - SPEC-8ae67d67: plan.md Phase0–5 のチェックボックス未完了（モデル自動配布フェーズの反映）
-  - SPEC-712c20cf: quickstart/plan の UI/NFR チェック未完了（ダッシュボードUX）
-  - SPEC-47c6f44c: plan Phase4–5 未完了（tasks-checkワークフロー完了条件）
+### 対応モデル（ルーターから同期）
+- gpt-oss:20b
+- gpt-oss:120b
+- gpt-oss-safeguard:20b
+- qwen3-coder:30b
 
-## Surprises & Discoveries
-- まだ無し。進行中に記載する。
+## アーキテクチャ
 
-## Decision Log
-- 2025-11-17: キュー上限1024固定・タイムアウト無し・503で返す方針を維持。
-- 2025-11-17: GPU自動選択ロジックは一旦無効化（feature フラグ付きテストに退避）し、対応モデルは固定リストで扱う。
+```
+ollama-node-cpp/
+├── src/
+│   ├── core/           # llama.cpp統合、モデル管理
+│   ├── api/            # HTTPサーバー、OpenAI互換API
+│   ├── models/         # モデル同期、ダウンロード
+│   ├── system/         # GPU検出、メトリクス
+│   └── utils/          # ユーティリティ
+├── tests/              # TDDテスト
+│   ├── unit/           # ユニットテスト
+│   ├── integration/    # 統合テスト
+│   └── contract/       # コントラクトテスト
+├── third_party/        # サブモジュール
+├── .github/
+│   └── workflows/      # CI/CD設定
+└── docs/               # ドキュメント
+```
 
-## Outcomes & Retrospective
-- 着手後に更新。
+## 完全実装チェックリスト
+
+### Phase 0: TDD準備とテスト環境構築 🚨
+
+#### テストフレームワークセットアップ
+- [ ] Google Test/Google Mockの導入
+- [ ] tests/CMakeLists.txt の作成
+- [ ] テストヘルパーの作成
+- [ ] モックオブジェクトの準備
+
+#### コントラクトテスト（最初に作成）
+- [ ] tests/contract/router_api_test.cpp
+  - [ ] ノード登録APIコントラクト
+  - [ ] ハートビートAPIコントラクト
+  - [ ] モデル一覧取得APIコントラクト
+- [ ] tests/contract/openai_api_test.cpp
+  - [ ] /v1/chat/completions コントラクト
+  - [ ] /v1/models コントラクト
+  - [ ] SSEストリーミングコントラクト
+
+### Phase 1: 基盤構築 ✅
+
+- [x] プロジェクト構造の作成
+- [x] CMakeLists.txt の作成
+- [x] サブモジュール追加（llama.cpp, cpp-httplib, nlohmann-json）
+- [x] main.cpp の基本実装
+- [x] specs/feature/ ディレクトリの削除
+- [x] PLANS.md の作成（.agent/に配置）
+
+### Phase 2: コア機能実装（TDD） 🚧
+
+#### GPU検出 (system/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/gpu_detector_test.cpp
+  - [ ] GPU検出成功テスト
+  - [ ] GPU検出失敗テスト（エラー処理）
+  - [ ] メモリ計算テスト
+  - [ ] 能力スコア計算テスト
+- [x] gpu_detector.h の作成
+- [x] gpu_detector.cpp の実装
+  - [ ] CUDA検出（NVML使用）
+  - [ ] Metal検出（macOS）
+  - [ ] ROCm検出（AMD）
+  - [ ] GPU必須チェック
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### ルータークライアント (api/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/router_client_test.cpp
+  - [ ] ノード登録成功テスト
+  - [ ] ノード登録失敗テスト（GPUなし）
+  - [ ] ハートビート送信テスト
+  - [ ] 再接続テスト
+- [ ] router_client.h の作成
+- [ ] router_client.cpp の実装
+  - [ ] ノード登録（POST /api/nodes）
+  - [ ] ハートビート（10秒間隔）
+  - [ ] 初期化状態報告（initializing, ready_models）
+  - [ ] メトリクス送信
+  - [ ] エラーハンドリングとリトライ
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### モデル同期 (models/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/model_sync_test.cpp
+  - [ ] モデル一覧取得テスト
+  - [ ] 差分検出テスト
+  - [ ] モデル削除テスト
+  - [ ] 同期完了テスト
+- [ ] model_sync.h の作成
+- [ ] model_sync.cpp の実装
+  - [ ] `/v1/models` からモデル一覧取得
+  - [ ] ローカルモデルとの差分チェック
+  - [ ] 不要モデルの削除
+  - [ ] 同期ステータス管理
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### Ollamaモデル互換 (models/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/ollama_compat_test.cpp
+  - [ ] マニフェスト解析テスト
+  - [ ] GGUFパス解決テスト
+  - [ ] モデル検証テスト
+  - [ ] エラー処理テスト
+- [ ] ollama_compat.h の作成
+- [ ] ollama_compat.cpp の実装
+  - [ ] ~/.ollama/models/ のマニフェスト解析
+  - [ ] GGUFファイルパス解決
+  - [ ] モデルメタデータ読み込み
+  - [ ] モデル検証
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### モデルダウンロード (models/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/model_downloader_test.cpp
+  - [ ] マニフェスト取得テスト
+  - [ ] Blobダウンロードテスト
+  - [ ] 進捗報告テスト
+  - [ ] 中断・再開テスト
+- [ ] model_downloader.h の作成
+- [ ] model_downloader.cpp の実装
+  - [ ] Ollamaレジストリ（registry.ollama.ai）通信
+  - [ ] Blobダウンロード（チャンク処理）
+  - [ ] 進捗報告機能
+  - [ ] ~/.ollama/models/ への保存
+  - [ ] チェックサムの検証
+- [ ] **REFACTOR**: コードクリーンアップ
+
+### Phase 3: llama.cpp統合（TDD）
+
+#### モデルマネージャー (core/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/llama_manager_test.cpp
+  - [ ] モデルロードテスト
+  - [ ] コンテキスト作成テスト
+  - [ ] GPU/CPUレイヤー分割テスト
+  - [ ] メモリ管理テスト
+- [ ] llama_manager.h の作成
+- [ ] llama_manager.cpp の実装
+  - [ ] llama.cpp初期化
+  - [ ] GGUFファイルロード
+  - [ ] コンテキスト管理
+  - [ ] GPU/CPUレイヤー分割
+  - [ ] エラーハンドリング
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### モデルプール (core/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/model_pool_test.cpp
+  - [ ] 複数モデル管理テスト
+  - [ ] スレッド安全性テスト
+  - [ ] 動的ロード/アンロードテスト
+  - [ ] メモリ制限テスト
+- [ ] model_pool.h の作成
+- [ ] model_pool.cpp の実装
+  - [ ] 複数モデルインスタンス管理
+  - [ ] スレッドごとのモデル割り当て
+  - [ ] 動的ロード/アンロード
+  - [ ] メモリ管理とGC
+  - [ ] ロック機構
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### 推論エンジン (core/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/unit/inference_engine_test.cpp
+  - [ ] プロンプト処理テスト
+  - [ ] トークン生成テスト
+  - [ ] ストリーミングテスト
+  - [ ] バッチ推論テスト
+- [ ] inference_engine.h の作成
+- [ ] inference_engine.cpp の実装
+  - [ ] プロンプト処理
+  - [ ] トークン生成
+  - [ ] ストリーミング対応
+  - [ ] バッチ推論
+  - [ ] サンプリング戦略
+- [ ] **REFACTOR**: コードクリーンアップ
+
+### Phase 4: API実装（TDD）
+
+#### HTTPサーバー (api/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/integration/http_server_test.cpp
+  - [ ] サーバー起動/停止テスト
+  - [ ] ルーティングテスト
+  - [ ] エラーハンドリングテスト
+  - [ ] CORS対応テスト
+- [ ] http_server.h の作成
+- [ ] http_server.cpp の実装
+  - [ ] cpp-httplib統合
+  - [ ] ルーティング設定
+  - [ ] エラーハンドリング
+  - [ ] CORS対応
+  - [ ] ミドルウェア機構
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### OpenAI互換API (api/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/integration/openai_endpoints_test.cpp
+  - [ ] チャット補完テスト
+  - [ ] テキスト補完テスト
+  - [ ] モデル一覧テスト
+  - [ ] ストリーミングテスト
+- [ ] openai_endpoints.h の作成
+- [ ] openai_endpoints.cpp の実装
+  - [ ] POST /v1/chat/completions
+  - [ ] POST /v1/completions
+  - [ ] GET /v1/models
+  - [ ] POST /v1/embeddings
+  - [ ] Server-Sent Events（SSE）ストリーミング
+- [ ] **REFACTOR**: コードクリーンアップ
+
+#### ノード管理API (api/) - RED-GREEN-REFACTOR
+- [ ] **TEST FIRST**: tests/integration/node_endpoints_test.cpp
+  - [ ] モデルプルテスト
+  - [ ] ヘルスチェックテスト
+  - [ ] メトリクス取得テスト
+- [ ] node_endpoints.h の作成
+- [ ] node_endpoints.cpp の実装
+  - [ ] POST /pull（モデルプル要求受信）
+  - [ ] GET /health（ヘルスチェック）
+  - [ ] GET /metrics（メトリクス）
+- [ ] **REFACTOR**: コードクリーンアップ
+
+### Phase 5: 統合とテスト
+
+#### メインプログラム更新
+- [ ] **TEST FIRST**: tests/integration/main_test.cpp
+- [ ] main.cpp の完全実装
+  - [ ] 設定読み込み（環境変数/設定ファイル）
+  - [ ] 初期化フロー（順序保証）
+  - [ ] グレースフルシャットダウン
+  - [ ] エラーリカバリー
+  - [ ] シグナルハンドリング
+
+#### ユーティリティ (utils/)
+- [ ] **TEST FIRST**: tests/unit/utils_test.cpp
+- [ ] config.h/cpp - 設定管理
+- [ ] logger.h/cpp - ログシステム（spdlog統合）
+- [ ] json_utils.h/cpp - JSON処理ヘルパー
+- [ ] system_info.h/cpp - システム情報取得
+
+### Phase 6: CI/CD・自動リリース
+
+#### GitHub Actions設定
+- [ ] .github/workflows/ci.yml
+  - [ ] ビルドマトリックス（Linux/macOS/Windows）
+  - [ ] テスト実行（unit/integration/contract）
+  - [ ] コードカバレッジ測定
+  - [ ] 静的解析（clang-tidy, cppcheck）
+
+- [ ] .github/workflows/release.yml
+  - [ ] semantic-release統合
+  - [ ] 自動バージョニング（commitlintベース）
+  - [ ] バイナリビルド（各プラットフォーム）
+  - [ ] リリースノート自動生成
+  - [ ] アセット自動アップロード
+
+#### commitlint設定
+- [ ] .commitlintrc.json
+- [ ] husky設定（pre-commit）
+- [ ] conventional commits準拠
+
+#### semantic-release設定
+- [ ] .releaserc.json
+  - [ ] バージョニングルール
+  - [ ] アセット定義
+  - [ ] リリースノート設定
+
+### Phase 7: パッケージング・配布
+
+#### Dockerコンテナ
+- [ ] Dockerfile
+  - [ ] マルチステージビルド
+  - [ ] 最小イメージサイズ
+  - [ ] GPU対応（nvidia-docker）
+
+- [ ] docker-compose.yml
+  - [ ] ルーターとの連携設定
+  - [ ] ボリュームマウント（モデル）
+  - [ ] ネットワーク設定
+
+#### パッケージマネージャー
+- [ ] Debian/Ubuntuパッケージ（.deb）
+- [ ] RedHat/CentOSパッケージ（.rpm）
+- [ ] macOS Homebrew Formula
+- [ ] Windows MSIインストーラー
+
+#### インストールスクリプト
+- [ ] install.sh（Linux/macOS）
+- [ ] install.ps1（Windows）
+- [ ] 自動アップデート機構
+
+### Phase 8: ドキュメント
+
+#### ユーザードキュメント
+- [ ] README.md（日本語/英語）
+- [ ] INSTALL.md - インストールガイド
+- [ ] USAGE.md - 使用方法
+- [ ] TROUBLESHOOTING.md - トラブルシューティング
+
+#### 開発者ドキュメント
+- [ ] CONTRIBUTING.md - コントリビューションガイド
+- [ ] ARCHITECTURE.md - アーキテクチャ説明
+- [ ] API.md - API仕様書
+- [ ] DEVELOPMENT.md - 開発環境セットアップ
+
+#### API仕様
+- [ ] OpenAPI/Swagger定義
+- [ ] Postmanコレクション
+- [ ] APIクライアント例（各言語）
+
+### Phase 9: パフォーマンス・最適化
+
+#### ベンチマーク
+- [ ] 推論速度ベンチマーク
+- [ ] メモリ使用量測定
+- [ ] スループット測定
+- [ ] レイテンシ測定
+
+#### 最適化
+- [ ] メモリプール実装
+- [ ] ゼロコピー最適化
+- [ ] CPU/GPUアフィニティ
+- [ ] NUMA最適化
+
+#### 負荷テスト
+- [ ] 同時接続数テスト
+- [ ] 長時間稼働テスト
+- [ ] メモリリークチェック
+- [ ] ストレステスト
+
+### Phase 10: 運用・監視
+
+#### メトリクス収集
+- [ ] Prometheusエクスポーター
+- [ ] Grafanaダッシュボード
+- [ ] アラート設定
+
+#### ログ管理
+- [ ] 構造化ログ（JSON）
+- [ ] ログローテーション
+- [ ] ログレベル動的変更
+- [ ] 分散トレーシング対応
+
+#### ヘルスチェック
+- [ ] リビングプローブ
+- [ ] レディネスプローブ
+- [ ] スタートアッププローブ
+
+## 優先順位（実装順序）
+
+### 🚨 最優先（TDD必須）
+1. テスト環境構築とコントラクトテスト
+2. GPU検出（テスト→実装）
+3. ルーター登録（テスト→実装）
+4. モデル同期（テスト→実装）
+
+### 📍 必須機能（MVP）
+5. Ollamaモデル読み込み（テスト→実装）
+6. llama.cpp統合（テスト→実装）
+7. OpenAI互換API（テスト→実装）
+8. CI/CD設定
+
+### ⚡ 重要機能
+9. モデルダウンロード
+10. マルチモデル管理
+11. ストリーミング応答
+12. 自動リリース設定
+
+### 🔧 追加機能
+13. Docker化
+14. パッケージング
+15. 監視・メトリクス
+16. 最適化
+
+## 技術的決定事項
+
+### TDD規約
+- **Red-Green-Refactorサイクル厳守**
+- テストなしでの実装禁止
+- コントラクトテスト優先
+- カバレッジ80%以上
+
+### コミット規約
+- Conventional Commits準拠
+- feat: 新機能（MINOR）
+- fix: バグ修正（PATCH）
+- feat!: 破壊的変更（MAJOR）
+- test: テスト追加/修正
+
+### 使用ライブラリ
+- **テスト**: Google Test + Google Mock
+- **推論**: llama.cpp（サブモジュール）
+- **HTTP**: cpp-httplib
+- **JSON**: nlohmann/json
+- **ログ**: spdlog
+- **設定**: 環境変数 + JSON
+
+### ビルド設定
+- **C++標準**: C++20
+- **ビルド**: CMake 3.20+
+- **コンパイラ**: GCC 11+ / Clang 14+ / MSVC 2019+
+- **プラットフォーム**: Linux, macOS, Windows
+
+### 品質基準
+- コンパイル警告ゼロ
+- 静的解析エラーゼロ
+- テストカバレッジ80%以上
+- ドキュメント完備
+
+## 次のステップ（即座に実行）
+
+1. ✅ PLANS.md作成（.agent/に配置）
+2. ⬜ テスト環境構築（Google Test導入）
+3. ⬜ コントラクトテスト作成
+4. ⬜ GPU検出のテスト作成
+5. ⬜ GPU検出の実装完了
+
+## リスクと対策
+
+### 技術的リスク
+- **llama.cpp API変更**: バージョン固定とテスト強化
+- **GPU検出失敗**: フォールバック機構とエラー処理
+- **メモリ不足**: 動的モデル管理とスワップ
+
+### 運用リスク
+- **モデルダウンロード失敗**: リトライとキャッシュ
+- **ルーター接続断**: 自動再接続とバッファリング
+- **高負荷**: ロードバランシングとレート制限
+
+## 成功基準
+
+- ✅ 既存Rustノードとの完全互換
+- ✅ GPU必須要件の実装
+- ✅ TDDによる高品質実装
+- ✅ 自動リリースパイプライン
+- ✅ パフォーマンス向上（30%以上）
+- ✅ メモリ使用量削減（40%以上）
+
+## 備考
+
+- GPU検出は必須要件（GPUなしではノード登録不可）
+- モデルは起動時にルーターから自動同期
+- 初期化完了まで`initializing`状態を維持
+- ハートビートは10秒間隔で送信
+- TDDサイクルを厳守（テスト→実装→リファクタリング）
+- semantic-releaseによる自動バージョニング
