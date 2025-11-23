@@ -43,13 +43,19 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
         double capability = gpu_detector.getCapabilityScore();
         std::cout << "GPU detected: devices=" << gpus.size() << " total_mem=" << total_mem << " bytes" << std::endl;
 
-        // Register with router
+        // Register with router (retry)
         std::cout << "Registering with router..." << std::endl;
         ollama_node::RouterClient router(router_url);
         ollama_node::NodeInfo info{"localhost", "127.0.0.1", node_port, total_mem, capability, {}, true};
-        auto reg = router.registerNode(info);
+        ollama_node::NodeRegistrationResult reg;
+        const int reg_max = 3;
+        for (int attempt = 0; attempt < reg_max; ++attempt) {
+            reg = router.registerNode(info);
+            if (reg.success) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(200 * (attempt + 1)));
+        }
         if (!reg.success) {
-            std::cerr << "Router registration failed: " << reg.error << std::endl;
+            std::cerr << "Router registration failed after retries: " << reg.error << std::endl;
             return 1;
         }
 
@@ -60,6 +66,11 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
                                      : cfg.models_dir;
         ollama_node::ModelSync model_sync(router_url, models_dir);
         auto sync_result = model_sync.sync();
+        if (sync_result.to_download.empty() && sync_result.to_delete.empty() && model_sync.listLocalModels().empty()) {
+            // If nothing synced and no local models, treat as recoverable error and retry once
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            sync_result = model_sync.sync();
+        }
         ollama_node::ModelRegistry registry;
         // For now, combine remote list; local deletes not performed here
         registry.setModels(model_sync.fetchRemoteModels());

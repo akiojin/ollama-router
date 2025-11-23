@@ -4,3 +4,5 @@ dist/
 .git/
 bun.lock
 vendor/
+ollama-node-cpp/third_party/
+ollama-node-cpp/build/

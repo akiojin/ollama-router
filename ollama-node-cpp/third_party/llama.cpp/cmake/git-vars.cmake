@@ -1,4 +1,12 @@
-find_package(Git)
+find_package(Git QUIET)
+
+# If the repository metadata is unavailable (vendored source), skip git queries
+if (NOT EXISTS "${CMAKE_SOURCE_DIR}/.git" OR NOT GIT_FOUND)
+    set(GIT_SHA1 "unknown")
+    set(GIT_DATE "")
+    set(GIT_COMMIT_SUBJECT "")
+    return()
+endif()
 
 # the commit's SHA1
 execute_process(COMMAND

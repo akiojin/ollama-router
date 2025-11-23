@@ -7,22 +7,24 @@ set(GGML_VERSION_MINOR 9)
 set(GGML_VERSION_PATCH 4)
 set(GGML_VERSION_BASE "${GGML_VERSION_MAJOR}.${GGML_VERSION_MINOR}.${GGML_VERSION_PATCH}")
 
-find_program(GIT_EXE NAMES git git.exe NO_CMAKE_FIND_ROOT_PATH)
-if(GIT_EXE)
-    # Get current git commit hash
-    execute_process(COMMAND ${GIT_EXE} rev-parse --short HEAD
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GGML_BUILD_COMMIT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+    find_program(GIT_EXE NAMES git git.exe NO_CMAKE_FIND_ROOT_PATH)
+    if(GIT_EXE)
+        # Get current git commit hash
+        execute_process(COMMAND ${GIT_EXE} rev-parse --short HEAD
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            OUTPUT_VARIABLE GGML_BUILD_COMMIT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
 
-    # Check if the working directory is dirty (i.e., has uncommitted changes)
-    execute_process(COMMAND ${GIT_EXE} diff-index --quiet HEAD -- .
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GGML_GIT_DIRTY
-        ERROR_QUIET
-    )
+        # Check if the working directory is dirty (i.e., has uncommitted changes)
+        execute_process(COMMAND ${GIT_EXE} diff-index --quiet HEAD -- .
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            RESULT_VARIABLE GGML_GIT_DIRTY
+            ERROR_QUIET
+        )
+    endif()
 endif()
 
 # Build the version string with optional dirty flag

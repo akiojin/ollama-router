@@ -42,6 +42,8 @@ set(GGML_INTERNAL_DOTPROD OFF CACHE BOOL "Force disable dotprod" FORCE)
 set(GGML_INTERNAL_SVE OFF CACHE BOOL "Force disable SVE" FORCE)
 
 # Add third party libraries
+set(LLAMA_BUILD_GIT_VERSION OFF CACHE BOOL "" FORCE)
+set(GGML_BUILD_GIT_VERSION OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/llama.cpp)
 add_subdirectory(third_party/nlohmann-json)
 
