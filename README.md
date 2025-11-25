@@ -804,3 +804,12 @@ MIT License
 Issues and Pull Requests are welcome.
 
 For detailed development guidelines, see [CLAUDE.md](./CLAUDE.md).
+### Cloud model prefixes (OpenAI-compatible API)
+
+- Supported prefixes: `openai:`, `google:`, `anthropic:` (alias `ahtnorpic:`)
+- Usage: set `model` to e.g. `openai:gpt-4o`, `google:gemini-1.5-pro`, `anthropic:claude-3-opus`
+- Environment variables:
+  - `OPENAI_API_KEY` (required), `OPENAI_BASE_URL` (optional, default `https://api.openai.com`)
+  - `GOOGLE_API_KEY` (required), `GOOGLE_API_BASE_URL` (optional, default `https://generativelanguage.googleapis.com/v1beta`)
+  - `ANTHROPIC_API_KEY` (required), `ANTHROPIC_API_BASE_URL` (optional, default `https://api.anthropic.com`)
+- Behavior: prefix is stripped before forwarding; responses remain OpenAI-compatible. Streaming is passthrough as SSE.

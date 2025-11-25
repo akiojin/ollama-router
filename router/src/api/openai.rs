@@ -15,6 +15,7 @@ use ollama_router_common::{
 use reqwest;
 use serde_json::{json, Value};
 use std::time::Instant;
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -230,6 +231,8 @@ async fn proxy_openai_provider(
     stream: bool,
     model: String,
 ) -> Result<Response, AppError> {
+    let req_id = Uuid::new_v4();
+    let started = Instant::now();
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| validation_error("OPENAI_API_KEY is required for openai: models"))?;
     let base = std::env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com".into());
@@ -248,6 +251,15 @@ async fn proxy_openai_provider(
         .map_err(map_reqwest_error)?;
 
     if stream {
+        info!(
+            provider = "openai",
+            model = payload.get("model").and_then(|v| v.as_str()).unwrap_or(""),
+            request_id = %req_id,
+            latency_ms = started.elapsed().as_millis(),
+            stream = true,
+            status = %res.status(),
+            "cloud proxy stream (openai)"
+        );
         return forward_streaming_response(res).map_err(AppError::from);
     }
 
@@ -260,7 +272,17 @@ async fn proxy_openai_provider(
             resp = resp.header(CONTENT_TYPE, hv);
         }
     }
-    Ok(resp.body(Body::from(bytes)).unwrap())
+    let built = resp.body(Body::from(bytes)).unwrap();
+    info!(
+        provider = "openai",
+        model = payload.get("model").and_then(|v| v.as_str()).unwrap_or(""),
+        request_id = %req_id,
+        latency_ms = started.elapsed().as_millis(),
+        stream = false,
+        status = %status,
+        "cloud proxy complete (openai)"
+    );
+    Ok(built)
 }
 
 fn map_generation_config(payload: &Value) -> Value {
@@ -276,6 +298,8 @@ async fn proxy_google_provider(
     payload: Value,
     stream: bool,
 ) -> Result<Response, AppError> {
+    let req_id = Uuid::new_v4();
+    let started = Instant::now();
     let api_key = std::env::var("GOOGLE_API_KEY")
         .map_err(|_| validation_error("GOOGLE_API_KEY is required for google: models"))?;
     let base = std::env::var("GOOGLE_API_BASE_URL")
@@ -307,6 +331,15 @@ async fn proxy_google_provider(
     let res = req.send().await.map_err(map_reqwest_error)?;
 
     if stream {
+        info!(
+            provider = "google",
+            model = %model,
+            request_id = %req_id,
+            latency_ms = started.elapsed().as_millis(),
+            stream = true,
+            status = %res.status(),
+            "cloud proxy stream (google)"
+        );
         return forward_streaming_response(res).map_err(AppError::from);
     }
 
@@ -329,15 +362,27 @@ async fn proxy_google_provider(
         "choices": [{
             "index": 0,
             "message": {"role": "assistant", "content": text},
-            "finish_reason": "stop"
-        }],
+        "finish_reason": "stop"
+    }],
     });
 
-    Response::builder()
+    let built = Response::builder()
         .status(status)
         .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
         .body(Body::from(resp_body.to_string()))
-        .map_err(|e| AppError::from(RouterError::Http(e.to_string())))
+        .map_err(|e| AppError::from(RouterError::Http(e.to_string())))?;
+
+    info!(
+        provider = "google",
+        model = %model,
+        request_id = %req_id,
+        latency_ms = started.elapsed().as_millis(),
+        stream = false,
+        status = %status,
+        "cloud proxy complete (google)"
+    );
+
+    Ok(built)
 }
 
 async fn proxy_anthropic_provider(
@@ -345,6 +390,8 @@ async fn proxy_anthropic_provider(
     payload: Value,
     stream: bool,
 ) -> Result<Response, AppError> {
+    let req_id = Uuid::new_v4();
+    let started = Instant::now();
     let api_key = std::env::var("ANTHROPIC_API_KEY")
         .map_err(|_| validation_error("ANTHROPIC_API_KEY is required for anthropic: models"))?;
     let base = std::env::var("ANTHROPIC_API_BASE_URL")
@@ -385,6 +432,15 @@ async fn proxy_anthropic_provider(
     let res = req.send().await.map_err(map_reqwest_error)?;
 
     if stream {
+        info!(
+            provider = "anthropic",
+            model = %model,
+            request_id = %req_id,
+            latency_ms = started.elapsed().as_millis(),
+            stream = true,
+            status = %res.status(),
+            "cloud proxy stream (anthropic)"
+        );
         return forward_streaming_response(res).map_err(AppError::from);
     }
 
@@ -415,15 +471,27 @@ async fn proxy_anthropic_provider(
         "choices": [{
             "index": 0,
             "message": {"role": "assistant", "content": text},
-            "finish_reason": "stop"
-        }],
+        "finish_reason": "stop"
+    }],
     });
 
-    Response::builder()
+    let built = Response::builder()
         .status(status)
         .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
         .body(Body::from(resp_body.to_string()))
-        .map_err(|e| AppError::from(RouterError::Http(e.to_string())))
+        .map_err(|e| AppError::from(RouterError::Http(e.to_string())))?;
+
+    info!(
+        provider = "anthropic",
+        model = %model_label,
+        request_id = %req_id,
+        latency_ms = started.elapsed().as_millis(),
+        stream = false,
+        status = %status,
+        "cloud proxy complete (anthropic)"
+    );
+
+    Ok(built)
 }
 
 async fn proxy_openai_cloud_post(
