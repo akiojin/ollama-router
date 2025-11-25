@@ -9,10 +9,27 @@ if ! command -v wrk >/dev/null 2>&1; then
   exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PAYLOAD_SCRIPT="${WRK_SCRIPT:-${SCRIPT_DIR}/chat.lua}"
+# If WRK_SCRIPT is provided, use it as-is.
+# Otherwise build a minimal POST chat payload with optional WRK_MODEL/WRK_BODY_JSON.
+SCRIPT_PATH="${WRK_SCRIPT:-}"
+
+if [ -z "${SCRIPT_PATH}" ]; then
+  MODEL="${WRK_MODEL:-gpt-oss:20b}"
+  BODY_JSON="${WRK_BODY_JSON:-{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"benchmark ping\"}],\"stream\":false}}"
+
+  TMP_SCRIPT="$(mktemp)"
+  trap 'rm -f "$TMP_SCRIPT"' EXIT
+  cat >"$TMP_SCRIPT" <<EOF
+wrk.method = "POST"
+wrk.headers["Content-Type"] = "application/json"
+wrk.body = [[
+$BODY_JSON
+]]
+EOF
+  SCRIPT_PATH="$TMP_SCRIPT"
+fi
 
 echo "Running wrk against ${TARGET}${ENDPOINT}"
-echo "Using script: ${PAYLOAD_SCRIPT}"
+echo "Using script: ${SCRIPT_PATH}"
 
-wrk "$@" -s "${PAYLOAD_SCRIPT}" "${TARGET}${ENDPOINT}"
+wrk "$@" -s "${SCRIPT_PATH}" "${TARGET}${ENDPOINT}"

@@ -2,6 +2,7 @@ SHELL := /bin/sh
 
 .PHONY: quality-checks fmt clippy test markdownlint specify-checks specify-tasks specify-tests specify-compile specify-commits
 .PHONY: openai-tests test-hooks
+.PHONY: bench-local bench-openai bench-google bench-anthropic
 .PHONY: build-macos-x86_64 build-macos-aarch64 build-macos-all
 
 TASKS ?= $(shell find specs -name tasks.md)
@@ -42,6 +43,35 @@ openai-tests:
 
 test-hooks:
 	npx bats tests/hooks/test-block-git-branch-ops.bats tests/hooks/test-block-cd-command.bats
+
+# Benchmarks (wrk required)
+bench-local:
+	WRK_TARGET=http://localhost:8080 \
+	WRK_ENDPOINT=/v1/chat/completions \
+	WRK_MODEL=gpt-oss:20b \
+	scripts/benchmarks/run_wrk.sh -t10 -c50 -d30s --latency | \
+	scripts/benchmarks/wrk_parse.py --label local > benchmarks/results/$$(date +%Y%m%d)-local.csv
+
+bench-openai:
+	WRK_TARGET=http://localhost:8080 \
+	WRK_ENDPOINT=/v1/chat/completions \
+	WRK_MODEL=openai:gpt-4o \
+	scripts/benchmarks/run_wrk.sh -t10 -c50 -d30s --latency | \
+	scripts/benchmarks/wrk_parse.py --label openai > benchmarks/results/$$(date +%Y%m%d)-openai.csv
+
+bench-google:
+	WRK_TARGET=http://localhost:8080 \
+	WRK_ENDPOINT=/v1/chat/completions \
+	WRK_MODEL=google:gemini-1.5-pro \
+	scripts/benchmarks/run_wrk.sh -t10 -c50 -d30s --latency | \
+	scripts/benchmarks/wrk_parse.py --label google > benchmarks/results/$$(date +%Y%m%d)-google.csv
+
+bench-anthropic:
+	WRK_TARGET=http://localhost:8080 \
+	WRK_ENDPOINT=/v1/chat/completions \
+	WRK_MODEL=anthropic:claude-3-opus \
+	scripts/benchmarks/run_wrk.sh -t10 -c50 -d30s --latency | \
+	scripts/benchmarks/wrk_parse.py --label anthropic > benchmarks/results/$$(date +%Y%m%d)-anthropic.csv
 
 # macOS cross-compilation targets
 build-macos-x86_64:

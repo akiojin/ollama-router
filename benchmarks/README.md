@@ -26,9 +26,10 @@ Router + local/クラウド経路の性能を測るための手順メモ。実�
 ```bash
 # wrk でローカル経路 (10スレッド, 50接続, 30秒)
 WRK_TARGET=http://localhost:8080 \
+WRK_ENDPOINT=/v1/chat/completions \
+WRK_MODEL=gpt-oss:20b \
 scripts/benchmarks/run_wrk.sh \
-  -t10 -c50 -d30s \
-  --script scripts/benchmarks/chat.lua
+  -t10 -c50 -d30s --latency
 
 # hey でクラウド経路 (openai:)
 hey -n 200 -c 20 -m POST \
@@ -37,7 +38,8 @@ hey -n 200 -c 20 -m POST \
   http://localhost:8080/v1/chat/completions
 ```
 
-`chat.lua` は wrk のチャット用 JSON ボディサンプル（scripts/benchmarks/chat.lua）。
+`WRK_MODEL` を指定しない場合は gpt-oss:20b。`WRK_SCRIPT` を指定すれば既存の
+Lua（例: `scripts/benchmarks/chat_openai.lua`）を使う。
 
 ## 4. 計測指標
 - スループット: `Requests/sec`
@@ -72,6 +74,13 @@ CSV列: `label,rps,p50_ms,p75_ms,p90_ms,p95_ms,p99_ms,non2xx,socket_errors,reque
 scripts/benchmarks/summarize_csv.py benchmarks/results/*.csv
 ```
 列: label / rps / p95_ms / p99_ms / non2xx / socket_errors / requests / duration_s / source
+
+### 環境変数チートシート
+- `WRK_TARGET` (default `http://localhost:8080`)
+- `WRK_ENDPOINT` (default `/v1/chat/completions`)
+- `WRK_MODEL` (default `gpt-oss:20b`) — `run_wrk.sh` が簡易Luaを自動生成
+- `WRK_BODY_JSON` — フルJSONボディを直接渡したい場合
+- `WRK_SCRIPT` — 既存Luaを使いたい場合（例: `scripts/benchmarks/chat_openai.lua`）
 
 ## 6. 次ステップ
 - 主要シナリオで baseline を取って results に保存
