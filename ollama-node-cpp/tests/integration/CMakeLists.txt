@@ -16,8 +16,14 @@ set(INTEGRATION_TEST_SOURCES
     ../../src/models/model_downloader.cpp
     ../../src/metrics/prometheus_exporter.cpp
     ../../src/core/inference_engine.cpp
-    ../../src/system/gpu_detector.cpp
 )
+
+# Use platform-specific gpu_detector source
+if(APPLE)
+    list(APPEND INTEGRATION_TEST_SOURCES ../../src/system/gpu_detector.mm)
+else()
+    list(APPEND INTEGRATION_TEST_SOURCES ../../src/system/gpu_detector.cpp)
+endif()
 
 add_executable(ollama-node-integration-tests
     ${INTEGRATION_TEST_SOURCES}
@@ -28,7 +34,19 @@ target_link_libraries(ollama-node-integration-tests
         test_common
         nlohmann_json::nlohmann_json
         utils_lib
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )
+
+# Link Metal frameworks on macOS
+if(APPLE)
+    find_library(METAL_FRAMEWORK Metal)
+    find_library(FOUNDATION_FRAMEWORK Foundation)
+    if(METAL_FRAMEWORK AND FOUNDATION_FRAMEWORK)
+        target_link_libraries(ollama-node-integration-tests PRIVATE ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK})
+        target_compile_definitions(ollama-node-integration-tests PRIVATE USE_METAL=1)
+    endif()
+endif()
 
 target_include_directories(ollama-node-integration-tests
     PRIVATE

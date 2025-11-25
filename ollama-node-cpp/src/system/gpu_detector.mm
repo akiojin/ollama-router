@@ -107,19 +107,19 @@ std::vector<GpuDevice> GpuDetector::detectMetal() {
     @autoreleasepool {
         NSArray<id<MTLDevice>>* metal_devices = MTLCopyAllDevices();
 
-        int id = 0;
-        for (id<MTLDevice> device in metal_devices) {
+        int device_id = 0;
+        for (id<MTLDevice> mtl_device in metal_devices) {
             GpuDevice dev;
-            dev.id = id++;
-            dev.name = [[device name] UTF8String];
+            dev.id = device_id++;
+            dev.name = [[mtl_device name] UTF8String];
 
             // Get recommended working set size (approximate available memory)
-            dev.memory_bytes = [device recommendedMaxWorkingSetSize];
+            dev.memory_bytes = [mtl_device recommendedMaxWorkingSetSize];
 
             // Metal doesn't have compute capability like CUDA
-            if ([device supportsFamily:MTLGPUFamilyMetal3]) {
+            if ([mtl_device supportsFamily:MTLGPUFamilyMetal3]) {
                 dev.compute_capability = "Metal3";
-            } else if ([device supportsFamily:MTLGPUFamilyApple7]) {
+            } else if ([mtl_device supportsFamily:MTLGPUFamilyApple7]) {
                 dev.compute_capability = "Apple7";
             } else {
                 dev.compute_capability = "Metal";
