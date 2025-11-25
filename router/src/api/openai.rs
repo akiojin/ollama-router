@@ -20,8 +20,8 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        agent::AppError,
-        proxy::{forward_streaming_response, save_request_record, select_available_agent},
+        nodes::AppError,
+        proxy::{forward_streaming_response, save_request_record, select_available_node},
     },
     balancer::RequestOutcome,
     cloud_metrics, AppState,
@@ -574,7 +574,7 @@ async fn proxy_openai_post(
     let timestamp = Utc::now();
     let request_body = payload.clone();
 
-    let agent = select_available_agent(state).await?;
+    let agent = select_available_node(state).await?;
     let node_id = agent.id;
     let agent_machine_name = agent.machine_name.clone();
     let agent_ip = agent.ip_address;
@@ -805,7 +805,7 @@ async fn proxy_openai_post(
 
 #[allow(dead_code)]
 async fn proxy_openai_get(state: &AppState, target_path: &str) -> Result<Response, AppError> {
-    let agent = select_available_agent(state).await?;
+    let agent = select_available_node(state).await?;
     let node_id = agent.id;
 
     state

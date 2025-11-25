@@ -3,7 +3,7 @@
 //! `/api/dashboard/*` 系のエンドポイントを提供し、ノードの状態および
 //! システム統計を返却する。
 
-use super::agent::AppError;
+use super::nodes::AppError;
 use crate::{
     balancer::{AgentLoadSnapshot, RequestHistoryPoint},
     AppState,

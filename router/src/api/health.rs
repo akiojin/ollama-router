@@ -1,6 +1,6 @@
 //! ヘルスチェックAPIハンドラー
 
-use crate::{api::agent::AppError, balancer::MetricsUpdate, AppState};
+use crate::{api::nodes::AppError, balancer::MetricsUpdate, AppState};
 use axum::{extract::State, Json};
 use ollama_router_common::protocol::HealthCheckRequest;
 

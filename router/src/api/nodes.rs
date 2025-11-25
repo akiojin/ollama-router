@@ -2,7 +2,7 @@
 
 use crate::{
     balancer::{AgentLoadSnapshot, SystemSummary},
-    registry::AgentSettingsUpdate,
+    registry::NodeSettingsUpdate,
     AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
@@ -16,7 +16,7 @@ use serde_json::json;
 use tracing::{error, info};
 
 /// POST /api/nodes - ノード登録
-pub async fn register_agent(
+pub async fn register_node(
     State(state): State<AppState>,
     Json(req): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<RegisterResponse>), AppError> {
@@ -98,9 +98,9 @@ pub async fn register_agent(
     );
 
     // ヘルスチェックはノードのOpenAI互換API経由で実施
-    let agent_api_port = req.ollama_port + 1;
-    let agent_api_base = format!("http://{}:{}", req.ip_address, agent_api_port);
-    let health_url = format!("{}/v1/models", agent_api_base);
+    let node_api_port = req.ollama_port + 1;
+    let node_api_base = format!("http://{}:{}", req.ip_address, node_api_port);
+    let health_url = format!("{}/v1/models", node_api_base);
 
     let skip_health_check = cfg!(test) || std::env::var("OLLAMA_ROUTER_SKIP_HEALTH_CHECK").is_ok();
     let (loaded_models, initializing, ready_models) = if skip_health_check {
@@ -110,7 +110,7 @@ pub async fn register_agent(
         let health_res = client_http.get(&health_url).send().await;
         if let Err(e) = health_res {
             error!(
-                "Node registration rejected: agent API health check failed at {} ({})",
+                "Node registration rejected: node API health check failed at {} ({})",
                 health_url, e
             );
             return Err(AppError(RouterError::Internal(format!(
@@ -121,7 +121,7 @@ pub async fn register_agent(
         let resp = health_res.unwrap();
         if !resp.status().is_success() {
             error!(
-                "Node registration rejected: agent API returned HTTP {} at {}",
+                "Node registration rejected: node API returned HTTP {} at {}",
                 resp.status(),
                 health_url
             );
@@ -184,7 +184,7 @@ pub async fn register_agent(
 
     // ヘルスチェックOKなら登録を実施
     let mut response = state.registry.register(req).await?;
-    response.agent_api_port = Some(agent_api_port);
+    response.agent_api_port = Some(node_api_port);
 
     // エージェントトークンを生成（更新時は既存トークンを削除して再生成）
     if response.status == ollama_router_common::protocol::RegisterStatus::Updated {
@@ -257,12 +257,12 @@ pub async fn register_agent(
         let registry = registry.clone();
         tokio::spawn(async move {
             match registry.get(node_id).await {
-                Ok(agent) => {
+                Ok(node) => {
                     // ノードAPIのポート（デフォルト: Ollama port + 1）
-                    let agent_api_port = agent.agent_api_port.unwrap_or(agent.ollama_port + 1);
-                    let node_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
+                    let node_api_port = node.agent_api_port.unwrap_or(node.ollama_port + 1);
+                    let node_url = format!("http://{}:{}/pull", node.ip_address, node_api_port);
 
-                    info!("Sending pull request to agent: {}", node_url);
+                    info!("Sending pull request to node: {}", node_url);
 
                     let client = reqwest::Client::new();
                     let pull_request = serde_json::json!({
@@ -273,7 +273,7 @@ pub async fn register_agent(
                     match client.post(&node_url).json(&pull_request).send().await {
                         Ok(response) => {
                             if response.status().is_success() {
-                                info!("Successfully sent pull request to agent {}", node_id);
+                                info!("Successfully sent pull request to node {}", node_id);
                             } else {
                                 error!(
                                     "Node {} returned error status: {}",
@@ -283,12 +283,12 @@ pub async fn register_agent(
                             }
                         }
                         Err(e) => {
-                            error!("Failed to send pull request to agent {}: {}", node_id, e);
+                            error!("Failed to send pull request to node {}: {}", node_id, e);
                         }
                     }
                 }
                 Err(e) => {
-                    error!("Failed to get agent {} info: {}", node_id, e);
+                    error!("Failed to get node {} info: {}", node_id, e);
                 }
             }
         });
@@ -304,31 +304,31 @@ pub async fn register_agent(
 }
 
 /// GET /api/nodes - ノード一覧取得
-pub async fn list_agents(State(state): State<AppState>) -> Json<Vec<Node>> {
+pub async fn list_nodes(State(state): State<AppState>) -> Json<Vec<Node>> {
     let nodes = state.registry.list().await;
     Json(nodes)
 }
 
 /// PUT /api/nodes/:id/settings - ノード設定更新
-pub async fn update_agent_settings(
+pub async fn update_node_settings(
     State(state): State<AppState>,
     axum::extract::Path(node_id): axum::extract::Path<uuid::Uuid>,
-    Json(payload): Json<UpdateAgentSettingsPayload>,
+    Json(payload): Json<UpdateNodeSettingsPayload>,
 ) -> Result<Json<Node>, AppError> {
-    let update = AgentSettingsUpdate {
+    let update = NodeSettingsUpdate {
         custom_name: payload.custom_name,
         tags: payload.tags,
         notes: payload.notes,
     };
 
-    let agent = state.registry.update_settings(node_id, update).await?;
+    let node = state.registry.update_settings(node_id, update).await?;
 
-    Ok(Json(agent))
+    Ok(Json(node))
 }
 
 /// ノード設定更新リクエスト
 #[derive(Debug, Deserialize)]
-pub struct UpdateAgentSettingsPayload {
+pub struct UpdateNodeSettingsPayload {
     /// 表示名（nullでリセット）
     #[serde(default)]
     pub custom_name: Option<Option<String>>,
@@ -341,7 +341,7 @@ pub struct UpdateAgentSettingsPayload {
 }
 
 /// GET /api/nodes/metrics - ノードメトリクス取得
-pub async fn list_agent_metrics(State(state): State<AppState>) -> Json<Vec<AgentLoadSnapshot>> {
+pub async fn list_node_metrics(State(state): State<AppState>) -> Json<Vec<AgentLoadSnapshot>> {
     let snapshots = state.load_manager.snapshots().await;
     Json(snapshots)
 }
@@ -353,7 +353,7 @@ pub async fn metrics_summary(State(state): State<AppState>) -> Json<SystemSummar
 }
 
 /// DELETE /api/nodes/:id - ノードを削除
-pub async fn delete_agent(
+pub async fn delete_node(
     State(state): State<AppState>,
     axum::extract::Path(node_id): axum::extract::Path<uuid::Uuid>,
 ) -> Result<StatusCode, AppError> {
@@ -362,7 +362,7 @@ pub async fn delete_agent(
 }
 
 /// POST /api/nodes/:id/disconnect - ノードを強制オフラインにする
-pub async fn disconnect_agent(
+pub async fn disconnect_node(
     State(state): State<AppState>,
     axum::extract::Path(node_id): axum::extract::Path<uuid::Uuid>,
 ) -> Result<StatusCode, AppError> {
@@ -469,7 +469,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_register_agent_success() {
+    async fn test_register_node_success() {
         let state = create_test_state().await;
         let req = RegisterRequest {
             machine_name: "test-machine".to_string(),
@@ -482,7 +482,7 @@ mod tests {
             gpu_model: Some("Test GPU".to_string()),
         };
 
-        let result = register_agent(State(state), Json(req)).await;
+        let result = register_node(State(state), Json(req)).await;
         assert!(result.is_ok());
 
         let response = result.unwrap().1 .0;
@@ -490,14 +490,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_list_agents_empty() {
+    async fn test_list_nodes_empty() {
         let state = create_test_state().await;
-        let result = list_agents(State(state)).await;
+        let result = list_nodes(State(state)).await;
         assert_eq!(result.0.len(), 0);
     }
 
     #[tokio::test]
-    async fn test_list_agents_with_agents() {
+    async fn test_list_nodes_with_nodes() {
         let state = create_test_state().await;
 
         // ノードを2つ登録
@@ -511,7 +511,7 @@ mod tests {
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
         };
-        let _ = register_agent(State(state.clone()), Json(req1))
+        let _ = register_node(State(state.clone()), Json(req1))
             .await
             .unwrap();
 
@@ -525,16 +525,16 @@ mod tests {
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
         };
-        let _ = register_agent(State(state.clone()), Json(req2))
+        let _ = register_node(State(state.clone()), Json(req2))
             .await
             .unwrap();
 
-        let result = list_agents(State(state)).await;
+        let result = list_nodes(State(state)).await;
         assert_eq!(result.0.len(), 2);
     }
 
     #[tokio::test]
-    async fn test_register_agent_gpu_required_error_is_json() {
+    async fn test_register_node_gpu_required_error_is_json() {
         let state = create_test_state().await;
         let req = RegisterRequest {
             machine_name: "gpu-required-test".to_string(),
@@ -547,7 +547,7 @@ mod tests {
             gpu_model: None,
         };
 
-        let response = register_agent(State(state), Json(req))
+        let response = register_node(State(state), Json(req))
             .await
             .unwrap_err()
             .into_response();
@@ -560,7 +560,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_register_agent_missing_gpu_devices_rejected() {
+    async fn test_register_node_missing_gpu_devices_rejected() {
         let state = create_test_state().await;
         let req = RegisterRequest {
             machine_name: "missing-gpu-devices".to_string(),
@@ -573,7 +573,7 @@ mod tests {
             gpu_model: None,
         };
 
-        let response = register_agent(State(state), Json(req))
+        let response = register_node(State(state), Json(req))
             .await
             .unwrap_err()
             .into_response();
@@ -588,7 +588,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_register_same_machine_different_port_creates_multiple_agents() {
+    async fn test_register_same_machine_different_port_creates_multiple_nodes() {
         let state = create_test_state().await;
 
         let req1 = RegisterRequest {
@@ -601,7 +601,7 @@ mod tests {
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
         };
-        let res1 = register_agent(State(state.clone()), Json(req1))
+        let res1 = register_node(State(state.clone()), Json(req1))
             .await
             .unwrap()
             .1
@@ -618,19 +618,19 @@ mod tests {
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
         };
-        let res2 = register_agent(State(state.clone()), Json(req2))
+        let res2 = register_node(State(state.clone()), Json(req2))
             .await
             .unwrap()
             .1
              .0;
         assert_eq!(res2.status, RegisterStatus::Registered);
 
-        let nodes = list_agents(State(state)).await.0;
+        let nodes = list_nodes(State(state)).await.0;
         assert_eq!(nodes.len(), 2);
     }
 
     #[tokio::test]
-    async fn test_list_agent_metrics_returns_snapshot() {
+    async fn test_list_node_metrics_returns_snapshot() {
         let state = create_test_state().await;
 
         // ノードを登録
@@ -645,7 +645,7 @@ mod tests {
             gpu_model: Some("Test GPU".to_string()),
         };
 
-        let response = register_agent(State(state.clone()), Json(req))
+        let response = register_node(State(state.clone()), Json(req))
             .await
             .unwrap()
             .1
@@ -674,7 +674,7 @@ mod tests {
             .await
             .unwrap();
 
-        let metrics = list_agent_metrics(State(state)).await;
+        let metrics = list_node_metrics(State(state)).await;
         assert_eq!(metrics.0.len(), 1);
 
         let snapshot = &metrics.0[0];
@@ -714,7 +714,7 @@ mod tests {
             gpu_count: Some(1),
             gpu_model: Some("Test GPU".to_string()),
         };
-        let response = register_agent(State(state.clone()), Json(register_req))
+        let response = register_node(State(state.clone()), Json(register_req))
             .await
             .unwrap()
             .1
@@ -787,13 +787,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_update_agent_settings_endpoint() {
+    async fn test_update_node_settings_endpoint() {
         let state = create_test_state().await;
 
-        let node_id = register_agent(
+        let node_id = register_node(
             State(state.clone()),
             Json(RegisterRequest {
-                machine_name: "agent-settings".into(),
+                machine_name: "node-settings".into(),
                 ip_address: "10.0.0.5".parse().unwrap(),
                 ollama_version: "0.1.0".into(),
                 ollama_port: 11434,
@@ -809,13 +809,13 @@ mod tests {
          .0
         .node_id;
 
-        let payload = UpdateAgentSettingsPayload {
+        let payload = UpdateNodeSettingsPayload {
             custom_name: Some(Some("Primary".into())),
             tags: Some(vec!["dallas".into(), "gpu".into()]),
             notes: Some(Some("Keep online".into())),
         };
 
-        let agent = update_agent_settings(
+        let node = update_node_settings(
             State(state.clone()),
             axum::extract::Path(node_id),
             Json(payload),
@@ -824,18 +824,18 @@ mod tests {
         .unwrap()
         .0;
 
-        assert_eq!(agent.custom_name.as_deref(), Some("Primary"));
-        assert_eq!(agent.tags, vec!["dallas", "gpu"]);
-        assert_eq!(agent.notes.as_deref(), Some("Keep online"));
+        assert_eq!(node.custom_name.as_deref(), Some("Primary"));
+        assert_eq!(node.tags, vec!["dallas", "gpu"]);
+        assert_eq!(node.notes.as_deref(), Some("Keep online"));
     }
 
     #[tokio::test]
-    async fn test_delete_agent_endpoint() {
+    async fn test_delete_node_endpoint() {
         let state = create_test_state().await;
-        let response = register_agent(
+        let response = register_node(
             State(state.clone()),
             Json(RegisterRequest {
-                machine_name: "delete-agent".into(),
+                machine_name: "delete-node".into(),
                 ip_address: "10.0.0.7".parse().unwrap(),
                 ollama_version: "0.1.0".into(),
                 ollama_port: 11434,
@@ -850,22 +850,22 @@ mod tests {
         .1
          .0;
 
-        let status = delete_agent(State(state.clone()), axum::extract::Path(response.node_id))
+        let status = delete_node(State(state.clone()), axum::extract::Path(response.node_id))
             .await
             .unwrap();
         assert_eq!(status, StatusCode::NO_CONTENT);
 
-        let nodes = list_agents(State(state)).await.0;
+        let nodes = list_nodes(State(state)).await.0;
         assert!(nodes.is_empty());
     }
 
     #[tokio::test]
-    async fn test_disconnect_agent_endpoint_marks_offline() {
+    async fn test_disconnect_node_endpoint_marks_offline() {
         let state = create_test_state().await;
-        let node_id = register_agent(
+        let node_id = register_node(
             State(state.clone()),
             Json(RegisterRequest {
-                machine_name: "disconnect-agent".into(),
+                machine_name: "disconnect-node".into(),
                 ip_address: "10.0.0.8".parse().unwrap(),
                 ollama_version: "0.1.0".into(),
                 ollama_port: 11434,
@@ -881,17 +881,17 @@ mod tests {
          .0
         .node_id;
 
-        let status = disconnect_agent(State(state.clone()), axum::extract::Path(node_id))
+        let status = disconnect_node(State(state.clone()), axum::extract::Path(node_id))
             .await
             .unwrap();
         assert_eq!(status, StatusCode::ACCEPTED);
 
-        let agent = state.registry.get(node_id).await.unwrap();
-        assert_eq!(agent.status, NodeStatus::Offline);
+        let node = state.registry.get(node_id).await.unwrap();
+        assert_eq!(node.status, NodeStatus::Offline);
     }
 
     #[tokio::test]
-    async fn test_register_agent_without_gpu_rejected() {
+    async fn test_register_node_without_gpu_rejected() {
         let state = create_test_state().await;
         let req = RegisterRequest {
             machine_name: "no-gpu-machine".to_string(),
@@ -904,7 +904,7 @@ mod tests {
             gpu_model: None,
         };
 
-        let result = register_agent(State(state), Json(req)).await;
+        let result = register_node(State(state), Json(req)).await;
         assert!(result.is_err());
 
         // エラーがValidationエラーであることを確認

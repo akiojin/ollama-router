@@ -2,7 +2,6 @@
 //!
 //! ノード登録、ヘルスチェック、プロキシAPI
 
-pub mod agent;
 pub mod api_keys;
 pub mod auth;
 pub mod dashboard;
@@ -10,6 +9,7 @@ pub mod health;
 pub mod logs;
 pub mod metrics;
 pub mod models;
+pub mod nodes;
 pub mod openai;
 pub mod proxy;
 pub mod users;
@@ -84,20 +84,20 @@ pub fn create_router(state: AppState) -> Router {
         // 既存のルート
         .route(
             "/api/nodes",
-            post(agent::register_agent).get(agent::list_agents),
+            post(nodes::register_node).get(nodes::list_nodes),
         )
-        .route("/api/nodes/:node_id", delete(agent::delete_agent))
+        .route("/api/nodes/:node_id", delete(nodes::delete_node))
         .route(
             "/api/nodes/:node_id/disconnect",
-            post(agent::disconnect_agent),
+            post(nodes::disconnect_node),
         )
         .route(
             "/api/nodes/:node_id/settings",
-            put(agent::update_agent_settings),
+            put(nodes::update_node_settings),
         )
         .route("/api/nodes/:node_id/metrics", post(metrics::update_metrics))
-        .route("/api/nodes/metrics", get(agent::list_agent_metrics))
-        .route("/api/metrics/summary", get(agent::metrics_summary))
+        .route("/api/nodes/metrics", get(nodes::list_node_metrics))
+        .route("/api/metrics/summary", get(nodes::metrics_summary))
         .route("/api/dashboard/nodes", get(dashboard::get_nodes))
         .route("/api/dashboard/stats", get(dashboard::get_stats))
         .route(
@@ -127,10 +127,10 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route(
             "/api/dashboard/logs/nodes/:node_id",
-            get(logs::get_agent_logs),
+            get(logs::get_node_logs),
         )
-        // FR-002: agent log proxy (spec path)
-        .route("/api/nodes/:node_id/logs", get(logs::get_agent_logs))
+        // FR-002: node log proxy (spec path)
+        .route("/api/nodes/:node_id/logs", get(logs::get_node_logs))
         .route("/api/chat", post(proxy::proxy_chat))
         .route("/api/generate", post(proxy::proxy_generate))
         .route("/v1/models", get(openai::list_models))
@@ -139,10 +139,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/models/available", get(models::get_available_models))
         .route("/api/models/loaded", get(models::get_loaded_models))
         .route("/api/models/distribute", post(models::distribute_models))
-        .route("/api/nodes/:node_id/models", get(models::get_agent_models))
+        .route("/api/nodes/:node_id/models", get(models::get_node_models))
         .route(
             "/api/nodes/:node_id/models/pull",
-            post(models::pull_model_to_agent),
+            post(models::pull_model_to_node),
         )
         .route("/api/tasks/:task_id", get(models::get_task_progress))
         .route(
@@ -325,11 +325,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_dashboard_agents_endpoint_returns_json() {
+    async fn test_dashboard_nodes_endpoint_returns_json() {
         let (state, registry) = test_state().await;
         registry
             .register(RegisterRequest {
-                machine_name: "test-agent".into(),
+                machine_name: "test-node".into(),
                 ip_address: "127.0.0.1".parse().unwrap(),
                 ollama_version: "0.1.0".into(),
                 ollama_port: 11434,
@@ -364,7 +364,7 @@ mod tests {
         let (state, registry) = test_state().await;
         registry
             .register(RegisterRequest {
-                machine_name: "overview-agent".into(),
+                machine_name: "overview-node".into(),
                 ip_address: "127.0.0.1".parse().unwrap(),
                 ollama_version: "0.1.0".into(),
                 ollama_port: 11434,

@@ -16,7 +16,7 @@
     <header class="page-header">
       <div class="title-group">
         <h1>Ollama Router ダッシュボード</h1>
-        <p class="subtitle">エージェントの稼働状況とシステム統計をリアルタイム監視</p>
+        <p class="subtitle">ノードの稼働状況とシステム統計をリアルタイム監視</p>
       </div>
       <div class="header-controls">
         <a href="/chat" class="refresh-button" target="_blank" rel="noreferrer">
@@ -41,11 +41,11 @@
       <div class="tab-panel tab-panel--active" id="tab-dashboard">
       <section class="stats-grid">
         <article class="stat-card">
-          <h2>登録エージェント</h2>
-          <p class="stat-value" data-stat="total-agents">-</p>
+          <h2>登録ノード</h2>
+          <p class="stat-value" data-stat="total-nodes">-</p>
           <p class="stat-caption">
-            オンライン <span data-stat="online-agents">-</span> / オフライン
-            <span data-stat="offline-agents">-</span>
+            オンライン <span data-stat="online-nodes">-</span> / オフライン
+            <span data-stat="offline-nodes">-</span>
           </p>
         </article>
         <article class="stat-card">
@@ -81,10 +81,10 @@
       </section>
       </div>
 
-      <div class="tab-panel" id="tab-agents">
-      <section class="agents-section">
+      <div class="tab-panel" id="tab-nodes">
+      <section class="nodes-section">
         <header class="section-header">
-          <h2>エージェント一覧</h2>
+          <h2>ノード一覧</h2>
           <div class="section-tools">
             <div class="export-group">
               <button type="button" id="export-json" class="btn">JSONエクスポート</button>
@@ -111,7 +111,7 @@
         </header>
 
             <div class="table-wrapper">
-              <table class="agents-table">
+              <table class="nodes-table">
                 <colgroup>
                   <col class="col-select" />
                   <col class="col-name" />
@@ -159,14 +159,14 @@
                   <th>操作</th>
                 </tr>
               </thead>
-            <tbody id="agents-body">
+            <tbody id="nodes-body">
               <tr class="empty-row">
                 <td colspan="12">データ取得中…</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="pagination" aria-label="エージェント一覧ページネーション">
+        <div class="pagination" aria-label="ノード一覧ページネーション">
           <button type="button" id="page-prev" class="btn" aria-label="前のページ">&lt;</button>
           <span class="pagination__info" id="page-info">- / -</span>
           <button type="button" id="page-next" class="btn" aria-label="次のページ">&gt;</button>
@@ -263,26 +263,26 @@
             ></div>
           </article>
 
-          <article class="log-card" aria-labelledby="logs-agent-title">
+          <article class="log-card" aria-labelledby="logs-node-title">
             <header class="log-card__header">
               <div>
-                <h2 id="logs-agent-title">エージェントログ</h2>
-                <p class="log-card__path" id="logs-agent-path"></p>
+                <h2 id="logs-node-title">ノードログ</h2>
+                <p class="log-card__path" id="logs-node-path"></p>
               </div>
               <div class="log-card__actions">
-                <label class="log-agent-select">
-                  <span>エージェント</span>
-                  <select id="logs-agent-select">
+                <label class="log-node-select">
+                  <span>ノード</span>
+                  <select id="logs-node-select">
                     <option value="">選択してください</option>
                   </select>
                 </label>
-                <button type="button" id="logs-agent-refresh" class="btn btn--secondary">
+                <button type="button" id="logs-node-refresh" class="btn btn--secondary">
                   再読み込み
                 </button>
               </div>
             </header>
-            <p class="log-card__status" id="logs-agent-status">-</p>
-            <div class="log-viewer" id="logs-agent-list" role="log" aria-live="polite"></div>
+            <p class="log-card__status" id="logs-node-status">-</p>
+            <div class="log-viewer" id="logs-node-list" role="log" aria-live="polite"></div>
           </article>
         </section>
       </div>
@@ -292,14 +292,14 @@
       <small>&copy; 2025 Ollama Router</small>
     </footer>
 
-    <div id="agent-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="agent-modal-title">
+    <div id="node-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="node-modal-title">
       <div class="modal__dialog">
         <header class="modal__header">
-          <h2 id="agent-modal-title">エージェント詳細</h2>
-          <button type="button" id="agent-modal-close" class="modal__close" aria-label="閉じる">×</button>
+          <h2 id="node-modal-title">ノード詳細</h2>
+          <button type="button" id="node-modal-close" class="modal__close" aria-label="閉じる">×</button>
         </header>
         <section class="modal__content">
-          <form id="agent-settings-form" class="detail-list">
+          <form id="node-settings-form" class="detail-list">
             <div>
               <dt>表示名</dt>
               <dd><input id="detail-custom-name" name="custom_name" type="text" placeholder="任意の名前" /></dd>
@@ -370,41 +370,41 @@
               <dd id="detail-gpu-compute">-</dd>
             </div>
           </form>
-          <section class="modal__metrics" aria-label="エージェントメトリクス">
+          <section class="modal__metrics" aria-label="ノードメトリクス">
             <h3>メトリクス</h3>
-            <p id="agent-metrics-status" class="metrics-status">メトリクスを読み込み中…</p>
+            <p id="node-metrics-status" class="metrics-status">メトリクスを読み込み中…</p>
             <div class="metrics-chart">
               <canvas
-                id="agent-metrics-chart"
+                id="node-metrics-chart"
                 aria-label="CPUとメモリの推移"
                 role="img"
               ></canvas>
             </div>
           </section>
-          <section class="modal__logs" id="agent-log-section" aria-label="エージェントログ">
+          <section class="modal__logs" id="node-log-section" aria-label="ノードログ">
             <div class="modal__logs-header">
               <h3>最新ログ</h3>
               <div class="modal__logs-actions">
-                <span id="agent-log-path" class="modal__logs-path"></span>
-                <button type="button" id="agent-log-refresh" class="btn btn--secondary">
+                <span id="node-log-path" class="modal__logs-path"></span>
+                <button type="button" id="node-log-refresh" class="btn btn--secondary">
                   再読み込み
                 </button>
               </div>
             </div>
-            <p id="agent-log-status" class="modal__logs-status">ログを読み込み中…</p>
+            <p id="node-log-status" class="modal__logs-status">ログを読み込み中…</p>
             <div
               class="log-viewer log-viewer--compact"
-              id="agent-log-viewer"
+              id="node-log-viewer"
               role="log"
               aria-live="polite"
             ></div>
           </section>
         </section>
         <footer class="modal__footer">
-          <button type="button" id="agent-modal-disconnect" class="btn">強制切断</button>
-          <button type="button" id="agent-modal-delete" class="btn btn--danger">削除</button>
-          <button type="button" id="agent-modal-save" class="btn btn--primary">保存</button>
-          <button type="button" id="agent-modal-ok" class="btn">閉じる</button>
+          <button type="button" id="node-modal-disconnect" class="btn">強制切断</button>
+          <button type="button" id="node-modal-delete" class="btn btn--danger">削除</button>
+          <button type="button" id="node-modal-save" class="btn btn--primary">保存</button>
+          <button type="button" id="node-modal-ok" class="btn">閉じる</button>
         </footer>
       </div>
     </div>
@@ -434,8 +434,8 @@
               <dd id="request-detail-model">-</dd>
             </div>
             <div>
-              <dt>エージェント</dt>
-              <dd id="request-detail-agent">-</dd>
+              <dt>ノード</dt>
+              <dd id="request-detail-node">-</dd>
             </div>
             <div>
               <dt>リクエスト元IP</dt>
