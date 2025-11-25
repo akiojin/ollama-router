@@ -58,7 +58,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libssl-dev
+          sudo apt-get install -y build-essential cmake libssl-dev clang-tidy cppcheck
       - name: Configure
         run: cmake -S ollama-node-cpp -B ollama-node-cpp/build -DBUILD_TESTS=ON
       - name: Build
@@ -66,6 +66,17 @@ jobs:
       - name: Test
         run: ctest --output-on-failure
         working-directory: ollama-node-cpp/build
+      - name: clang-tidy (sources only)
+        run: |
+          cd ollama-node-cpp
+          run-clang-tidy -p build src include -quiet || (cat /tmp/run-clang-tidy.log || true; exit 1)
+      - name: cppcheck (warnings)
+        run: |
+          cd ollama-node-cpp
+          cppcheck --enable=warning --inline-suppr --std=c++20 \
+            -I include -I third_party/nlohmann-json/include -I third_party/cpp-httplib \
+            --suppress=missingIncludeSystem \
+            src include
 
   markdownlint:
     name: Markdown Lint

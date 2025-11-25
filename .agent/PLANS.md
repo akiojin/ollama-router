@@ -302,11 +302,11 @@ ollama-node-cpp/
 ### Phase 6: CI/CD・自動リリース
 
 #### GitHub Actions設定
-- [ ] .github/workflows/ci.yml
-  - [ ] ビルドマトリックス（Linux/macOS/Windows）
-  - [ ] テスト実行（unit/integration/contract）
+- [x] .github/workflows/ci.yml
+  - [x] ビルドマトリックス（Linux/macOS/Windows）
+  - [x] テスト実行（unit/integration/contract）
   - [ ] コードカバレッジ測定
-  - [ ] 静的解析（clang-tidy, cppcheck）
+  - [x] 静的解析（clang-tidy, cppcheck）
 
 - [ ] .github/workflows/release.yml
   - [ ] semantic-release統合
