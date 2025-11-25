@@ -127,6 +127,12 @@ pub struct DashboardStats {
     pub last_registered_at: Option<DateTime<Utc>>,
     /// 最新ヘルスチェック時刻
     pub last_seen_at: Option<DateTime<Utc>>,
+    /// OPENAI_API_KEY が設定されているか
+    pub openai_key_present: bool,
+    /// GOOGLE_API_KEY が設定されているか
+    pub google_key_present: bool,
+    /// ANTHROPIC_API_KEY が設定されているか
+    pub anthropic_key_present: bool,
 }
 
 /// ダッシュボード概要レスポンス
@@ -305,6 +311,10 @@ async fn collect_stats(state: &AppState) -> DashboardStats {
     let last_registered_at = nodes.iter().map(|agent| agent.registered_at).max();
     let last_seen_at = nodes.iter().map(|agent| agent.last_seen).max();
 
+    let openai_key_present = std::env::var("OPENAI_API_KEY").is_ok();
+    let google_key_present = std::env::var("GOOGLE_API_KEY").is_ok();
+    let anthropic_key_present = std::env::var("ANTHROPIC_API_KEY").is_ok();
+
     DashboardStats {
         total_agents: summary.total_agents,
         online_agents: summary.online_agents,
@@ -319,6 +329,9 @@ async fn collect_stats(state: &AppState) -> DashboardStats {
         last_metrics_updated_at: summary.last_metrics_updated_at,
         last_registered_at,
         last_seen_at,
+        openai_key_present,
+        google_key_present,
+        anthropic_key_present,
     }
 }
 
