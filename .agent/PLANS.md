@@ -392,8 +392,8 @@ ollama-node-cpp/
 
 #### メトリクス収集
 - [x] Prometheusエクスポーター
-- [ ] Grafanaダッシュボード
-- [ ] アラート設定
+- [x] Grafanaダッシュボード
+- [x] アラート設定
 
 #### ログ管理
 - [x] 構造化ログ（JSON）
