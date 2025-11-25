@@ -269,6 +269,11 @@ ollama-node-cpp/
   - [x] Server-Sent Events（SSE）ストリーミング
 - [x] **REFACTOR**: コードクリーンアップ（モデル存在検証・共通JSON応答・エラー整備）
 
+#### クラウドモデルルーティング
+- [x] openai: プレフィックスをOpenAI APIへフォワード（OPENAI_API_KEY必須、stream未対応）
+- [ ] google:/anthropic: プレフィックスのリモートAPI対応
+- [ ] stream対応（クラウドプレフィックス）
+
 #### ノード管理API (api/) - RED-GREEN-REFACTOR
 - [x] **TEST FIRST**: tests/integration/node_endpoints_test.cpp
   - [x] モデルプルテスト

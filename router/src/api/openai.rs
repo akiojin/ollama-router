@@ -180,11 +180,11 @@ fn parse_cloud_model(model: &str) -> Option<(String, String)> {
     None
 }
 
-async fn proxy_openrouter_post(
+async fn proxy_openai_cloud_post(
     target_path: &str,
     model: &str,
     stream: bool,
-    mut payload: Value,
+    payload: Value,
 ) -> Result<Response, AppError> {
     if stream {
         return Err(validation_error(
@@ -192,39 +192,41 @@ async fn proxy_openrouter_post(
         ));
     }
 
-    let api_key = std::env::var("OPENROUTER_API_KEY").map_err(|_| {
-        validation_error("OPENROUTER_API_KEY is required for cloud-prefixed models")
-    })?;
-
-    // Map prefix:model -> provider/model for OpenRouter
-    let (provider, rest) = parse_cloud_model(model)
+    let (provider, _rest) = parse_cloud_model(model)
         .ok_or_else(|| validation_error("cloud model prefix is invalid"))?;
-    let or_model = format!("{}/{}", provider, rest);
-    payload["model"] = Value::String(or_model.clone());
 
-    let client = reqwest::Client::new();
-    let url = format!("https://openrouter.ai/api/v1{target_path}");
-    let res = client
-        .post(&url)
-        .bearer_auth(api_key)
-        .header("HTTP-Referer", "https://ollama-router.local")
-        .header("X-Title", "ollama-router")
-        .json(&payload)
-        .send()
-        .await
-        .map_err(map_reqwest_error)?;
+    match provider.as_str() {
+        "openai" => {
+            let api_key = std::env::var("OPENAI_API_KEY")
+                .map_err(|_| validation_error("OPENAI_API_KEY is required for openai: models"))?;
 
-    let status = StatusCode::from_u16(res.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
-    let content_type = res.headers().get(reqwest::header::CONTENT_TYPE).cloned();
-    let bytes = res.bytes().await.map_err(map_reqwest_error)?;
-    let mut resp = Response::builder().status(status);
-    // Mirror content-type if present
-    if let Some(ct) = content_type {
-        if let Ok(hv) = HeaderValue::from_str(ct.to_str().unwrap_or("")) {
-            resp = resp.header(CONTENT_TYPE, hv);
+            let client = reqwest::Client::new();
+            let url = format!("https://api.openai.com{target_path}");
+            let res = client
+                .post(&url)
+                .bearer_auth(api_key)
+                .json(&payload)
+                .send()
+                .await
+                .map_err(map_reqwest_error)?;
+
+            let status =
+                StatusCode::from_u16(res.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+            let ct = res.headers().get(reqwest::header::CONTENT_TYPE).cloned();
+            let bytes = res.bytes().await.map_err(map_reqwest_error)?;
+            let mut resp = Response::builder().status(status);
+            if let Some(ct) = ct {
+                if let Ok(hv) = HeaderValue::from_str(ct.to_str().unwrap_or("")) {
+                    resp = resp.header(CONTENT_TYPE, hv);
+                }
+            }
+            Ok(resp.body(Body::from(bytes)).unwrap())
         }
+        "google" | "anthropic" => Err(validation_error(
+            "google:/anthropic: prefixes are reserved; direct API mapping not yet implemented",
+        )),
+        _ => Err(validation_error("unsupported cloud provider prefix")),
     }
-    Ok(resp.body(Body::from(bytes)).unwrap())
 }
 
 async fn proxy_openai_post(
@@ -235,9 +237,9 @@ async fn proxy_openai_post(
     stream: bool,
     request_type: RequestType,
 ) -> Result<Response, AppError> {
-    // Cloud-prefixed model -> forward to OpenRouter
+    // Cloud-prefixed model -> forward to provider API
     if parse_cloud_model(&model).is_some() {
-        return proxy_openrouter_post(target_path, &model, stream, payload).await;
+        return proxy_openai_cloud_post(target_path, &model, stream, payload).await;
     }
 
     let record_id = Uuid::new_v4();
@@ -544,4 +546,54 @@ async fn proxy_openai_get(state: &AppState, target_path: &str) -> Result<Respons
 fn validation_error(message: impl Into<String>) -> AppError {
     let err = RouterError::Common(CommonError::Validation(message.into()));
     err.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_cloud_model, proxy_openai_cloud_post};
+    use serde_json::json;
+
+    #[test]
+    fn parse_cloud_prefixes() {
+        assert_eq!(
+            parse_cloud_model("openai:gpt-4o"),
+            Some(("openai".to_string(), "gpt-4o".to_string()))
+        );
+        assert_eq!(
+            parse_cloud_model("google:gemini-pro"),
+            Some(("google".to_string(), "gemini-pro".to_string()))
+        );
+        assert_eq!(
+            parse_cloud_model("ahtnorpic:claude-3"),
+            Some(("anthropic".to_string(), "claude-3".to_string()))
+        );
+        assert_eq!(parse_cloud_model("gpt-4"), None);
+        assert_eq!(parse_cloud_model("openai:"), None);
+    }
+
+    #[tokio::test]
+    async fn openai_prefix_requires_api_key() {
+        let payload = json!({"model":"openai:gpt-4o","messages":[]});
+        let err = proxy_openai_cloud_post("/v1/chat/completions", "openai:gpt-4o", false, payload)
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("OPENAI_API_KEY"),
+            "expected error mentioning OPENAI_API_KEY, got {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn google_prefix_returns_not_implemented() {
+        let payload = json!({"model":"google:gemini-pro","messages":[]});
+        let err = proxy_openai_cloud_post("/v1/chat/completions", "google:gemini-pro", false, payload)
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("not yet implemented") || err.to_string().contains("reserved"),
+            "expected not implemented error, got {}",
+            err
+        );
+    }
 }
