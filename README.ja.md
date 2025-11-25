@@ -19,6 +19,11 @@ Ollama Routerは、複数のマシン上で動作するOllamaインスタンス�
 - **WebUI管理**: ブラウザベースのダッシュボードでノード設定、監視、制御が可能
 - **クロスプラットフォーム対応**: Windows 10+、macOS 12+、Linuxで動作
 - **GPU対応ルーティング**: GPU能力と可用性に基づくインテリジェントなリクエストルーティング
+- **クラウドプレフィックス**: `openai:` `google:` `anthropic:` をモデル名に付けるだけで
+  同一エンドポイントから各クラウドAPIへプロキシ可能
+
+クイックリファレンス: [INSTALL](./INSTALL.md) / [USAGE](./USAGE.md) /
+[TROUBLESHOOTING](./TROUBLESHOOTING.md)
 
 ## アーキテクチャ（最新仕様）
 

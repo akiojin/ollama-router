@@ -23,6 +23,12 @@ Ollama Router is a powerful centralized system that provides unified management 
 - **Cross-Platform Support**: Works on Windows 10+, macOS 12+, and Linux
 - **GPU-Aware Routing**: Intelligent request routing based on GPU capabilities
   and availability
+- **Cloud Model Prefixes**: Add `openai:` `google:` or `anthropic:` in the
+  model name to proxy to the corresponding cloud provider while keeping the
+  same OpenAI-compatible endpoint.
+
+Quick references: [INSTALL](./INSTALL.md) / [USAGE](./USAGE.md) /
+[TROUBLESHOOTING](./TROUBLESHOOTING.md)
 
 ## Load Balancing
 

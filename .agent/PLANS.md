@@ -358,21 +358,21 @@ ollama-node-cpp/
 ### Phase 8: ドキュメント
 
 #### ユーザードキュメント
-- [ ] README.md（日本語/英語）
-- [ ] INSTALL.md - インストールガイド
-- [ ] USAGE.md - 使用方法
-- [ ] TROUBLESHOOTING.md - トラブルシューティング
+- [x] README.md（日本語/英語）
+- [x] INSTALL.md - インストールガイド
+- [x] USAGE.md - 使用方法
+- [x] TROUBLESHOOTING.md - トラブルシューティング
 
 #### 開発者ドキュメント
-- [ ] CONTRIBUTING.md - コントリビューションガイド
-- [ ] ARCHITECTURE.md - アーキテクチャ説明
-- [ ] API.md - API仕様書
-- [ ] DEVELOPMENT.md - 開発環境セットアップ
+- [x] CONTRIBUTING.md - コントリビューションガイド
+- [x] ARCHITECTURE.md - アーキテクチャ説明
+- [x] API.md - API仕様書
+- [x] DEVELOPMENT.md - 開発環境セットアップ
 
 #### API仕様
-- [ ] OpenAPI/Swagger定義
-- [ ] Postmanコレクション
-- [ ] APIクライアント例（各言語）
+- [x] OpenAPI/Swagger定義
+- [x] Postmanコレクション
+- [x] APIクライアント例（各言語）
 
 ### Phase 9: パフォーマンス・最適化
 
