@@ -10,6 +10,9 @@ pub mod api;
 /// ロードバランサー（ラウンドロビン、負荷ベースのロードバランシング）
 pub mod balancer;
 
+/// クラウド呼び出しメトリクス
+pub mod cloud_metrics;
+
 /// ヘルスチェック監視
 pub mod health;
 

@@ -14,6 +14,7 @@ pub mod openai;
 pub mod proxy;
 pub mod users;
 
+use crate::cloud_metrics;
 use crate::AppState;
 use axum::{
     body::Body,
@@ -148,6 +149,7 @@ pub fn create_router(state: AppState) -> Router {
             "/api/tasks/:task_id/progress",
             post(models::update_progress),
         )
+        .route("/metrics/cloud", get(cloud_metrics::export_metrics))
         .route("/dashboard", get(serve_dashboard_index))
         .route("/dashboard/", get(serve_dashboard_index))
         .route("/dashboard/*path", get(serve_dashboard_asset))

@@ -24,7 +24,7 @@ use crate::{
         proxy::{forward_streaming_response, save_request_record, select_available_agent},
     },
     balancer::RequestOutcome,
-    AppState,
+    cloud_metrics, AppState,
 };
 
 fn map_reqwest_error(err: reqwest::Error) -> AppError {
@@ -260,6 +260,11 @@ async fn proxy_openai_provider(
             status = %res.status(),
             "cloud proxy stream (openai)"
         );
+        cloud_metrics::record(
+            "openai",
+            res.status().as_u16(),
+            started.elapsed().as_millis(),
+        );
         return forward_streaming_response(res).map_err(AppError::from);
     }
 
@@ -282,6 +287,7 @@ async fn proxy_openai_provider(
         status = %status,
         "cloud proxy complete (openai)"
     );
+    cloud_metrics::record("openai", status.as_u16(), started.elapsed().as_millis());
     Ok(built)
 }
 
@@ -340,6 +346,11 @@ async fn proxy_google_provider(
             status = %res.status(),
             "cloud proxy stream (google)"
         );
+        cloud_metrics::record(
+            "google",
+            res.status().as_u16(),
+            started.elapsed().as_millis(),
+        );
         return forward_streaming_response(res).map_err(AppError::from);
     }
 
@@ -381,6 +392,8 @@ async fn proxy_google_provider(
         status = %status,
         "cloud proxy complete (google)"
     );
+
+    cloud_metrics::record("google", status.as_u16(), started.elapsed().as_millis());
 
     Ok(built)
 }
@@ -441,6 +454,11 @@ async fn proxy_anthropic_provider(
             status = %res.status(),
             "cloud proxy stream (anthropic)"
         );
+        cloud_metrics::record(
+            "anthropic",
+            res.status().as_u16(),
+            started.elapsed().as_millis(),
+        );
         return forward_streaming_response(res).map_err(AppError::from);
     }
 
@@ -490,6 +508,8 @@ async fn proxy_anthropic_provider(
         status = %status,
         "cloud proxy complete (anthropic)"
     );
+
+    cloud_metrics::record("anthropic", status.as_u16(), started.elapsed().as_millis());
 
     Ok(built)
 }

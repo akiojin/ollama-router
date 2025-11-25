@@ -28,7 +28,7 @@
 ## Integration / Observability
 
 - [x] ログに `provider`, `model`, `request_id`, `latency_ms` を出力
-- [ ] メトリクスにベンダー別カウンタ・レイテンシヒストグラムを追加
+- [x] メトリクスにベンダー別カウンタ・レイテンシヒストグラムを追加
 
 ## Docs
 
