@@ -331,8 +331,8 @@ ollama-node-cpp/
 #### Dockerコンテナ
 - [x] Dockerfile
   - [x] マルチステージビルド
-  - [ ] 最小イメージサイズ
-  - [ ] GPU対応（nvidia-docker）
+  - [x] 最小イメージサイズ（strip、runtime最小化）
+  - [x] GPU対応（nvidia-dockerビルド引数/ランタイム選択）
 
 - [x] docker-compose.yml
   - [x] ルーターとの連携設定
