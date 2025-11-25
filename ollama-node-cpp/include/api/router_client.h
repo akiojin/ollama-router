@@ -36,6 +36,7 @@ struct HeartbeatMetrics {
 struct NodeRegistrationResult {
     bool success{false};
     std::string node_id;
+    std::string agent_token;
     std::string error;
 };
 
@@ -46,6 +47,7 @@ public:
     NodeRegistrationResult registerNode(const NodeInfo& info);
 
     bool sendHeartbeat(const std::string& node_id,
+                       const std::string& agent_token,
                        const std::optional<std::string>& status = std::nullopt,
                        const std::optional<HeartbeatMetrics>& metrics = std::nullopt,
                        int max_retries = 2);

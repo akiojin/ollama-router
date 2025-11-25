@@ -22,8 +22,9 @@ public:
             res.set_content(register_response_body, "application/json");
         });
 
-        server_.Post("/api/nodes/heartbeat", [this](const httplib::Request& req, httplib::Response& res) {
+        server_.Post("/api/health", [this](const httplib::Request& req, httplib::Response& res) {
             last_heartbeat_body = req.body;
+            last_heartbeat_token = req.get_header_value("X-Agent-Token");
             res.status = heartbeat_status;
             res.set_content("ok", "text/plain");
         });
@@ -49,11 +50,12 @@ public:
     std::atomic<bool> stop_flag_{true};
 
     int register_status{200};
-    std::string register_response_body{"{\"node_id\":\"node-1\"}"};
+    std::string register_response_body{R"({"node_id":"node-1","agent_token":"test-token-123"})"};
     std::string last_register_body;
 
     int heartbeat_status{200};
     std::string last_heartbeat_body;
+    std::string last_heartbeat_token;
 };
 
 TEST(RouterClientTest, RegisterNodeSuccess) {
@@ -77,6 +79,7 @@ TEST(RouterClientTest, RegisterNodeSuccess) {
 
     EXPECT_TRUE(result.success);
     EXPECT_EQ(result.node_id, "node-1");
+    EXPECT_EQ(result.agent_token, "test-token-123");
     EXPECT_FALSE(server.last_register_body.empty());
 
     // Verify JSON structure matches router protocol
@@ -117,21 +120,32 @@ TEST(RouterClientTest, HeartbeatSucceeds) {
     server.start(18083);
 
     RouterClient client("http://127.0.0.1:18083");
-    bool ok = client.sendHeartbeat("node-xyz", "initializing");
+    bool ok = client.sendHeartbeat("node-xyz", "test-agent-token", "initializing");
 
     server.stop();
 
     EXPECT_TRUE(ok);
     EXPECT_FALSE(server.last_heartbeat_body.empty());
+    EXPECT_EQ(server.last_heartbeat_token, "test-agent-token");
+
+    // Verify new HealthCheckRequest format
+    auto body = nlohmann::json::parse(server.last_heartbeat_body);
+    EXPECT_EQ(body["node_id"], "node-xyz");
+    EXPECT_TRUE(body.contains("cpu_usage"));
+    EXPECT_TRUE(body.contains("memory_usage"));
+    EXPECT_TRUE(body.contains("active_requests"));
+    EXPECT_TRUE(body.contains("loaded_models"));
+    EXPECT_EQ(body["initializing"], false);
 }
 
 TEST(RouterClientTest, HeartbeatRetriesOnFailureAndSendsMetrics) {
     RouterServer server;
     server.heartbeat_status = 500;
     int hit_count = 0;
-    server.server_.Post("/api/nodes/heartbeat", [&](const httplib::Request& req, httplib::Response& res) {
+    server.server_.Post("/api/health", [&](const httplib::Request& req, httplib::Response& res) {
         hit_count++;
         server.last_heartbeat_body = req.body;
+        server.last_heartbeat_token = req.get_header_value("X-Agent-Token");
         if (hit_count >= 2) {
             res.status = 200;
             res.set_content("ok", "text/plain");
@@ -144,18 +158,18 @@ TEST(RouterClientTest, HeartbeatRetriesOnFailureAndSendsMetrics) {
 
     RouterClient client("http://127.0.0.1:18084");
     HeartbeatMetrics m{12.5, 34.5, 1024, 2048};
-    bool ok = client.sendHeartbeat("node-xyz", "ready", m, 2);
+    bool ok = client.sendHeartbeat("node-xyz", "retry-token", "ready", m, 2);
 
     server.stop();
 
     EXPECT_TRUE(ok);
     EXPECT_GE(hit_count, 2);
+    EXPECT_EQ(server.last_heartbeat_token, "retry-token");
     auto body = nlohmann::json::parse(server.last_heartbeat_body);
-    ASSERT_TRUE(body.contains("metrics"));
-    EXPECT_DOUBLE_EQ(body["metrics"]["cpu_utilization"], 12.5);
-    EXPECT_DOUBLE_EQ(body["metrics"]["gpu_utilization"], 34.5);
-    EXPECT_EQ(body["metrics"]["mem_used_bytes"], 1024);
-    EXPECT_EQ(body["metrics"]["mem_total_bytes"], 2048);
+    // New format uses cpu_usage/memory_usage instead of metrics object
+    EXPECT_DOUBLE_EQ(body["cpu_usage"].get<double>(), 12.5);
+    // memory_usage is calculated as percentage: (1024/2048) * 100 = 50
+    EXPECT_DOUBLE_EQ(body["memory_usage"].get<double>(), 50.0);
 }
 
 }  // namespace

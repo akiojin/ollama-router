@@ -71,9 +71,17 @@ NodeRegistrationResult RouterClient::registerNode(const NodeInfo& info) {
             if (body.contains("node_id")) {
                 result.node_id = body["node_id"].get<std::string>();
             }
-            result.success = !result.node_id.empty();
+            // Extract agent_token for heartbeat authentication
+            if (body.contains("agent_token")) {
+                result.agent_token = body["agent_token"].get<std::string>();
+            }
+            result.success = !result.node_id.empty() && !result.agent_token.empty();
             if (!result.success) {
-                result.error = "missing node_id";
+                if (result.node_id.empty()) {
+                    result.error = "missing node_id";
+                } else {
+                    result.error = "missing agent_token";
+                }
             }
         } catch (const std::exception& e) {
             result.error = e.what();
@@ -85,26 +93,38 @@ NodeRegistrationResult RouterClient::registerNode(const NodeInfo& info) {
     return result;
 }
 
-bool RouterClient::sendHeartbeat(const std::string& node_id, const std::optional<std::string>& status_opt,
+bool RouterClient::sendHeartbeat(const std::string& node_id, const std::string& agent_token,
+                                 const std::optional<std::string>& /*status_opt*/,
                                  const std::optional<HeartbeatMetrics>& metrics, int max_retries) {
     auto cli = make_client(base_url_, timeout_);
 
+    // Build HealthCheckRequest payload matching router protocol
     json payload = {
         {"node_id", node_id},
-        {"status", status_opt.value_or("ready")},
+        {"cpu_usage", metrics.has_value() ? static_cast<float>(metrics->cpu_utilization) : 0.0f},
+        {"memory_usage", metrics.has_value() ?
+            (metrics->mem_total_bytes > 0 ?
+                static_cast<float>(metrics->mem_used_bytes) / static_cast<float>(metrics->mem_total_bytes) * 100.0f : 0.0f)
+            : 0.0f},
+        {"active_requests", 0},
+        {"loaded_models", json::array()},
+        {"initializing", false},
     };
 
+    // Add optional gpu_usage if metrics available
     if (metrics.has_value()) {
-        payload["metrics"] = {
-            {"cpu_utilization", metrics->cpu_utilization},
-            {"gpu_utilization", metrics->gpu_utilization},
-            {"mem_used_bytes", metrics->mem_used_bytes},
-            {"mem_total_bytes", metrics->mem_total_bytes},
-        };
+        payload["gpu_usage"] = static_cast<float>(metrics->gpu_utilization);
+    } else {
+        payload["gpu_usage"] = nullptr;
     }
 
+    // Set authentication header
+    httplib::Headers headers = {
+        {"X-Agent-Token", agent_token}
+    };
+
     for (int attempt = 0; attempt <= max_retries; ++attempt) {
-        auto res = cli->Post("/api/nodes/heartbeat", payload.dump(), "application/json");
+        auto res = cli->Post("/api/health", headers, payload.dump(), "application/json");
         if (res && res->status >= 200 && res->status < 300) return true;
         if (attempt == max_retries) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(100 * (attempt + 1)));

@@ -127,11 +127,10 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
 
         // Heartbeat thread
         std::cout << "Starting heartbeat thread..." << std::endl;
-        heartbeat_thread = std::thread([&]() {
+        std::string agent_token = reg.agent_token;
+        heartbeat_thread = std::thread([&router, node_id = reg.node_id, agent_token, &cfg]() {
             while (ollama_node::is_running()) {
-                if (reg.success) {
-                    router.sendHeartbeat(reg.node_id);
-                }
+                router.sendHeartbeat(node_id, agent_token);
                 std::this_thread::sleep_for(std::chrono::seconds(cfg.heartbeat_interval_sec));
             }
         });
