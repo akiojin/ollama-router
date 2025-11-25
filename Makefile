@@ -77,14 +77,12 @@ bench-anthropic:
 build-macos-x86_64:
 	@echo "Building for macOS x86_64 (Intel)..."
 	cargo build --release --target x86_64-apple-darwin \
-		-p or-router \
-		-p or-node
+		-p or-router
 
 build-macos-aarch64:
 	@echo "Building for macOS aarch64 (Apple Silicon)..."
 	cargo build --release --target aarch64-apple-darwin \
-		-p or-router \
-		-p or-node
+		-p or-router
 
 build-macos-all: build-macos-x86_64 build-macos-aarch64
 	@echo "All macOS builds completed successfully!"
