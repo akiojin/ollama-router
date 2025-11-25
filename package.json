@@ -6,6 +6,12 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "prepare": "husky",
+    "build": "npm run build:router && npm run build:node",
+    "build:router": "cargo build --release -p or-router",
+    "build:node": "cd ollama-node-cpp && rm -rf build && cmake -B build -S . && cmake --build build --config Release",
+    "start:router": "./target/release/or-router",
+    "start:node": "./ollama-node-cpp/build/ollama-node",
+    "clean": "rm -rf target ollama-node-cpp/build",
     "lint:commits": "commitlint --from origin/main --to HEAD",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"!node_modules\" \"!.git\" \"!.github\" \"!.worktrees\""
   },

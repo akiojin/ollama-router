@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(ollama-node-cpp VERSION 1.0.0 LANGUAGES CXX C)
 
+# Enable Objective-C/C++ on Apple platforms for Metal support
+if(APPLE)
+    enable_language(OBJC)
+    enable_language(OBJCXX)
+endif()
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,7 +33,11 @@ endif()
 # Options
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_WITH_CUDA "Build with CUDA support" OFF)
-option(BUILD_WITH_METAL "Build with Metal support (macOS)" OFF)
+if(APPLE)
+    option(BUILD_WITH_METAL "Build with Metal support (macOS)" ON)
+else()
+    option(BUILD_WITH_METAL "Build with Metal support (macOS)" OFF)
+endif()
 option(BUILD_WITH_ROCM "Build with ROCm support" OFF)
 option(STATIC_BUILD "Build statically linked executable" OFF)
 
@@ -121,6 +131,13 @@ target_link_libraries(utils_lib PUBLIC spdlog::spdlog_header_only)
 file(GLOB_RECURSE SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
+# Include Objective-C++ files on Apple platforms
+if(APPLE)
+    file(GLOB_RECURSE OBJCXX_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm
+    )
+    list(APPEND SOURCES ${OBJCXX_SOURCES})
+endif()
 
 # Create executable
 add_executable(ollama-node ${SOURCES})

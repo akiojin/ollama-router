@@ -76,13 +76,16 @@ sudo apt install cmake build-essential
 **Build & Run:**
 
 ```bash
-# Build
+# Build (Metal is enabled by default on macOS)
 cd ollama-node-cpp
 cmake -B build -S .
 cmake --build build --config Release
 
 # Run
 OLLAMA_ROUTER_URL=http://localhost:8080 ./build/ollama-node
+
+# Disable Metal explicitly (if needed)
+# cmake -B build -S . -DBUILD_WITH_METAL=OFF
 ```
 
 **Environment Variables:**

@@ -8,13 +8,12 @@
 #include <nvml.h>
 #endif
 
-#ifdef USE_METAL
-#include <Metal/Metal.h>
-#endif
-
 #ifdef USE_ROCM
 #include <rocm_smi/rocm_smi.h>
 #endif
+
+// Metal implementation is in gpu_detector.mm for macOS
+#ifndef __APPLE__
 
 namespace ollama_node {
 
@@ -32,11 +31,6 @@ std::vector<GpuDevice> GpuDetector::detect() {
 #ifdef USE_CUDA
     auto cuda_devices = detectCuda();
     detected_devices_.insert(detected_devices_.end(), cuda_devices.begin(), cuda_devices.end());
-#endif
-
-#ifdef USE_METAL
-    auto metal_devices = detectMetal();
-    detected_devices_.insert(detected_devices_.end(), metal_devices.begin(), metal_devices.end());
 #endif
 
 #ifdef USE_ROCM
@@ -61,18 +55,6 @@ std::vector<GpuDevice> GpuDetector::detect() {
             dev.is_available = false;  // Not usable without CUDA
             detected_devices_.push_back(dev);
         }
-#endif
-
-#ifdef __APPLE__
-        // On macOS, Metal is usually available
-        GpuDevice dev;
-        dev.id = 0;
-        dev.name = "Apple GPU (Metal support not compiled)";
-        dev.memory_bytes = 0;  // Unknown
-        dev.compute_capability = "unknown";
-        dev.vendor = "apple";
-        dev.is_available = false;  // Not usable without Metal
-        detected_devices_.push_back(dev);
 #endif
     }
 
@@ -133,8 +115,6 @@ double GpuDetector::getCapabilityScore() const {
             } catch (...) {
                 cc_factor = 1.0;
             }
-        } else if (dev.vendor == "apple") {
-            cc_factor = 1.5;  // Apple Silicon GPUs are generally efficient
         } else if (dev.vendor == "amd") {
             cc_factor = 1.2;  // AMD GPUs
         }
@@ -199,40 +179,8 @@ std::vector<GpuDevice> GpuDetector::detectCuda() {
 }
 
 std::vector<GpuDevice> GpuDetector::detectMetal() {
-    std::vector<GpuDevice> devices;
-
-#ifdef USE_METAL
-    // Metal detection for macOS
-    @autoreleasepool {
-        NSArray<id<MTLDevice>>* metal_devices = MTLCopyAllDevices();
-
-        int id = 0;
-        for (id<MTLDevice> device in metal_devices) {
-            GpuDevice dev;
-            dev.id = id++;
-            dev.name = [[device name] UTF8String];
-
-            // Get recommended working set size (approximate available memory)
-            dev.memory_bytes = [device recommendedMaxWorkingSetSize];
-
-            // Metal doesn't have compute capability like CUDA
-            if ([device supportsFamily:MTLGPUFamilyMetal3]) {
-                dev.compute_capability = "Metal3";
-            } else if ([device supportsFamily:MTLGPUFamilyApple7]) {
-                dev.compute_capability = "Apple7";
-            } else {
-                dev.compute_capability = "Metal";
-            }
-
-            dev.vendor = "apple";
-            dev.is_available = true;
-
-            devices.push_back(dev);
-        }
-    }
-#endif
-
-    return devices;
+    // Metal is only available on macOS, handled in gpu_detector.mm
+    return std::vector<GpuDevice>();
 }
 
 std::vector<GpuDevice> GpuDetector::detectRocm() {
@@ -291,3 +239,5 @@ void GpuDetector::setDetectedDevicesForTest(std::vector<GpuDevice> devices) {
 #endif
 
 } // namespace ollama_node
+
+#endif // !__APPLE__
