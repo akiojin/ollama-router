@@ -6,6 +6,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 #include "system/gpu_detector.h"
 #include "api/router_client.h"
@@ -43,13 +44,39 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
             return 1;
         }
         size_t total_mem = gpu_detector.getTotalMemory();
-        double capability = gpu_detector.getCapabilityScore();
         std::cout << "GPU detected: devices=" << gpus.size() << " total_mem=" << total_mem << " bytes" << std::endl;
+
+        // Build GPU device info for router
+        std::vector<ollama_node::GpuDeviceInfoForRouter> gpu_devices;
+        for (const auto& gpu : gpus) {
+            if (gpu.is_available) {
+                ollama_node::GpuDeviceInfoForRouter device;
+                device.model = gpu.name;
+                device.count = 1;
+                device.memory = gpu.memory_bytes;
+                gpu_devices.push_back(device);
+            }
+        }
+
+        // Get machine name from hostname
+        char hostname_buf[256] = "localhost";
+        gethostname(hostname_buf, sizeof(hostname_buf));
 
         // Register with router (retry)
         std::cout << "Registering with router..." << std::endl;
         ollama_node::RouterClient router(router_url);
-        ollama_node::NodeInfo info{"localhost", "127.0.0.1", node_port, total_mem, capability, {}, true};
+        ollama_node::NodeInfo info;
+        info.machine_name = hostname_buf;
+        info.ip_address = "127.0.0.1";  // TODO: detect actual IP
+        info.ollama_version = "1.0.0";  // ollama-node-cpp version
+        // Router calculates API port as ollama_port + 1, so report node_port - 1
+        info.ollama_port = static_cast<uint16_t>(node_port > 0 ? node_port - 1 : 11434);
+        info.gpu_available = !gpu_devices.empty();
+        info.gpu_devices = gpu_devices;
+        if (!gpu_devices.empty()) {
+            info.gpu_count = static_cast<uint32_t>(gpu_devices.size());
+            info.gpu_model = gpu_devices[0].model;
+        }
         ollama_node::NodeRegistrationResult reg;
         const int reg_max = 3;
         for (int attempt = 0; attempt < reg_max; ++attempt) {

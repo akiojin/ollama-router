@@ -25,15 +25,36 @@ RouterClient::RouterClient(std::string base_url, std::chrono::milliseconds timeo
 NodeRegistrationResult RouterClient::registerNode(const NodeInfo& info) {
     auto cli = make_client(base_url_, timeout_);
 
+    // Build gpu_devices array
+    json gpu_devices_json = json::array();
+    for (const auto& gpu : info.gpu_devices) {
+        json device = {
+            {"model", gpu.model},
+            {"count", gpu.count}
+        };
+        if (gpu.memory.has_value()) {
+            device["memory"] = gpu.memory.value();
+        }
+        gpu_devices_json.push_back(device);
+    }
+
+    // Build payload matching router RegisterRequest
     json payload = {
-        {"hostname", info.hostname},
-        {"address", info.address},
-        {"port", info.port},
-        {"gpu_total_memory_bytes", info.total_gpu_memory_bytes},
-        {"capability_score", info.capability_score},
-        {"initializing", info.initializing},
-        {"ready_models", info.ready_models},
+        {"machine_name", info.machine_name},
+        {"ip_address", info.ip_address},
+        {"ollama_version", info.ollama_version},
+        {"ollama_port", info.ollama_port},
+        {"gpu_available", info.gpu_available},
+        {"gpu_devices", gpu_devices_json}
     };
+
+    // Add optional fields
+    if (info.gpu_count.has_value()) {
+        payload["gpu_count"] = info.gpu_count.value();
+    }
+    if (info.gpu_model.has_value()) {
+        payload["gpu_model"] = info.gpu_model.value();
+    }
 
     auto res = cli->Post("/api/nodes", payload.dump(), "application/json");
 
@@ -46,7 +67,10 @@ NodeRegistrationResult RouterClient::registerNode(const NodeInfo& info) {
     if (res->status >= 200 && res->status < 300) {
         try {
             auto body = json::parse(res->body);
-            result.node_id = body.value("node_id", "");
+            // Router returns node_id as UUID string
+            if (body.contains("node_id")) {
+                result.node_id = body["node_id"].get<std::string>();
+            }
             result.success = !result.node_id.empty();
             if (!result.success) {
                 result.error = "missing node_id";

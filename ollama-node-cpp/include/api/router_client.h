@@ -7,14 +7,23 @@
 
 namespace ollama_node {
 
+/// GPU device info for registration (matches router protocol)
+struct GpuDeviceInfoForRouter {
+    std::string model;           // GPU model name (e.g., "Apple M4 Max")
+    uint32_t count{1};           // Number of this GPU type
+    std::optional<uint64_t> memory;  // Memory in bytes (optional)
+};
+
+/// Node registration info (matches router RegisterRequest)
 struct NodeInfo {
-    std::string hostname;
-    std::string address;
-    int port;
-    size_t total_gpu_memory_bytes;
-    double capability_score;
-    std::vector<std::string> ready_models;
-    bool initializing{false};
+    std::string machine_name;    // Machine name
+    std::string ip_address;      // IP address
+    std::string ollama_version;  // Ollama version (e.g., "0.1.0")
+    uint16_t ollama_port;        // Ollama port (default: 11434)
+    bool gpu_available{true};    // GPU available flag
+    std::vector<GpuDeviceInfoForRouter> gpu_devices;  // GPU device list
+    std::optional<uint32_t> gpu_count;   // Total GPU count (optional)
+    std::optional<std::string> gpu_model; // Primary GPU model (optional)
 };
 
 struct HeartbeatMetrics {

@@ -61,7 +61,15 @@ TEST(RouterClientTest, RegisterNodeSuccess) {
     server.start(18081);
 
     RouterClient client("http://127.0.0.1:18081");
-    NodeInfo info{"host", "127.0.0.1", 11434, 8ull * 1024 * 1024 * 1024, 10.5, {"m1"}, true};
+    NodeInfo info;
+    info.machine_name = "test-host";
+    info.ip_address = "127.0.0.1";
+    info.ollama_version = "1.0.0";
+    info.ollama_port = 11434;
+    info.gpu_available = true;
+    info.gpu_devices = {{.model = "Test GPU", .count = 1, .memory = 8ull * 1024 * 1024 * 1024}};
+    info.gpu_count = 1;
+    info.gpu_model = "Test GPU";
 
     auto result = client.registerNode(info);
 
@@ -70,6 +78,16 @@ TEST(RouterClientTest, RegisterNodeSuccess) {
     EXPECT_TRUE(result.success);
     EXPECT_EQ(result.node_id, "node-1");
     EXPECT_FALSE(server.last_register_body.empty());
+
+    // Verify JSON structure matches router protocol
+    auto body = nlohmann::json::parse(server.last_register_body);
+    EXPECT_EQ(body["machine_name"], "test-host");
+    EXPECT_EQ(body["ip_address"], "127.0.0.1");
+    EXPECT_EQ(body["ollama_version"], "1.0.0");
+    EXPECT_EQ(body["ollama_port"], 11434);
+    EXPECT_EQ(body["gpu_available"], true);
+    EXPECT_EQ(body["gpu_devices"].size(), 1);
+    EXPECT_EQ(body["gpu_devices"][0]["model"], "Test GPU");
 }
 
 TEST(RouterClientTest, RegisterNodeFailureWhenServerReturnsError) {
@@ -79,7 +97,12 @@ TEST(RouterClientTest, RegisterNodeFailureWhenServerReturnsError) {
     server.start(18082);
 
     RouterClient client("http://127.0.0.1:18082");
-    NodeInfo info{"host", "127.0.0.1", 11434, 0, 0.0, {}, false};
+    NodeInfo info;
+    info.machine_name = "test-host";
+    info.ip_address = "127.0.0.1";
+    info.ollama_version = "1.0.0";
+    info.ollama_port = 11434;
+    info.gpu_available = false;
 
     auto result = client.registerNode(info);
     server.stop();
