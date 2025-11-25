@@ -186,21 +186,22 @@ pub async fn register_agent(
     let mut response = state.registry.register(req).await?;
     response.agent_api_port = Some(agent_api_port);
 
-    // 新規登録時のみエージェントトークンを生成
-    // 更新時は既存のトークンを保持
-    if response.status == ollama_router_common::protocol::RegisterStatus::Registered {
-        let agent_token_with_plaintext =
-            crate::db::agent_tokens::create(&state.db_pool, response.node_id)
-                .await
-                .map_err(|e| {
-                    error!("Failed to create agent token: {}", e);
-                    AppError(RouterError::Internal(format!(
-                        "Failed to create agent token: {}",
-                        e
-                    )))
-                })?;
-        response.agent_token = Some(agent_token_with_plaintext.token);
+    // エージェントトークンを生成（更新時は既存トークンを削除して再生成）
+    if response.status == ollama_router_common::protocol::RegisterStatus::Updated {
+        // 既存トークンを削除
+        let _ = crate::db::agent_tokens::delete(&state.db_pool, response.node_id).await;
     }
+    let agent_token_with_plaintext =
+        crate::db::agent_tokens::create(&state.db_pool, response.node_id)
+            .await
+            .map_err(|e| {
+                error!("Failed to create agent token: {}", e);
+                AppError(RouterError::Internal(format!(
+                    "Failed to create agent token: {}",
+                    e
+                )))
+            })?;
+    response.agent_token = Some(agent_token_with_plaintext.token);
 
     // 取得した初期状態を反映
     let _ = state
