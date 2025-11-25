@@ -23,7 +23,7 @@
 - [x] OpenAI クラウドクライアント実装（非ストリーミング/ストリーミング）
 - [x] Google クラウドクライアント実装（非ストリーミング/ストリーミング）
 - [x] Anthropic クラウドクライアント実装（非ストリーミング/ストリーミング）
-- [ ] エラーハンドリングとHTTPステータスの整理
+- [x] エラーハンドリングとHTTPステータスの整理
 
 ## Integration / Observability
 
@@ -32,5 +32,5 @@
 
 ## Docs
 
-- [x] README/USAGE/API仕様にプレフィックス利用方法・環境変数・制限事項を追記（README対応、API仕様/CHANGELOG残）
+- [x] README/USAGE/API仕様にプレフィックス利用方法・環境変数・制限事項を追記（README/USAGE/API完了）
 - [x] 変更点を CHANGELOG に反映
