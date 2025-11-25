@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <nlohmann/json.hpp>
+#include "runtime/state.h"
 #include "utils/logger.h"
 
 namespace ollama_node {
@@ -21,6 +22,15 @@ void NodeEndpoints::registerRoutes(httplib::Server& server) {
     server.Get("/health", [this](const httplib::Request&, httplib::Response& res) {
         nlohmann::json body = {{"status", health_status_}};
         res.set_content(body.dump(), "application/json");
+    });
+
+    server.Get("/startup", [this](const httplib::Request&, httplib::Response& res) {
+        if (ollama_node::is_ready()) {
+            res.set_content(R"({"status":"ready"})", "application/json");
+        } else {
+            res.status = 503;
+            res.set_content(R"({"status":"starting"})", "application/json");
+        }
     });
 
     server.Get("/metrics", [this](const httplib::Request&, httplib::Response& res) {

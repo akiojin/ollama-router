@@ -27,6 +27,7 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
 
     try {
         ollama_node::logger::init_from_env();
+        ollama_node::set_ready(false);
         std::string router_url = cfg.router_url;
         int node_port = cfg.node_port;
 
@@ -87,6 +88,7 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
         std::cout << "Starting HTTP server on port " << node_port << "..." << std::endl;
         server.start();
         server_started = true;
+        ollama_node::set_ready(true);
 
         // Heartbeat thread
         std::cout << "Starting heartbeat thread..." << std::endl;

@@ -6,6 +6,7 @@
 #include "api/node_endpoints.h"
 #include "models/model_registry.h"
 #include "core/inference_engine.h"
+#include "runtime/state.h"
 
 using namespace ollama_node;
 
@@ -48,6 +49,28 @@ TEST(NodeEndpointsTest, LogLevelGetAndSet) {
     ASSERT_TRUE(set);
     EXPECT_EQ(set->status, 200);
     EXPECT_NE(set->body.find("debug"), std::string::npos);
+
+    server.stop();
+}
+
+TEST(NodeEndpointsTest, StartupProbeReflectsReadyFlag) {
+    ollama_node::set_ready(false);
+    ModelRegistry registry;
+    InferenceEngine engine;
+    OpenAIEndpoints openai(registry, engine);
+    NodeEndpoints node;
+    HttpServer server(18091, openai, node);
+    server.start();
+
+    httplib::Client cli("127.0.0.1", 18091);
+    auto not_ready = cli.Get("/startup");
+    ASSERT_TRUE(not_ready);
+    EXPECT_EQ(not_ready->status, 503);
+
+    ollama_node::set_ready(true);
+    auto ready = cli.Get("/startup");
+    ASSERT_TRUE(ready);
+    EXPECT_EQ(ready->status, 200);
 
     server.stop();
 }

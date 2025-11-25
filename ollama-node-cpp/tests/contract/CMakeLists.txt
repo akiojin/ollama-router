@@ -10,6 +10,7 @@ set(CONTRACT_TEST_SOURCES
     ../../src/metrics/prometheus_exporter.cpp
     ../../src/core/inference_engine.cpp
     ../../src/api/router_client.cpp
+    ../../src/runtime/state.cpp
 )
 
 add_executable(ollama-node-contract-tests
