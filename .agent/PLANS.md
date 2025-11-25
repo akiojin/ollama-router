@@ -305,7 +305,7 @@ ollama-node-cpp/
 - [x] .github/workflows/ci.yml
   - [x] ビルドマトリックス（Linux/macOS/Windows）
   - [x] テスト実行（unit/integration/contract）
-  - [ ] コードカバレッジ測定
+  - [x] コードカバレッジ測定
   - [x] 静的解析（clang-tidy, cppcheck）
 
 - [ ] .github/workflows/release.yml
