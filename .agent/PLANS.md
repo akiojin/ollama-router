@@ -321,10 +321,10 @@ ollama-node-cpp/
 - [ ] conventional commits準拠
 
 #### semantic-release設定
-- [ ] .releaserc.json
-  - [ ] バージョニングルール
-  - [ ] アセット定義
-  - [ ] リリースノート設定
+- [x] .releaserc.json
+  - [x] バージョニングルール
+  - [x] アセット定義
+  - [x] リリースノート設定
 
 ### Phase 7: パッケージング・配布
 
