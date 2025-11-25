@@ -30,6 +30,83 @@ Ollama Router is a powerful centralized system that provides unified management 
 Quick references: [INSTALL](./INSTALL.md) / [USAGE](./USAGE.md) /
 [TROUBLESHOOTING](./TROUBLESHOOTING.md)
 
+## Quick Start
+
+### Router (or-router)
+
+```bash
+# Build
+cargo build --release -p or-router
+
+# Run
+./target/release/or-router
+# Default: http://0.0.0.0:8080
+
+# Access dashboard
+# Open http://localhost:8080/dashboard in browser
+```
+
+**Environment Variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ROUTER_HOST` | `0.0.0.0` | Bind address |
+| `ROUTER_PORT` | `8080` | Listen port |
+
+**System Tray (Windows/macOS only):**
+
+On Windows 10+ and macOS 12+, the router displays a system tray icon.
+Double-click to open the dashboard. Docker/Linux runs as a headless CLI process.
+
+### Node (ollama-node-cpp)
+
+**Prerequisites:**
+
+```bash
+# macOS
+brew install cmake
+
+# Ubuntu/Debian
+sudo apt install cmake build-essential
+
+# Windows
+# Download from https://cmake.org/download/
+```
+
+**Build & Run:**
+
+```bash
+# Build
+cd ollama-node-cpp
+cmake -B build -S .
+cmake --build build --config Release
+
+# Run
+OLLAMA_ROUTER_URL=http://localhost:8080 ./build/ollama-node
+```
+
+**Environment Variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_ROUTER_URL` | `http://127.0.0.1:11434` | Router URL to register with |
+| `OLLAMA_NODE_PORT` | `11435` | Node listen port |
+| `OLLAMA_MODELS_DIR` | `~/.ollama/models` | Model storage directory |
+| `OLLAMA_ALLOW_NO_GPU` | `false` | Allow running without GPU |
+| `OLLAMA_HEARTBEAT_SECS` | `10` | Heartbeat interval (seconds) |
+
+**Docker:**
+
+```bash
+# Build
+docker build --build-arg CUDA=cpu -t ollama-node-cpp:latest ollama-node-cpp/
+
+# Run
+docker run --rm -p 11435:11435 \
+  -e OLLAMA_ROUTER_URL=http://host.docker.internal:8080 \
+  ollama-node-cpp:latest
+```
+
 ## Load Balancing
 
 Ollama Router supports multiple load balancing strategies to optimize request distribution across agents.

@@ -25,6 +25,83 @@ Ollama Routerは、複数のマシン上で動作するOllamaインスタンス�
 クイックリファレンス: [INSTALL](./INSTALL.md) / [USAGE](./USAGE.md) /
 [TROUBLESHOOTING](./TROUBLESHOOTING.md)
 
+## クイックスタート
+
+### ルーター (or-router)
+
+```bash
+# ビルド
+cargo build --release -p or-router
+
+# 起動
+./target/release/or-router
+# デフォルト: http://0.0.0.0:8080
+
+# ダッシュボードにアクセス
+# ブラウザで http://localhost:8080/dashboard を開く
+```
+
+**環境変数:**
+
+| 変数 | デフォルト | 説明 |
+|-----|-----------|------|
+| `ROUTER_HOST` | `0.0.0.0` | バインドアドレス |
+| `ROUTER_PORT` | `8080` | リッスンポート |
+
+**システムトレイ（Windows/macOSのみ）:**
+
+Windows 10以降およびmacOS 12以降では、システムトレイにアイコンが表示されます。
+ダブルクリックでダッシュボードを開きます。Docker/LinuxではCLIプロセスとして動作します。
+
+### ノード (ollama-node-cpp)
+
+**前提条件:**
+
+```bash
+# macOS
+brew install cmake
+
+# Ubuntu/Debian
+sudo apt install cmake build-essential
+
+# Windows
+# https://cmake.org/download/ からダウンロード
+```
+
+**ビルドと起動:**
+
+```bash
+# ビルド
+cd ollama-node-cpp
+cmake -B build -S .
+cmake --build build --config Release
+
+# 起動
+OLLAMA_ROUTER_URL=http://localhost:8080 ./build/ollama-node
+```
+
+**環境変数:**
+
+| 変数 | デフォルト | 説明 |
+|-----|-----------|------|
+| `OLLAMA_ROUTER_URL` | `http://127.0.0.1:11434` | 登録先ルーターのURL |
+| `OLLAMA_NODE_PORT` | `11435` | ノードのリッスンポート |
+| `OLLAMA_MODELS_DIR` | `~/.ollama/models` | モデル保存ディレクトリ |
+| `OLLAMA_ALLOW_NO_GPU` | `false` | GPU無しでの起動を許可 |
+| `OLLAMA_HEARTBEAT_SECS` | `10` | ハートビート間隔（秒） |
+
+**Docker:**
+
+```bash
+# ビルド
+docker build --build-arg CUDA=cpu -t ollama-node-cpp:latest ollama-node-cpp/
+
+# 起動
+docker run --rm -p 11435:11435 \
+  -e OLLAMA_ROUTER_URL=http://host.docker.internal:8080 \
+  ollama-node-cpp:latest
+```
+
 ## アーキテクチャ（最新仕様）
 
 ### システム構成
