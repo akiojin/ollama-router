@@ -43,7 +43,7 @@ jobs:
           cmake -S node -B node/build -DBUILD_TESTS=OFF
           cmake --build node/build --config Release
           mkdir -p dist
-          tar -czf dist/ollama-node-linux-amd64.tar.gz -C node/build ollama-node
+          tar -czf dist/llm-node-linux-amd64.tar.gz -C node/build llm-node
 
       - name: Build C++ binary (macOS arm64) [cross]
         if: runner.os == 'Linux'
@@ -57,7 +57,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++ \
             -DBUILD_TESTS=OFF
           cmake --build node/build-macos --config Release
-          tar -czf dist/ollama-node-macos-arm64.tar.gz -C node/build-macos ollama-node
+          tar -czf dist/llm-node-macos-arm64.tar.gz -C node/build-macos llm-node
 
       - name: Build C++ binary (macOS x64) [cross]
         if: runner.os == 'Linux'
@@ -69,7 +69,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++ \
             -DBUILD_TESTS=OFF
           cmake --build node/build-macos-x64 --config Release
-          tar -czf dist/ollama-node-macos-x64.tar.gz -C node/build-macos-x64 ollama-node
+          tar -czf dist/llm-node-macos-x64.tar.gz -C node/build-macos-x64 llm-node
 
       - name: Build C++ binary (Windows x64) [cross]
         if: runner.os == 'Linux'
@@ -84,8 +84,8 @@ jobs:
             -DBUILD_TESTS=OFF
           cmake --build node/build-win --config Release
           mkdir -p dist/win
-          cp node/build-win/ollama-node.exe dist/win/
-          (cd dist && zip -r ollama-node-windows-x64.zip win)
+          cp node/build-win/llm-node.exe dist/win/
+          (cd dist && zip -r llm-node-windows-x64.zip win)
 
       - name: Build C++ binary (Linux CUDA)
         run: |
@@ -96,7 +96,7 @@ jobs:
             -DBUILD_WITH_CUDA=ON
           cmake --build node/build-cuda --config Release
           mkdir -p dist
-          tar -czf dist/ollama-node-linux-cuda.tar.gz -C node/build-cuda ollama-node
+          tar -czf dist/llm-node-linux-cuda.tar.gz -C node/build-cuda llm-node
 
       - name: Semantic Release
         env:
