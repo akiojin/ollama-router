@@ -1,12 +1,12 @@
-# Ollama Router
+# LLM Router
 
-A centralized management system for coordinating Ollama instances across multiple machines
+A centralized management system for coordinating LLM inference nodes across multiple machines
 
 English | [日本語](./README.ja.md)
 
 ## Overview
 
-Ollama Router is a powerful centralized system that provides unified management and a single API endpoint for multiple Ollama instances running across different machines. It features intelligent load balancing, automatic failure detection, real-time monitoring capabilities, and seamless integration for enhanced scalability.
+LLM Router is a powerful centralized system that provides unified management and a single API endpoint for multiple LLM inference nodes running across different machines. It features intelligent load balancing, automatic failure detection, real-time monitoring capabilities, and seamless integration for enhanced scalability.
 
 ## Key Features
 
@@ -23,10 +23,95 @@ Ollama Router is a powerful centralized system that provides unified management 
 - **Cross-Platform Support**: Works on Windows 10+, macOS 12+, and Linux
 - **GPU-Aware Routing**: Intelligent request routing based on GPU capabilities
   and availability
+- **Cloud Model Prefixes**: Add `openai:` `google:` or `anthropic:` in the
+  model name to proxy to the corresponding cloud provider while keeping the
+  same OpenAI-compatible endpoint.
+
+Quick references: [INSTALL](./INSTALL.md) / [USAGE](./USAGE.md) /
+[TROUBLESHOOTING](./TROUBLESHOOTING.md)
+
+## Quick Start
+
+### Router (llm-router)
+
+```bash
+# Build
+cargo build --release -p llm-router
+
+# Run
+./target/release/llm-router
+# Default: http://0.0.0.0:8080
+
+# Access dashboard
+# Open http://localhost:8080/dashboard in browser
+```
+
+**Environment Variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ROUTER_HOST` | `0.0.0.0` | Bind address |
+| `ROUTER_PORT` | `8080` | Listen port |
+
+**System Tray (Windows/macOS only):**
+
+On Windows 10+ and macOS 12+, the router displays a system tray icon.
+Double-click to open the dashboard. Docker/Linux runs as a headless CLI process.
+
+### Node (C++)
+
+**Prerequisites:**
+
+```bash
+# macOS
+brew install cmake
+
+# Ubuntu/Debian
+sudo apt install cmake build-essential
+
+# Windows
+# Download from https://cmake.org/download/
+```
+
+**Build & Run:**
+
+```bash
+# Build (Metal is enabled by default on macOS)
+npm run build:node
+
+# Run
+npm run start:node
+
+# Or manually:
+# cd node && cmake -B build -S . && cmake --build build --config Release
+# OLLAMA_ROUTER_URL=http://localhost:8080 ./node/build/llm-node
+```
+
+**Environment Variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_ROUTER_URL` | `http://127.0.0.1:11434` | Router URL to register with |
+| `OLLAMA_NODE_PORT` | `11435` | Node listen port |
+| `OLLAMA_MODELS_DIR` | `~/.ollama/models` | Model storage directory |
+| `OLLAMA_ALLOW_NO_GPU` | `false` | Allow running without GPU |
+| `OLLAMA_HEARTBEAT_SECS` | `10` | Heartbeat interval (seconds) |
+
+**Docker:**
+
+```bash
+# Build
+docker build --build-arg CUDA=cpu -t llm-node:latest node/
+
+# Run
+docker run --rm -p 11435:11435 \
+  -e OLLAMA_ROUTER_URL=http://host.docker.internal:8080 \
+  llm-node:latest
+```
 
 ## Load Balancing
 
-Ollama Router supports multiple load balancing strategies to optimize request distribution across agents.
+LLM Router supports multiple load balancing strategies to optimize request distribution across agents.
 
 ### Strategies
 
@@ -199,7 +284,7 @@ curl http://coordinator:8080/api/chat -d '...'
 ## Project Structure
 
 ```
-ollama-router/
+llm-router/
 ├── common/              # Common library (types, protocols, errors)
 │   ├── src/
 │   │   ├── types.rs     # Agent, HealthMetrics, Request types
@@ -218,15 +303,14 @@ ollama-router/
 │   │   └── main.rs
 │   ├── migrations/      # Database migrations
 │   └── Cargo.toml
-├── agent/               # Agent application
+├── node/                # C++ Node (llama.cpp integrated)
 │   ├── src/
-│   │   ├── ollama.rs    # Automatic Ollama management
-│   │   ├── client.rs    # Coordinator communication
-│   │   ├── metrics.rs   # Metrics collection
-│   │   └── main.rs
-│   ├── tests/
-│   │   └── integration/ # Integration tests
-│   └── Cargo.toml
+│   │   ├── main.cpp     # Entry point
+│   │   ├── api/         # OpenAI-compatible API
+│   │   ├── core/        # llama.cpp inference engine
+│   │   └── models/      # Model management
+│   ├── tests/           # TDD tests
+│   └── CMakeLists.txt
 └── specs/               # Specifications (Spec-Driven Development)
     └── SPEC-32e2b31a/
         ├── spec.md      # Feature specification
@@ -332,7 +416,7 @@ We follow the same release-branch workflow as `akiojin/unity-mcp-server`, with i
 1. While on `develop`, run the `/release` slash command or execute `./scripts/create-release-branch.sh`. The helper script calls `gh workflow run create-release.yml --ref develop`, which performs a semantic-release dry-run and creates `release/vX.Y.Z`.
 2. Pushing `release/vX.Y.Z` triggers `.github/workflows/release.yml`. That workflow runs semantic-release for real, updates CHANGELOG/Cargo manifests, creates the Git tag and GitHub Release, merges the release branch into `main`, backmerges `main` into `develop`, and deletes the release branch.
 3. The `main` push kicks off `.github/workflows/publish.yml`, which builds and attaches Linux/macOS/Windows archives to the GitHub Release.
-   - During this phase the workflow now also builds platform installers **per binary**: macOS gets `or-router-<platform>.pkg` and `or-node-<platform>.pkg` via `pkgbuild`, while Windows receives `or-router-<platform>.msi` and `or-node-<platform>.msi` via WiX. These ship alongside the existing `.tar.gz` / `.zip` archives so current release consumers stay unaffected.
+   - During this phase the workflow also builds platform installers: macOS gets `or-router-<platform>.pkg` via `pkgbuild`, while Windows receives `or-router-<platform>.msi` via WiX. These ship alongside the existing `.tar.gz` / `.zip` archives so current release consumers stay unaffected.
 
 Monitor the pipeline with:
 
@@ -535,7 +619,7 @@ Hook tests are automatically executed in CI/CD:
 
 ## Request History
 
-Ollama Router automatically logs all requests and responses for debugging,
+LLM Router automatically logs all requests and responses for debugging,
 auditing, and analysis purposes.
 
 ### Features
@@ -580,8 +664,8 @@ GET /api/dashboard/request-responses/export
 ### Storage
 
 Request history is stored in JSON format at:
-- Linux/macOS: `~/.ollama-router/request_history.json`
-- Windows: `%USERPROFILE%\.ollama-router\request_history.json`
+- Linux/macOS: `~/.llm-router/request_history.json`
+- Windows: `%USERPROFILE%\.llm-router\request_history.json`
 
 The file is automatically managed with:
 - Atomic writes (temp file + rename) to prevent corruption
@@ -804,3 +888,13 @@ MIT License
 Issues and Pull Requests are welcome.
 
 For detailed development guidelines, see [CLAUDE.md](./CLAUDE.md).
+### Cloud model prefixes (OpenAI-compatible API)
+
+- Supported prefixes: `openai:`, `google:`, `anthropic:` (alias `ahtnorpic:`)
+- Usage: set `model` to e.g. `openai:gpt-4o`, `google:gemini-1.5-pro`, `anthropic:claude-3-opus`
+- Environment variables:
+  - `OPENAI_API_KEY` (required), `OPENAI_BASE_URL` (optional, default `https://api.openai.com`)
+  - `GOOGLE_API_KEY` (required), `GOOGLE_API_BASE_URL` (optional, default `https://generativelanguage.googleapis.com/v1beta`)
+  - `ANTHROPIC_API_KEY` (required), `ANTHROPIC_API_BASE_URL` (optional, default `https://api.anthropic.com`)
+- Behavior: prefix is stripped before forwarding; responses remain OpenAI-compatible. Streaming is passthrough as SSE.
+- Metrics: `/metrics/cloud` exports Prometheus text with per-provider counters (`cloud_requests_total{provider,status}`) and latency histogram (`cloud_request_latency_seconds{provider}`).

@@ -16,7 +16,7 @@ use crate::{
     registry::models::{DownloadStatus, DownloadTask, InstalledModel, ModelInfo},
     AppState,
 };
-use ollama_router_common::error::RouterError;
+use llm_router_common::error::RouterError;
 
 /// モデル名の妥当性を検証
 ///
@@ -107,7 +107,7 @@ pub struct LoadedModelSummary {
     /// モデル名
     pub model_name: String,
     /// 該当モデルを報告したノード数
-    pub total_agents: usize,
+    pub total_nodes: usize,
     /// 待機中ノード数
     pub pending: usize,
     /// ダウンロード中ノード数
@@ -252,14 +252,14 @@ pub async fn get_loaded_models(
             .entry(task.model_name.clone())
             .or_insert(LoadedModelSummary {
                 model_name: task.model_name.clone(),
-                total_agents: 0,
+                total_nodes: 0,
                 pending: 0,
                 downloading: 0,
                 completed: 0,
                 failed: 0,
             });
 
-        entry.total_agents += 1;
+        entry.total_nodes += 1;
         match task.status {
             DownloadStatus::Pending => entry.pending += 1,
             DownloadStatus::InProgress => entry.downloading += 1,
@@ -315,14 +315,14 @@ pub async fn distribute_models(
     let mut task_ids = Vec::new();
     for node_id in node_ids {
         // ノードが存在することを確認
-        let agent = state.registry.get(node_id).await?;
+        let node = state.registry.get(node_id).await?;
 
         // ノードがオンラインであることを確認
-        if agent.status != ollama_router_common::types::NodeStatus::Online {
+        if node.status != llm_router_common::types::NodeStatus::Online {
             tracing::error!(
-                "Cannot distribute to offline agent: node_id={}, status={:?}",
+                "Cannot distribute to offline node: node_id={}, status={:?}",
                 node_id,
-                agent.status
+                node.status
             );
             return Err(RouterError::AgentOffline(node_id).into());
         }
@@ -336,15 +336,15 @@ pub async fn distribute_models(
         task_ids.push(task_id);
 
         tracing::info!(
-            "Created distribution task {} for agent {} with model {}",
+            "Created distribution task {} for node {} with model {}",
             task_id,
             node_id,
             request.model_name
         );
 
         // ノードにモデルプル要求を送信（バックグラウンド）
-        let agent_api_port = agent.ollama_port + 1;
-        let node_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
+        let node_api_port = node.ollama_port + 1;
+        let node_url = format!("http://{}:{}/pull", node.ip_address, node_api_port);
         let model_name = request.model_name.clone();
 
         tokio::spawn(async move {
@@ -357,7 +357,7 @@ pub async fn distribute_models(
             match client.post(&node_url).json(&pull_request).send().await {
                 Ok(response) => {
                     if response.status().is_success() {
-                        tracing::info!("Successfully sent pull request to agent {}", node_id);
+                        tracing::info!("Successfully sent pull request to node {}", node_id);
                     } else {
                         tracing::error!(
                             "Node {} returned error status: {}",
@@ -367,7 +367,7 @@ pub async fn distribute_models(
                     }
                 }
                 Err(e) => {
-                    tracing::error!("Failed to send pull request to agent {}: {}", node_id, e);
+                    tracing::error!("Failed to send pull request to node {}: {}", node_id, e);
                 }
             }
         });
@@ -387,16 +387,16 @@ pub async fn distribute_models(
 }
 
 /// T029: GET /api/nodes/{node_id}/models - ノードのインストール済みモデル一覧を取得
-pub async fn get_agent_models(
+pub async fn get_node_models(
     State(state): State<AppState>,
     Path(node_id): Path<Uuid>,
 ) -> Result<Json<Vec<InstalledModel>>, AppError> {
     // ノードが存在することを確認
-    let agent = state.registry.get(node_id).await?;
+    let node = state.registry.get(node_id).await?;
 
     // ノードからモデル一覧を取得（実装は後で）
-    let node_url = format!("http://{}:{}", agent.ip_address, agent.ollama_port);
-    tracing::info!("Fetching models from agent at {}", node_url);
+    let node_url = format!("http://{}:{}", node.ip_address, node.ollama_port);
+    tracing::info!("Fetching models from node at {}", node_url);
 
     // TODO: ノードのOllama APIからモデル一覧を取得
     // 現在は空の配列を返す
@@ -404,7 +404,7 @@ pub async fn get_agent_models(
 }
 
 /// T030: POST /api/nodes/{node_id}/models/pull - ノードにモデルプルを指示
-pub async fn pull_model_to_agent(
+pub async fn pull_model_to_node(
     State(state): State<AppState>,
     Path(node_id): Path<Uuid>,
     Json(request): Json<PullModelRequest>,
@@ -426,14 +426,14 @@ pub async fn pull_model_to_agent(
     }
 
     // ノードが存在することを確認
-    let agent = state.registry.get(node_id).await?;
+    let node = state.registry.get(node_id).await?;
 
     // ノードがオンラインであることを確認
-    if agent.status != ollama_router_common::types::NodeStatus::Online {
+    if node.status != llm_router_common::types::NodeStatus::Online {
         tracing::error!(
-            "Cannot pull to offline agent: node_id={}, status={:?}",
+            "Cannot pull to offline node: node_id={}, status={:?}",
             node_id,
-            agent.status
+            node.status
         );
         return Err(RouterError::AgentOffline(node_id).into());
     }
@@ -446,15 +446,15 @@ pub async fn pull_model_to_agent(
     let task_id = task.id;
 
     tracing::info!(
-        "Created pull task {} for agent {} with model {}",
+        "Created pull task {} for node {} with model {}",
         task_id,
         node_id,
         request.model_name
     );
 
     // ノードにモデルプル要求を送信（バックグラウンド）
-    let agent_api_port = agent.ollama_port + 1;
-    let node_url = format!("http://{}:{}/pull", agent.ip_address, agent_api_port);
+    let node_api_port = node.ollama_port + 1;
+    let node_url = format!("http://{}:{}/pull", node.ip_address, node_api_port);
     let model_name = request.model_name.clone();
 
     tokio::spawn(async move {
@@ -467,7 +467,7 @@ pub async fn pull_model_to_agent(
         match client.post(&node_url).json(&pull_request).send().await {
             Ok(response) => {
                 if response.status().is_success() {
-                    tracing::info!("Successfully sent pull request to agent {}", node_id);
+                    tracing::info!("Successfully sent pull request to node {}", node_id);
                 } else {
                     tracing::error!(
                         "Node {} returned error status: {}",
@@ -477,7 +477,7 @@ pub async fn pull_model_to_agent(
                 }
             }
             Err(e) => {
-                tracing::error!("Failed to send pull request to agent {}: {}", node_id, e);
+                tracing::error!("Failed to send pull request to node {}: {}", node_id, e);
             }
         }
     });

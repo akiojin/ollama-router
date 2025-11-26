@@ -32,7 +32,7 @@ body {
 
 .page-header,
 .page-footer,
-.agents-section,
+.nodes-section,
 .charts-section,
 .request-history-section,
 .stats-grid {
@@ -182,7 +182,7 @@ body {
   color: var(--text-subtle);
 }
 
-.agents-section,
+.nodes-section,
 .charts-section,
 .request-history-section {
   margin-top: 32px;
@@ -272,19 +272,19 @@ body {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
-.agents-table {
+.nodes-table {
   width: 100%;
   border-collapse: collapse;
   min-width: 880px;
   table-layout: fixed;
 }
 
-.agents-table thead {
+.nodes-table thead {
   background: rgba(148, 163, 184, 0.08);
 }
 
-.agents-table th,
-.agents-table td {
+.nodes-table th,
+.nodes-table td {
   padding: 12px 16px;
   text-align: left;
   font-size: 0.95rem;
@@ -294,24 +294,24 @@ body {
   white-space: normal;
 }
 
-.agents-table th:first-child,
-.agents-table td:first-child {
+.nodes-table th:first-child,
+.nodes-table td:first-child {
   width: 52px;
   text-align: center;
 }
 
-.agents-table td:first-child input,
-.agents-table th:first-child input {
+.nodes-table td:first-child input,
+.nodes-table th:first-child input {
   width: 18px;
   height: 18px;
   cursor: pointer;
 }
 
-.agents-table td:last-child {
+.nodes-table td:last-child {
   text-align: center;
 }
 
-.agents-table th.sortable {
+.nodes-table th.sortable {
   cursor: pointer;
   user-select: none;
   position: relative;
@@ -319,7 +319,7 @@ body {
   white-space: nowrap;
 }
 
-.agents-table th.sortable:hover {
+.nodes-table th.sortable:hover {
   color: var(--accent);
 }
 
@@ -349,29 +349,29 @@ body {
   color: var(--text-subtle);
 }
 
-.agents-table th.sortable span:first-child {
+.nodes-table th.sortable span:first-child {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.agents-table tbody tr:last-child td {
+.nodes-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.agents-table tbody tr:hover {
+.nodes-table tbody tr:hover {
   background: rgba(56, 189, 248, 0.06);
 }
 
-.agents-table tbody tr.agent-offline {
+.nodes-table tbody tr.node-offline {
   background: rgba(248, 113, 113, 0.04);
 }
 
-.agents-table .offline {
+.nodes-table .offline {
   color: var(--danger);
 }
 
-.agents-table .online {
+.nodes-table .online {
   color: var(--success);
 }
 
@@ -419,7 +419,7 @@ body {
 }
 
 .btn,
-.agents-table button {
+.nodes-table button {
   border: 1px solid rgba(56, 189, 248, 0.4);
   background: rgba(56, 189, 248, 0.15);
   color: var(--accent);
@@ -431,13 +431,13 @@ body {
 }
 
 .btn:hover,
-.agents-table button:hover {
+.nodes-table button:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(56, 189, 248, 0.2);
 }
 
 .btn:active,
-.agents-table button:active {
+.nodes-table button:active {
   transform: translateY(0);
   box-shadow: none;
 }
@@ -606,48 +606,48 @@ body {
   text-align: center;
 }
 
-.agents-table col.col-select {
+.nodes-table col.col-select {
   width: 52px;
 }
 
-.agents-table col.col-name {
+.nodes-table col.col-name {
   width: 14%;
 }
 
-.agents-table col.col-address {
+.nodes-table col.col-address {
   width: 12%;
 }
 
-.agents-table col.col-status {
+.nodes-table col.col-status {
   width: 7%;
 }
 
-.agents-table col.col-uptime {
+.nodes-table col.col-uptime {
   width: 7%;
 }
 
-.agents-table col.col-cpu,
-.agents-table col.col-memory {
+.nodes-table col.col-cpu,
+.nodes-table col.col-memory {
   width: 8%;
 }
 
-.agents-table col.col-active {
+.nodes-table col.col-active {
   width: 5%;
 }
 
-.agents-table col.col-total {
+.nodes-table col.col-total {
   width: 8%;
 }
 
-.agents-table col.col-average {
+.nodes-table col.col-average {
   width: 7%;
 }
 
-.agents-table col.col-last-seen {
+.nodes-table col.col-last-seen {
   width: 10%;
 }
 
-.agents-table col.col-actions {
+.nodes-table col.col-actions {
   width: 6%;
 }
 
@@ -986,7 +986,7 @@ body {
   font-weight: 600;
 }
 
-.agents-checklist {
+.nodes-checklist {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -995,7 +995,7 @@ body {
   padding-right: 4px;
 }
 
-.agent-checkbox {
+.node-checkbox {
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 14px;
   padding: 12px 14px;
@@ -1005,11 +1005,11 @@ body {
   background: rgba(2, 6, 23, 0.7);
 }
 
-.agent-checkbox--offline {
+.node-checkbox--offline {
   opacity: 0.45;
 }
 
-.agent-checkbox__input {
+.node-checkbox__input {
   margin-top: 4px;
   width: 18px;
   height: 18px;
@@ -1017,17 +1017,17 @@ body {
   flex-shrink: 0;
 }
 
-.agent-checkbox__label {
+.node-checkbox__label {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.agent-checkbox__label strong {
+.node-checkbox__label strong {
   font-size: 0.95rem;
 }
 
-.agent-checkbox__status {
+.node-checkbox__status {
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -1040,7 +1040,7 @@ body {
   color: var(--danger);
 }
 
-.agent-checkbox__gpu {
+.node-checkbox__gpu {
   font-size: 0.78rem;
   color: var(--text-subtle);
 }
@@ -1157,7 +1157,7 @@ body {
   font-size: 0.85rem;
 }
 
-.task-agent,
+.task-node,
 .task-time,
 .task-speed {
   font-size: 0.82rem;
@@ -1234,7 +1234,7 @@ body {
   font-size: 0.9rem;
 }
 
-.log-agent-select {
+.log-node-select {
   display: flex;
   flex-direction: column;
   font-size: 0.75rem;
@@ -1242,7 +1242,7 @@ body {
   gap: 4px;
 }
 
-.log-agent-select select {
+.log-node-select select {
   min-width: 220px;
   padding: 6px 8px;
   border-radius: 8px;
@@ -1372,7 +1372,7 @@ body {
 @media (max-width: 900px) {
   .page-header,
   .stats-grid,
-  .agents-section,
+  .nodes-section,
   .charts-section,
   .request-history-section,
   .page-footer,
@@ -1402,8 +1402,8 @@ body {
     border-radius: 12px;
   }
 
-  .agents-table th,
-  .agents-table td {
+  .nodes-table th,
+  .nodes-table td {
     padding: 10px 12px;
     font-size: 0.85rem;
   }

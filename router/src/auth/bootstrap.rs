@@ -4,8 +4,8 @@
 
 use crate::auth::password::hash_password;
 use crate::db;
-use ollama_router_common::auth::UserRole;
-use ollama_router_common::error::RouterError;
+use llm_router_common::auth::UserRole;
+use llm_router_common::error::RouterError;
 use std::io::{self, Write};
 
 /// 環境変数から管理者を作成
@@ -79,12 +79,8 @@ pub async fn create_admin_interactive(pool: &sqlx::SqlitePool) -> Result<String,
         username
     };
 
-    // パスワードを入力
-    print!("Enter admin password: ");
-    io::stdout().flush().unwrap();
-    let mut password = String::new();
-    io::stdin()
-        .read_line(&mut password)
+    // パスワードを入力（マスク表示）
+    let password = rpassword::prompt_password("Enter admin password: ")
         .map_err(|e| RouterError::Internal(format!("Failed to read password: {}", e)))?;
     let password = password.trim();
 
