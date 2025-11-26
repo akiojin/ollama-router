@@ -8,7 +8,7 @@ use llm_router::{
     balancer::{LoadManager, MetricsUpdate},
     registry::NodeRegistry,
 };
-use ollama_router_common::{protocol::RegisterRequest, types::GpuDeviceInfo};
+use llm_router_common::{protocol::RegisterRequest, types::GpuDeviceInfo};
 use std::net::{IpAddr, Ipv4Addr};
 use tokio::runtime::Runtime;
 
