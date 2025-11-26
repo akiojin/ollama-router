@@ -5,6 +5,13 @@
 
 * **installer:** ルーターとノードのインストーラーを分離 ([1a29f9f](https://github.com/akiojin/ollama-router/commit/1a29f9fd732a6867931387211760a28c7dd34096))
 
+## [2.3.0](https://github.com/akiojin/ollama-router/compare/v2.2.0...v2.3.0) (2025-11-26)
+
+
+### Features
+
+* **docker:** add environment variables for API keys ([d4ade1c](https://github.com/akiojin/ollama-router/commit/d4ade1c05936dfb3610cca863f55f2a4e6cba019))
+
 ## [2.2.0](https://github.com/akiojin/ollama-router/compare/v2.1.8...v2.2.0) (2025-11-22)
 
 
