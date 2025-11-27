@@ -79,18 +79,18 @@ npm run start:node
 
 # 手動でビルドする場合:
 # cd node && cmake -B build -S . && cmake --build build --config Release
-# OLLAMA_ROUTER_URL=http://localhost:8080 ./node/build/llm-node
+# LLM_ROUTER_URL=http://localhost:8080 ./node/build/llm-node
 ```
 
 **環境変数:**
 
 | 変数 | デフォルト | 説明 |
 |-----|-----------|------|
-| `OLLAMA_ROUTER_URL` | `http://127.0.0.1:11434` | 登録先ルーターのURL |
-| `OLLAMA_NODE_PORT` | `11435` | ノードのリッスンポート |
-| `OLLAMA_MODELS_DIR` | `~/.ollama/models` | モデル保存ディレクトリ |
-| `OLLAMA_ALLOW_NO_GPU` | `false` | GPU無しでの起動を許可 |
-| `OLLAMA_HEARTBEAT_SECS` | `10` | ハートビート間隔（秒） |
+| `LLM_ROUTER_URL` | `http://127.0.0.1:11434` | 登録先ルーターのURL |
+| `LLM_NODE_PORT` | `11435` | ノードのリッスンポート |
+| `LLM_MODELS_DIR` | `~/.ollama/models` | モデル保存ディレクトリ |
+| `LLM_ALLOW_NO_GPU` | `false` | GPU無しでの起動を許可 |
+| `LLM_HEARTBEAT_SECS` | `10` | ハートビート間隔（秒） |
 
 **Docker:**
 
@@ -100,7 +100,7 @@ docker build --build-arg CUDA=cpu -t llm-node-cpp:latest node/
 
 # 起動
 docker run --rm -p 11435:11435 \
-  -e OLLAMA_ROUTER_URL=http://host.docker.internal:8080 \
+  -e LLM_ROUTER_URL=http://host.docker.internal:8080 \
   llm-node-cpp:latest
 ```
 
@@ -411,9 +411,9 @@ GitHubリリースには各プラットフォーム向けのバイナリを同�
 
 #### Agent
 - `ROUTER_URL`: CoordinatorのURL（デフォルト: `http://localhost:8080`）
-- `OLLAMA_PORT`: Ollamaポート番号（デフォルト: `11434`）
-- `OLLAMA_AGENT_MACHINE_NAME`: Coordinator登録時に使用するマシン名。未設定時は `OLLAMA_MACHINE_NAME` → `HOSTNAME` → `whoami::hostname()` の順で自動判定されます。
-- `OLLAMA_PULL_TIMEOUT_SECS`: モデル自動ダウンロード時のHTTPタイムアウト秒数。未設定または `0` の場合はタイムアウトなしで待機します。
+- `LLM_PORT`: Ollamaポート番号（デフォルト: `11434`）
+- `LLM_AGENT_MACHINE_NAME`: Coordinator登録時に使用するマシン名。未設定時は `LLM_MACHINE_NAME` → `HOSTNAME` → `whoami::hostname()` の順で自動判定されます。
+- `LLM_PULL_TIMEOUT_SECS`: モデル自動ダウンロード時のHTTPタイムアウト秒数。未設定または `0` の場合はタイムアウトなしで待機します。
 - `ROUTER_REGISTER_RETRY_SECS`: 登録リトライ間隔（秒）。未設定時は `5` 秒、`0` を指定すると即座に再試行します。
 - `ROUTER_REGISTER_MAX_RETRIES`: 登録リトライ上限回数。未設定または `0` の場合は成功するまで無制限に再試行します。
 

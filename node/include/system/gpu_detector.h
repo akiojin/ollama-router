@@ -46,7 +46,7 @@ private:
     std::vector<GpuDevice> detectMetal();
     std::vector<GpuDevice> detectRocm();
 
-#ifdef OLLAMA_NODE_TESTING
+#ifdef LLM_NODE_TESTING
 public:
     // テスト専用: 検出結果を直接セットして計算ロジックを検証する
     void setDetectedDevicesForTest(std::vector<GpuDevice> devices);

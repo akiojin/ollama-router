@@ -24,7 +24,7 @@ std::pair<DownloadConfig, std::string> loadDownloadConfigWithLog() {
     bool used_file = false;
     bool used_env = false;
 
-    // Optional JSON config file: path from OLLAMA_DL_CONFIG or ~/.ollama/config.json
+    // Optional JSON config file: path from LLM_DL_CONFIG or ~/.ollama/config.json
     auto load_from_file = [&](const std::filesystem::path& path) {
         if (!std::filesystem::exists(path)) return false;
         try {
@@ -46,7 +46,7 @@ std::pair<DownloadConfig, std::string> loadDownloadConfigWithLog() {
         }
     };
 
-    if (const char* env = std::getenv("OLLAMA_DL_CONFIG")) {
+    if (const char* env = std::getenv("LLM_DL_CONFIG")) {
         if (load_from_file(env)) {
             used_file = true;
         }
@@ -60,7 +60,7 @@ std::pair<DownloadConfig, std::string> loadDownloadConfigWithLog() {
         } catch (...) {}
     }
 
-    if (const char* env = std::getenv("OLLAMA_DL_MAX_RETRIES")) {
+    if (const char* env = std::getenv("LLM_DL_MAX_RETRIES")) {
         try {
             int v = std::stoi(env);
             if (v >= 0) cfg.max_retries = v;
@@ -69,7 +69,7 @@ std::pair<DownloadConfig, std::string> loadDownloadConfigWithLog() {
         } catch (...) {}
     }
 
-    if (const char* env = std::getenv("OLLAMA_DL_BACKOFF_MS")) {
+    if (const char* env = std::getenv("LLM_DL_BACKOFF_MS")) {
         try {
             long long ms = std::stoll(env);
             if (ms >= 0) cfg.backoff = std::chrono::milliseconds(ms);
@@ -78,7 +78,7 @@ std::pair<DownloadConfig, std::string> loadDownloadConfigWithLog() {
         } catch (...) {}
     }
 
-    if (const char* env = std::getenv("OLLAMA_DL_CONCURRENCY")) {
+    if (const char* env = std::getenv("LLM_DL_CONCURRENCY")) {
         try {
             long long v = std::stoll(env);
             if (v > 0 && v < 64) cfg.max_concurrency = static_cast<size_t>(v);
@@ -87,7 +87,7 @@ std::pair<DownloadConfig, std::string> loadDownloadConfigWithLog() {
         } catch (...) {}
     }
 
-    if (const char* env = std::getenv("OLLAMA_DL_MAX_BPS")) {
+    if (const char* env = std::getenv("LLM_DL_MAX_BPS")) {
         try {
             long long v = std::stoll(env);
             if (v > 0) cfg.max_bytes_per_sec = static_cast<size_t>(v);
@@ -96,7 +96,7 @@ std::pair<DownloadConfig, std::string> loadDownloadConfigWithLog() {
         } catch (...) {}
     }
 
-    if (const char* env = std::getenv("OLLAMA_DL_CHUNK")) {
+    if (const char* env = std::getenv("LLM_DL_CHUNK")) {
         try {
             long long v = std::stoll(env);
             if (v > 0 && v <= 1 << 20) cfg.chunk_size = static_cast<size_t>(v);
@@ -167,7 +167,7 @@ std::pair<NodeConfig, std::string> loadNodeConfigWithLog() {
 
     // file
     std::filesystem::path cfg_path;
-    if (const char* env = std::getenv("OLLAMA_NODE_CONFIG")) {
+    if (const char* env = std::getenv("LLM_NODE_CONFIG")) {
         cfg_path = env;
     } else {
         cfg_path = defaultConfigPath();
@@ -188,31 +188,31 @@ std::pair<NodeConfig, std::string> loadNodeConfigWithLog() {
         return std::nullopt;
     };
 
-    if (auto v = getenv_str("OLLAMA_ROUTER_URL")) {
+    if (auto v = getenv_str("LLM_ROUTER_URL")) {
         cfg.router_url = *v;
         log << "env:ROUTER_URL=" << *v << " ";
         used_env = true;
     }
-    if (auto v = getenv_str("OLLAMA_MODELS_DIR")) {
+    if (auto v = getenv_str("LLM_MODELS_DIR")) {
         cfg.models_dir = *v;
         log << "env:MODELS_DIR=" << *v << " ";
         used_env = true;
     }
-    if (auto v = getenv_str("OLLAMA_NODE_PORT")) {
+    if (auto v = getenv_str("LLM_NODE_PORT")) {
         try {
             cfg.node_port = std::stoi(*v);
             log << "env:NODE_PORT=" << cfg.node_port << " ";
             used_env = true;
         } catch (...) {}
     }
-    if (auto v = getenv_str("OLLAMA_HEARTBEAT_SECS")) {
+    if (auto v = getenv_str("LLM_HEARTBEAT_SECS")) {
         try {
             cfg.heartbeat_interval_sec = std::stoi(*v);
             log << "env:HEARTBEAT_SECS=" << cfg.heartbeat_interval_sec << " ";
             used_env = true;
         } catch (...) {}
     }
-    if (auto v = getenv_str("OLLAMA_ALLOW_NO_GPU")) {
+    if (auto v = getenv_str("LLM_ALLOW_NO_GPU")) {
         std::string s = *v;
         std::transform(s.begin(), s.end(), s.begin(), ::tolower);
         if (s == "1" || s == "true" || s == "yes") {
@@ -222,13 +222,13 @@ std::pair<NodeConfig, std::string> loadNodeConfigWithLog() {
         }
     }
 
-    if (auto v = getenv_str("OLLAMA_BIND_ADDRESS")) {
+    if (auto v = getenv_str("LLM_BIND_ADDRESS")) {
         cfg.bind_address = *v;
         log << "env:BIND_ADDRESS=" << *v << " ";
         used_env = true;
     }
 
-    if (auto v = getenv_str("OLLAMA_NODE_IP")) {
+    if (auto v = getenv_str("LLM_NODE_IP")) {
         cfg.ip_address = *v;
         log << "env:NODE_IP=" << *v << " ";
         used_env = true;

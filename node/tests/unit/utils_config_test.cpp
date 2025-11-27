@@ -32,8 +32,8 @@ private:
 };
 
 TEST(UtilsConfigTest, LoadsNodeConfigFromFileWithLock) {
-    EnvGuard guard({"OLLAMA_NODE_CONFIG", "OLLAMA_ROUTER_URL", "OLLAMA_MODELS_DIR",
-                    "OLLAMA_NODE_PORT", "OLLAMA_HEARTBEAT_SECS", "OLLAMA_ALLOW_NO_GPU"});
+    EnvGuard guard({"LLM_NODE_CONFIG", "LLM_ROUTER_URL", "LLM_MODELS_DIR",
+                    "LLM_NODE_PORT", "LLM_HEARTBEAT_SECS", "LLM_ALLOW_NO_GPU"});
 
     fs::path tmp = fs::temp_directory_path() / "nodecfg.json";
     std::ofstream(tmp) << R"({
@@ -43,7 +43,7 @@ TEST(UtilsConfigTest, LoadsNodeConfigFromFileWithLock) {
         "heartbeat_interval_sec": 3,
         "require_gpu": false
     })";
-    setenv("OLLAMA_NODE_CONFIG", tmp.string().c_str(), 1);
+    setenv("LLM_NODE_CONFIG", tmp.string().c_str(), 1);
 
     auto info = loadNodeConfigWithLog();
     auto cfg = info.first;
@@ -59,15 +59,15 @@ TEST(UtilsConfigTest, LoadsNodeConfigFromFileWithLock) {
 }
 
 TEST(UtilsConfigTest, EnvOverridesNodeConfig) {
-    EnvGuard guard({"OLLAMA_ROUTER_URL", "OLLAMA_MODELS_DIR", "OLLAMA_NODE_PORT",
-                    "OLLAMA_HEARTBEAT_SECS", "OLLAMA_ALLOW_NO_GPU", "OLLAMA_NODE_CONFIG"});
+    EnvGuard guard({"LLM_ROUTER_URL", "LLM_MODELS_DIR", "LLM_NODE_PORT",
+                    "LLM_HEARTBEAT_SECS", "LLM_ALLOW_NO_GPU", "LLM_NODE_CONFIG"});
 
-    unsetenv("OLLAMA_NODE_CONFIG");
-    setenv("OLLAMA_ROUTER_URL", "http://env:1234", 1);
-    setenv("OLLAMA_MODELS_DIR", "/env/models", 1);
-    setenv("OLLAMA_NODE_PORT", "19000", 1);
-    setenv("OLLAMA_HEARTBEAT_SECS", "7", 1);
-    setenv("OLLAMA_ALLOW_NO_GPU", "true", 1);
+    unsetenv("LLM_NODE_CONFIG");
+    setenv("LLM_ROUTER_URL", "http://env:1234", 1);
+    setenv("LLM_MODELS_DIR", "/env/models", 1);
+    setenv("LLM_NODE_PORT", "19000", 1);
+    setenv("LLM_HEARTBEAT_SECS", "7", 1);
+    setenv("LLM_ALLOW_NO_GPU", "true", 1);
 
     auto cfg = loadNodeConfig();
     EXPECT_EQ(cfg.router_url, "http://env:1234");

@@ -84,18 +84,18 @@ npm run start:node
 
 # Or manually:
 # cd node && cmake -B build -S . && cmake --build build --config Release
-# OLLAMA_ROUTER_URL=http://localhost:8080 ./node/build/llm-node
+# LLM_ROUTER_URL=http://localhost:8080 ./node/build/llm-node
 ```
 
 **Environment Variables:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OLLAMA_ROUTER_URL` | `http://127.0.0.1:11434` | Router URL to register with |
-| `OLLAMA_NODE_PORT` | `11435` | Node listen port |
-| `OLLAMA_MODELS_DIR` | `~/.ollama/models` | Model storage directory |
-| `OLLAMA_ALLOW_NO_GPU` | `false` | Allow running without GPU |
-| `OLLAMA_HEARTBEAT_SECS` | `10` | Heartbeat interval (seconds) |
+| `LLM_ROUTER_URL` | `http://127.0.0.1:11434` | Router URL to register with |
+| `LLM_NODE_PORT` | `11435` | Node listen port |
+| `LLM_MODELS_DIR` | `~/.ollama/models` | Model storage directory |
+| `LLM_ALLOW_NO_GPU` | `false` | Allow running without GPU |
+| `LLM_HEARTBEAT_SECS` | `10` | Heartbeat interval (seconds) |
 
 **Docker:**
 
@@ -105,7 +105,7 @@ docker build --build-arg CUDA=cpu -t llm-node:latest node/
 
 # Run
 docker run --rm -p 11435:11435 \
-  -e OLLAMA_ROUTER_URL=http://host.docker.internal:8080 \
+  -e LLM_ROUTER_URL=http://host.docker.internal:8080 \
   llm-node:latest
 ```
 
@@ -446,9 +446,9 @@ Agents automatically detect GPU on startup. **GPU is required** for agent regist
 If automatic detection fails, set environment variables:
 
 ```bash
-OLLAMA_GPU_AVAILABLE=true \
-OLLAMA_GPU_MODEL="Your GPU Model" \
-OLLAMA_GPU_COUNT=1 \
+LLM_GPU_AVAILABLE=true \
+LLM_GPU_MODEL="Your GPU Model" \
+LLM_GPU_COUNT=1 \
 ./target/release/ollama-router-agent
 ```
 
@@ -512,13 +512,13 @@ OLLAMA_GPU_COUNT=1 \
 
 #### Agent
 - `ROUTER_URL`: Coordinator URL (default: `http://localhost:8080`)
-- `OLLAMA_PORT`: Ollama port number (default: `11434`)
-- `OLLAMA_GPU_AVAILABLE`: Manual GPU availability flag (optional, auto-detected)
-- `OLLAMA_GPU_MODEL`: Manual GPU model name (optional, auto-detected)
-- `OLLAMA_GPU_COUNT`: Manual GPU count (optional, auto-detected)
-- `OLLAMA_DEFAULT_MODEL`: Default LLM model to download (optional, auto-selected based on memory)
-- `OLLAMA_PULL_TIMEOUT_SECS`: Timeout for model download in seconds (optional)
-- `OLLAMA_API_BASE`: Custom Ollama API base URL (optional, default: `http://127.0.0.1:11434`)
+- `LLM_PORT`: Ollama port number (default: `11434`)
+- `LLM_GPU_AVAILABLE`: Manual GPU availability flag (optional, auto-detected)
+- `LLM_GPU_MODEL`: Manual GPU model name (optional, auto-detected)
+- `LLM_GPU_COUNT`: Manual GPU count (optional, auto-detected)
+- `LLM_DEFAULT_MODEL`: Default LLM model to download (optional, auto-selected based on memory)
+- `LLM_PULL_TIMEOUT_SECS`: Timeout for model download in seconds (optional)
+- `LLM_API_BASE`: Custom Ollama API base URL (optional, default: `http://127.0.0.1:11434`)
 
 ## Development
 

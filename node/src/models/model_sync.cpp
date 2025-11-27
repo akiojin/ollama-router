@@ -343,7 +343,7 @@ bool ModelSync::downloadModel(ModelDownloader& downloader,
                 downloader.setChunkSize(applied_chunk);
                 downloader.setMaxBytesPerSec(applied_bps);
 
-                if (const char* logenv = std::getenv("OLLAMA_DL_LOG_CONFIG")) {
+                if (const char* logenv = std::getenv("LLM_DL_LOG_CONFIG")) {
                     if (std::string(logenv) == "1" || std::string(logenv) == "true") {
                         const char* source = "default";
                         if (file_chunk > 0 || file_bps > 0) source = "manifest";

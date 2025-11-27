@@ -33,8 +33,8 @@ Router (OpenAI-compatible)
 
 ## Configuration Surface
 - Router environment: `ROUTER_PORT`, `DATABASE_URL`, cloud keys and base URLs.
-- Node environment: `OLLAMA_ROUTER_URL`, `OLLAMA_NODE_PORT`,
-  `OLLAMA_ALLOW_NO_GPU` (opt-out of GPU requirement).
+- Node environment: `LLM_ROUTER_URL`, `LLM_NODE_PORT`,
+  `LLM_ALLOW_NO_GPU` (opt-out of GPU requirement).
 
 ## Deployment Options
 - Bare metal: build router with `cargo build -p llm-router --release`.

@@ -37,9 +37,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 FROM runtime-${CUDA} AS runtime
 
-ENV OLLAMA_MODELS_DIR=/var/lib/ollama/models
-ENV OLLAMA_ROUTER_URL=http://router:8080
-ENV OLLAMA_NODE_PORT=11435
+ENV LLM_MODELS_DIR=/var/lib/ollama/models
+ENV LLM_ROUTER_URL=http://router:8080
+ENV LLM_NODE_PORT=11435
 
 WORKDIR /app
 COPY --from=build /usr/local /usr/local

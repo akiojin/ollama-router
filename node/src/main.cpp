@@ -230,7 +230,7 @@ void signalHandler(int signal) {
     ollama_node::request_shutdown();
 }
 
-#ifndef OLLAMA_NODE_TESTING
+#ifndef LLM_NODE_TESTING
 int main(int argc, char* argv[]) {
     // Set up signal handlers
     signal(SIGINT, signalHandler);
@@ -243,7 +243,7 @@ int main(int argc, char* argv[]) {
 }
 #endif
 
-#ifdef OLLAMA_NODE_TESTING
+#ifdef LLM_NODE_TESTING
 extern "C" int ollama_node_run_for_test() {
     auto cfg = ollama_node::loadNodeConfig();
     // short intervals for tests

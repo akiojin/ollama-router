@@ -44,10 +44,10 @@ cmake --build build --config Release
   - `DATABASE_URL` (default `sqlite:$HOME/.or/router.db`)
   - クラウドキー: `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`
 - ノード（C++）
-  - `OLLAMA_ROUTER_URL` (例: `http://localhost:8080`)
-  - `OLLAMA_NODE_PORT` (default `11434`)
-  - `OLLAMA_BIND_ADDRESS` (default `0.0.0.0`)
-  - `OLLAMA_ALLOW_NO_GPU` を `true` にするとGPU必須を無効化（デフォルトは禁止）
+  - `LLM_ROUTER_URL` (例: `http://localhost:8080`)
+  - `LLM_NODE_PORT` (default `11434`)
+  - `LLM_BIND_ADDRESS` (default `0.0.0.0`)
+  - `LLM_ALLOW_NO_GPU` を `true` にするとGPU必須を無効化（デフォルトは禁止）
 
 ## 5) 起動例
 ```bash
