@@ -2,7 +2,7 @@
 
 ## 起動時に GPU が見つからない
 - 確認: `nvidia-smi` または `CUDA_VISIBLE_DEVICES`
-- 環境変数で無効化: ノード側 `OLLAMA_ALLOW_NO_GPU=true`（デフォルトは禁止）
+- 環境変数で無効化: ノード側 `LLM_ALLOW_NO_GPU=true`（デフォルトは禁止）
 - それでも失敗する場合は NVML ライブラリの有無を確認
 
 ## クラウドモデルが 401/400 を返す
@@ -12,7 +12,7 @@
 
 ## ポート競合で起動しない
 - ルーター: `ROUTER_PORT` を変更（例: `ROUTER_PORT=18080`）
-- ノード: `OLLAMA_NODE_PORT` または `--port` で変更
+- ノード: `LLM_NODE_PORT` または `--port` で変更
 
 ## SQLite ファイル作成に失敗
 - `DATABASE_URL` のパス先ディレクトリの書き込み権限を確認

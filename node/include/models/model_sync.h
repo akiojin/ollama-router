@@ -78,7 +78,7 @@ public:
 
     void setModelOverrides(std::unordered_map<std::string, ModelOverrides> overrides);
 
-    // 並列ダウンロードの同時実行数（デフォルト4）。環境変数 OLLAMA_DL_CONCURRENCY で上書き。
+    // 並列ダウンロードの同時実行数（デフォルト4）。環境変数 LLM_DL_CONCURRENCY で上書き。
     static size_t defaultConcurrency();
 
     // 直近の同期ステータスを取得

@@ -224,7 +224,7 @@ pub struct FilteredRecords {
 
 /// 履歴ファイルのパスを取得
 fn get_history_file_path() -> RouterResult<PathBuf> {
-    let data_dir = if let Ok(test_dir) = std::env::var("OLLAMA_ROUTER_DATA_DIR") {
+    let data_dir = if let Ok(test_dir) = std::env::var("LLM_ROUTER_DATA_DIR") {
         PathBuf::from(test_dir)
     } else {
         let home = std::env::var("HOME")
@@ -290,7 +290,7 @@ mod tests {
         let _lock = TEST_LOCK.lock().await;
 
         let temp_dir = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", temp_dir.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", temp_dir.path());
 
         let storage = RequestHistoryStorage::new().unwrap();
         let record = create_test_record(Utc::now());
@@ -301,7 +301,7 @@ mod tests {
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].id, record.id);
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]
@@ -309,7 +309,7 @@ mod tests {
         let _lock = TEST_LOCK.lock().await;
 
         let temp_dir = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", temp_dir.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", temp_dir.path());
 
         let storage = RequestHistoryStorage::new().unwrap();
 
@@ -330,7 +330,7 @@ mod tests {
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].id, new_record.id);
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]
@@ -338,7 +338,7 @@ mod tests {
         let _lock = TEST_LOCK.lock().await;
 
         let temp_dir = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", temp_dir.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", temp_dir.path());
 
         let storage = RequestHistoryStorage::new().unwrap();
 
@@ -359,7 +359,7 @@ mod tests {
         assert_eq!(result.records.len(), 1);
         assert_eq!(result.records[0].model, "llama2");
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]
@@ -367,7 +367,7 @@ mod tests {
         let _lock = TEST_LOCK.lock().await;
 
         let temp_dir = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", temp_dir.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", temp_dir.path());
 
         let storage = RequestHistoryStorage::new().unwrap();
 
@@ -392,6 +392,6 @@ mod tests {
         let result = storage.filter_and_paginate(&filter, 3, 2).await.unwrap();
         assert_eq!(result.records.len(), 1);
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 }

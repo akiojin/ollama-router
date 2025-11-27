@@ -39,7 +39,7 @@ use uuid::Uuid;
 /// データファイルのパスを取得
 fn get_data_file_path() -> RouterResult<PathBuf> {
     // テスト用に環境変数でデータディレクトリを指定可能にする
-    let data_dir = if let Ok(test_dir) = std::env::var("OLLAMA_ROUTER_DATA_DIR") {
+    let data_dir = if let Ok(test_dir) = std::env::var("LLM_ROUTER_DATA_DIR") {
         PathBuf::from(test_dir)
     } else {
         let home = std::env::var("HOME")
@@ -214,7 +214,7 @@ mod tests {
 
         // 一時ディレクトリを使用（_guardでスコープ内保持）
         let _guard = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", _guard.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", _guard.path());
 
         let result = init_storage().await;
         assert!(result.is_ok());
@@ -223,7 +223,7 @@ mod tests {
         let data_file = get_data_file_path().unwrap();
         assert!(data_file.exists());
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]
@@ -232,7 +232,7 @@ mod tests {
 
         // 一時ディレクトリを使用（_guardでスコープ内保持）
         let _guard = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", _guard.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", _guard.path());
 
         init_storage().await.unwrap();
 
@@ -276,7 +276,7 @@ mod tests {
         assert_eq!(loaded_nodes[0].id, node.id);
         assert_eq!(loaded_nodes[0].machine_name, node.machine_name);
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]
@@ -285,7 +285,7 @@ mod tests {
 
         // 一時ディレクトリを使用（_guardでスコープ内保持）
         let _guard = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", _guard.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", _guard.path());
 
         init_storage().await.unwrap();
 
@@ -326,7 +326,7 @@ mod tests {
         let loaded_nodes = load_nodes().await.unwrap();
         assert_eq!(loaded_nodes.len(), 0);
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]
@@ -335,7 +335,7 @@ mod tests {
 
         // 一時ディレクトリを使用（_guardでスコープ内保持）
         let _guard = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", _guard.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", _guard.path());
 
         init_storage().await.unwrap();
 
@@ -413,7 +413,7 @@ mod tests {
         assert_eq!(loaded_nodes[0].machine_name, "test-machine-2");
         assert_eq!(loaded_nodes[0].ollama_port, 11435);
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]
@@ -421,7 +421,7 @@ mod tests {
         let _lock = test_utils::TEST_LOCK.lock().await;
 
         let _guard = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", _guard.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", _guard.path());
 
         init_storage().await.unwrap();
 
@@ -445,6 +445,6 @@ mod tests {
             entries
         );
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 }

@@ -32,7 +32,7 @@ pnpm install --frozen-lockfile   # for lint tooling; node_modules already vendor
 ## Environment Variables
 - Router: `ROUTER_PORT`, `DATABASE_URL`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`,
   `ANTHROPIC_API_KEY`.
-- Node: `OLLAMA_ROUTER_URL`, `OLLAMA_NODE_PORT`, `OLLAMA_ALLOW_NO_GPU=false`
+- Node: `LLM_ROUTER_URL`, `LLM_NODE_PORT`, `LLM_ALLOW_NO_GPU=false`
   by default.
 
 ## Debugging Tips

@@ -86,7 +86,7 @@ async fn agent_chat_handler(
 #[tokio::test]
 #[serial]
 async fn proxy_chat_end_to_end_success() {
-    std::env::set_var("OLLAMA_ROUTER_SKIP_HEALTH_CHECK", "1");
+    std::env::set_var("LLM_ROUTER_SKIP_HEALTH_CHECK", "1");
     // Arrange: スタブノードとルーターを実ポートで起動
     let node_stub = spawn_agent_stub(AgentStubState {
         expected_model: Some("gpt-oss:20b".to_string()),
@@ -137,7 +137,7 @@ async fn proxy_chat_end_to_end_success() {
 #[tokio::test]
 #[serial]
 async fn proxy_chat_uses_health_check_without_skip_flag() {
-    let _guard = EnvVarGuard::remove("OLLAMA_ROUTER_SKIP_HEALTH_CHECK");
+    let _guard = EnvVarGuard::remove("LLM_ROUTER_SKIP_HEALTH_CHECK");
 
     let node_stub = spawn_agent_stub(AgentStubState {
         expected_model: Some("gpt-oss:20b".to_string()),
@@ -184,7 +184,7 @@ async fn proxy_chat_uses_health_check_without_skip_flag() {
 #[tokio::test]
 #[serial]
 async fn proxy_chat_propagates_upstream_error() {
-    std::env::set_var("OLLAMA_ROUTER_SKIP_HEALTH_CHECK", "1");
+    std::env::set_var("LLM_ROUTER_SKIP_HEALTH_CHECK", "1");
     // Arrange: ノードが404を返すケース
     let node_stub = spawn_agent_stub(AgentStubState {
         expected_model: Some("missing-model".to_string()),

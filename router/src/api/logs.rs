@@ -191,7 +191,7 @@ mod tests {
     async fn coordinator_logs_endpoint_returns_entries() {
         let _guard = TEST_LOCK.lock().await;
         let temp = tempdir().unwrap();
-        std::env::set_var("OLLAMA_ROUTER_DATA_DIR", temp.path());
+        std::env::set_var("LLM_ROUTER_DATA_DIR", temp.path());
         let log_path = logging::log_file_path().unwrap();
         if let Some(parent) = log_path.parent() {
             std::fs::create_dir_all(parent).unwrap();
@@ -211,7 +211,7 @@ mod tests {
         assert_eq!(response.entries.len(), 2);
         assert_eq!(response.entries[1].message.as_deref(), Some("world"));
 
-        std::env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        std::env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[tokio::test]

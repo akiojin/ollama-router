@@ -294,7 +294,7 @@ std::string ModelDownloader::fetchManifest(const std::string& model_id) {
     std::ofstream ofs(out_path, std::ios::binary | std::ios::trunc);
     ofs << res->body;
     // log applied config for diagnostics (opt-in)
-    if (const char* logenv = std::getenv("OLLAMA_DL_LOG_CONFIG")) {
+    if (const char* logenv = std::getenv("LLM_DL_LOG_CONFIG")) {
         if (std::string(logenv) == "1" || std::string(logenv) == "true") {
             auto cfg_pair = loadDownloadConfigWithLog();
             auto cfg = cfg_pair.first;

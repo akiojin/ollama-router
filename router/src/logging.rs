@@ -39,7 +39,7 @@ pub fn log_file_path() -> io::Result<PathBuf> {
 }
 
 fn resolve_data_dir() -> io::Result<PathBuf> {
-    if let Ok(dir) = env::var("OLLAMA_ROUTER_DATA_DIR") {
+    if let Ok(dir) = env::var("LLM_ROUTER_DATA_DIR") {
         return Ok(PathBuf::from(dir));
     }
 
@@ -95,22 +95,22 @@ mod tests {
     #[test]
     fn test_resolve_data_dir_uses_env_override() {
         let temp_dir = tempfile::tempdir().unwrap();
-        env::set_var("OLLAMA_ROUTER_DATA_DIR", temp_dir.path());
+        env::set_var("LLM_ROUTER_DATA_DIR", temp_dir.path());
         let dir = resolve_data_dir().unwrap();
         assert_eq!(dir, temp_dir.path());
-        env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 
     #[test]
     fn test_log_file_path_contains_logs_dir() {
         let temp_dir = tempfile::tempdir().unwrap();
-        env::set_var("OLLAMA_ROUTER_DATA_DIR", temp_dir.path());
+        env::set_var("LLM_ROUTER_DATA_DIR", temp_dir.path());
         let path = log_file_path().unwrap();
         assert!(
             path.ends_with(std::path::Path::new("logs").join(LOG_FILE_NAME)),
             "unexpected log path: {:?}",
             path
         );
-        env::remove_var("OLLAMA_ROUTER_DATA_DIR");
+        env::remove_var("LLM_ROUTER_DATA_DIR");
     }
 }

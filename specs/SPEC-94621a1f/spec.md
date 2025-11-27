@@ -76,7 +76,7 @@
 
 ### FR-006: 環境変数／設定パネルによる上書き
 
-- ノードのエントリーポイントは `ROUTER_URL`, `OLLAMA_PORT`, `AGENT_HEARTBEAT_INTERVAL_SECS` などの環境変数で設定を上書きできる。
+- ノードのエントリーポイントは `ROUTER_URL`, `LLM_PORT`, `AGENT_HEARTBEAT_INTERVAL_SECS` などの環境変数で設定を上書きできる。
 - 同じ設定項目はローカル設定パネルからも編集でき、`~/.ollama-router/agent-settings.json` に保存され、環境変数が未指定のときに適用される。
 
 ## 非機能要件
