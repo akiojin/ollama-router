@@ -203,3 +203,69 @@ TEST(RepairStatusTest, EnumValuesAreDefined) {
     EXPECT_EQ(static_cast<int>(RepairStatus::Success), 2);
     EXPECT_EQ(static_cast<int>(RepairStatus::Failed), 3);
 }
+
+// =========================================================
+// エッジケーステスト
+// =========================================================
+
+TEST(ModelRepairTest, NeedsRepairReturnsTrueForPartialGgufHeader) {
+    TempDirGuard guard;
+    ModelSync sync("http://localhost:9999", guard.path.string());
+    ModelDownloader downloader("http://localhost:9999", guard.path.string());
+    OllamaCompat compat(guard.path.string());
+
+    ModelRepair repair(sync, downloader, compat);
+
+    // GGUFヘッダーの最初の2バイトのみ
+    fs::path partial = guard.path / "partial.gguf";
+    std::ofstream file(partial, std::ios::binary);
+    file.write("GG", 2);
+    std::vector<char> padding(2048, 0);
+    file.write(padding.data(), padding.size());
+    file.close();
+
+    EXPECT_TRUE(repair.needsRepair(partial.string()));
+}
+
+TEST(ModelRepairTest, NeedsRepairReturnsTrueForWrongMagicNumber) {
+    TempDirGuard guard;
+    ModelSync sync("http://localhost:9999", guard.path.string());
+    ModelDownloader downloader("http://localhost:9999", guard.path.string());
+    OllamaCompat compat(guard.path.string());
+
+    ModelRepair repair(sync, downloader, compat);
+
+    // 間違ったマジックナンバー
+    fs::path wrong_magic = guard.path / "wrong_magic.gguf";
+    std::ofstream file(wrong_magic, std::ios::binary);
+    file.write("GGML", 4);  // GGMLフォーマット（旧形式）
+    uint32_t version = 3;
+    file.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    std::vector<char> padding(2048 - 8, 0);
+    file.write(padding.data(), padding.size());
+    file.close();
+
+    EXPECT_TRUE(repair.needsRepair(wrong_magic.string()));
+}
+
+TEST(ModelRepairTest, ValidGgufWithDifferentVersions) {
+    TempDirGuard guard;
+    ModelSync sync("http://localhost:9999", guard.path.string());
+    ModelDownloader downloader("http://localhost:9999", guard.path.string());
+    OllamaCompat compat(guard.path.string());
+
+    ModelRepair repair(sync, downloader, compat);
+
+    // バージョン2のGGUF
+    fs::path v2 = guard.path / "v2.gguf";
+    std::ofstream file(v2, std::ios::binary);
+    file.write("GGUF", 4);
+    uint32_t version = 2;
+    file.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    std::vector<char> padding(2048 - 8, 0);
+    file.write(padding.data(), padding.size());
+    file.close();
+
+    // ヘッダーが正しければバージョンに関わらず有効
+    EXPECT_FALSE(repair.needsRepair(v2.string()));
+}
