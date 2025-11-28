@@ -9,6 +9,8 @@
 ## Core
 
 - [x] llama-arch.cppのllm_arch_from_string関数にgptossエイリアス追加
+- [x] LLM_ARCH_NAMESを"gptoss"に変更（ハイパーパラメータキー名対応）
+- [x] gpt-ossエイリアスの後方互換性対応
 
 ## Polish
 

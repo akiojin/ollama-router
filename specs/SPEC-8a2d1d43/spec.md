@@ -44,13 +44,25 @@ C++ Nodeでそのまま使用できる。
 
 ### 問題の原因
 
-Ollamaが生成するGGUFファイルは`general.architecture = "gptoss"`を使用するが、
-llama.cppのマッピングは`"gpt-oss"`（ハイフン付き）のみを認識する。
+Ollamaが生成するGGUFファイルは以下の形式を使用する:
+
+- アーキテクチャ名: `general.architecture = "gptoss"`
+- ハイパーパラメータキー: `gptoss.context_length`, `gptoss.embedding_length`等
+
+しかし、llama.cppのマッピングは`"gpt-oss"`（ハイフン付き）のみを認識していた。
 
 ```cpp
-// llama-arch.cpp 99行目
+// llama-arch.cpp 99行目（修正前）
 { LLM_ARCH_OPENAI_MOE,       "gpt-oss"          },
 ```
 
-`llm_arch_from_string("gptoss")`がマップ内の`"gpt-oss"`と一致しないため、
-`LLM_ARCH_UNKNOWN`が返され、モデル読み込みが失敗する。
+これにより以下の2つの問題が発生:
+
+1. `llm_arch_from_string("gptoss")`が`LLM_ARCH_UNKNOWN`を返す
+2. ハイパーパラメータキー`gpt-oss.context_length`を探すが、
+   GGUFには`gptoss.context_length`が格納されている
+
+### 解決策
+
+`LLM_ARCH_NAMES`のマッピングを`"gptoss"`に変更し、
+`llm_arch_from_string`で`"gpt-oss"`のエイリアスも認識するようにした。

@@ -96,7 +96,7 @@ static const std::map<llm_arch, const char *> LLM_ARCH_NAMES = {
     { LLM_ARCH_HUNYUAN_MOE,      "hunyuan-moe"      },
     { LLM_ARCH_HUNYUAN_DENSE,    "hunyuan-dense"    },
     { LLM_ARCH_SMOLLM3,          "smollm3"          },
-    { LLM_ARCH_OPENAI_MOE,       "gpt-oss"          },
+    { LLM_ARCH_OPENAI_MOE,       "gptoss"           },
     { LLM_ARCH_LFM2,             "lfm2"             },
     { LLM_ARCH_LFM2MOE,          "lfm2moe"          },
     { LLM_ARCH_DREAM,            "dream"            },
@@ -2675,8 +2675,8 @@ const char * llm_arch_name(llm_arch arch) {
 }
 
 llm_arch llm_arch_from_string(const std::string & name) {
-    // gptoss -> gpt-oss alias (Ollama uses "gptoss" without hyphen)
-    if (name == "gptoss") {
+    // gpt-oss -> gptoss alias (backward compatibility)
+    if (name == "gpt-oss") {
         return LLM_ARCH_OPENAI_MOE;
     }
 
