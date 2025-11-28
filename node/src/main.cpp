@@ -94,6 +94,29 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
             spdlog::info("GPU offloading enabled with {} layers", 99);
         }
 
+        // Configure on-demand model loading settings from environment variables
+        if (const char* idle_timeout_env = std::getenv("LLM_MODEL_IDLE_TIMEOUT")) {
+            int timeout_secs = std::atoi(idle_timeout_env);
+            if (timeout_secs > 0) {
+                llama_manager.setIdleTimeout(std::chrono::seconds(timeout_secs));
+                spdlog::info("Model idle timeout set to {} seconds", timeout_secs);
+            }
+        }
+        if (const char* max_models_env = std::getenv("LLM_MAX_LOADED_MODELS")) {
+            int max_models = std::atoi(max_models_env);
+            if (max_models > 0) {
+                llama_manager.setMaxLoadedModels(static_cast<size_t>(max_models));
+                spdlog::info("Max loaded models set to {}", max_models);
+            }
+        }
+        if (const char* max_memory_env = std::getenv("LLM_MAX_MEMORY_BYTES")) {
+            long long max_memory = std::atoll(max_memory_env);
+            if (max_memory > 0) {
+                llama_manager.setMaxMemoryBytes(static_cast<size_t>(max_memory));
+                spdlog::info("Max memory limit set to {} bytes", max_memory);
+            }
+        }
+
         // Initialize auto-repair (if enabled)
         std::unique_ptr<ollama_node::ModelSync> model_sync_ptr;
         std::unique_ptr<ollama_node::ModelDownloader> model_downloader_ptr;

@@ -62,7 +62,8 @@ std::string InferenceEngine::generateChat(
         throw std::runtime_error("Model not found: " + model_name);
     }
 
-    // 2. モデルロード（自動修復機能を使用）
+    // 2. モデルロード（オンデマンドロード + 自動修復機能）
+    // loadModelIfNeeded() はアクセス時刻追跡とLRU管理を行う
     if (!manager_->isLoaded(gguf_path)) {
         spdlog::info("Loading model on demand: {}", gguf_path);
 
@@ -77,11 +78,14 @@ std::string InferenceEngine::generateChat(
                 throw std::runtime_error(load_result.error_message);
             }
         } else {
-            // 自動修復が無効な場合は従来の方法でロード
-            if (!manager_->loadModel(gguf_path)) {
+            // 自動修復が無効な場合はオンデマンドロードを使用
+            if (!manager_->loadModelIfNeeded(gguf_path)) {
                 throw std::runtime_error("Failed to load model: " + gguf_path);
             }
         }
+    } else {
+        // 既にロード済みの場合もアクセス時刻を更新
+        manager_->loadModelIfNeeded(gguf_path);
     }
 
     // 3. コンテキストとモデル取得
@@ -241,7 +245,7 @@ std::vector<std::string> InferenceEngine::generateChatStream(
         throw std::runtime_error("Model not found: " + model_name);
     }
 
-    // 2. モデルロード（自動修復機能を使用）
+    // 2. モデルロード（オンデマンドロード + 自動修復機能）
     if (!manager_->isLoaded(gguf_path)) {
         spdlog::info("Loading model on demand for streaming: {}", gguf_path);
 
@@ -256,11 +260,14 @@ std::vector<std::string> InferenceEngine::generateChatStream(
                 throw std::runtime_error(load_result.error_message);
             }
         } else {
-            // 自動修復が無効な場合は従来の方法でロード
-            if (!manager_->loadModel(gguf_path)) {
+            // 自動修復が無効な場合はオンデマンドロードを使用
+            if (!manager_->loadModelIfNeeded(gguf_path)) {
                 throw std::runtime_error("Failed to load model: " + gguf_path);
             }
         }
+    } else {
+        // 既にロード済みの場合もアクセス時刻を更新
+        manager_->loadModelIfNeeded(gguf_path);
     }
 
     llama_context* ctx = manager_->getContext(gguf_path);
@@ -458,8 +465,8 @@ ModelLoadResult InferenceEngine::loadModelWithRepair(const std::string& model_na
         gguf_path = ollama_compat_->resolveGguf(model_name);
     }
 
-    // 4. モデルをロード
-    if (!manager_->loadModel(gguf_path)) {
+    // 4. モデルをロード（オンデマンドロード使用）
+    if (!manager_->loadModelIfNeeded(gguf_path)) {
         // ロード失敗時、まだ自動修復を試みていなければ試行
         if (repair_ && !result.repair_triggered) {
             spdlog::warn("Model load failed, attempting auto-repair: {}", model_name);
@@ -468,7 +475,7 @@ ModelLoadResult InferenceEngine::loadModelWithRepair(const std::string& model_na
             if (repair_result.status == RepairStatus::Success) {
                 // 修復成功後に再ロード
                 gguf_path = ollama_compat_->resolveGguf(model_name);
-                if (manager_->loadModel(gguf_path)) {
+                if (manager_->loadModelIfNeeded(gguf_path)) {
                     result.success = true;
                     return result;
                 }
