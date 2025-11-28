@@ -2675,6 +2675,11 @@ const char * llm_arch_name(llm_arch arch) {
 }
 
 llm_arch llm_arch_from_string(const std::string & name) {
+    // gptoss -> gpt-oss alias (Ollama uses "gptoss" without hyphen)
+    if (name == "gptoss") {
+        return LLM_ARCH_OPENAI_MOE;
+    }
+
     for (const auto & kv : LLM_ARCH_NAMES) { // NOLINT
         if (kv.second == name) {
             return kv.first;
