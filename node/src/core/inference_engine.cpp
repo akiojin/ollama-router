@@ -183,6 +183,14 @@ std::string InferenceEngine::generateChat(
         char buf[256];
         int32_t len = llama_token_to_piece(vocab, new_token, buf, sizeof(buf), 0, false);
         if (len > 0) {
+            // Debug: log token ID and raw bytes
+            std::string hex_bytes;
+            for (int32_t j = 0; j < len; j++) {
+                char hex[8];
+                snprintf(hex, sizeof(hex), "%02X ", static_cast<unsigned char>(buf[j]));
+                hex_bytes += hex;
+            }
+            spdlog::debug("Token {}: id={}, len={}, bytes=[{}]", i, new_token, len, hex_bytes);
             output.append(buf, static_cast<size_t>(len));
         }
 
@@ -203,7 +211,14 @@ std::string InferenceEngine::generateChat(
     // 10. クリーンアップ
     llama_sampler_free(sampler);
 
-    spdlog::info("Generated {} tokens for model {}", output.size(), model_name);
+    // Debug: log final output hex dump (first 100 bytes)
+    std::string hex_output;
+    for (size_t j = 0; j < std::min(output.size(), size_t(100)); j++) {
+        char hex[8];
+        snprintf(hex, sizeof(hex), "%02X ", static_cast<unsigned char>(output[j]));
+        hex_output += hex;
+    }
+    spdlog::info("Generated {} bytes for model {}, first 100 bytes: [{}]", output.size(), model_name, hex_output);
     return output;
 }
 
