@@ -79,9 +79,9 @@ llm_build_openai_moe_iswa::llm_build_openai_moe_iswa(const llama_model & model, 
 
         cur = ffn_inp;
         cur = build_norm(cur,
-                model.layers[il].attn_post_norm, nullptr,
+                model.layers[il].ffn_norm, nullptr,
                 LLM_NORM_RMS, il);
-        cb(cur, "attn_post_norm", il);
+        cb(cur, "ffn_norm", il);
 
         // MoE branch
         cur = build_moe_ffn(cur,
