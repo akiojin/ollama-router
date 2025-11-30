@@ -1,33 +1,48 @@
-// APIキー管理のJavaScript (T080-T082)
+// APIキー管理のJavaScript
 
 (function () {
   'use strict';
 
+  // DOM要素
+  const apiKeysButton = document.getElementById('api-keys-button');
+  const apiKeysModal = document.getElementById('api-keys-modal');
+  const apiKeysModalClose = document.getElementById('api-keys-modal-close');
+  const apiKeysModalOk = document.getElementById('api-keys-modal-ok');
   const apiKeysTbody = document.getElementById('api-keys-tbody');
-  const createApiKeyButton = document.getElementById('create-api-key-button');
-  const apiKeyModal = document.getElementById('api-key-modal');
-  const apiKeyModalClose = document.getElementById('api-key-modal-close');
-  const apiKeyModalCancel = document.getElementById('api-key-modal-cancel');
-  const apiKeyModalCreate = document.getElementById('api-key-modal-create');
-  const apiKeyForm = document.getElementById('api-key-form');
   const apiKeyNameInput = document.getElementById('api-key-name');
-  const apiKeyExpiresInput = document.getElementById('api-key-expires');
-
-  const apiKeyDisplayModal = document.getElementById('api-key-display-modal');
-  const apiKeyDisplayClose = document.getElementById('api-key-display-close');
-  const apiKeyDisplayOk = document.getElementById('api-key-display-ok');
-  const apiKeyDisplayCopy = document.getElementById('api-key-display-copy');
-  const apiKeyDisplayValue = document.getElementById('api-key-display-value');
+  const apiKeyExpirySelect = document.getElementById('api-key-expiry');
+  const createApiKeyButton = document.getElementById('create-api-key');
+  const newKeyDisplay = document.getElementById('new-key-display');
+  const newKeyValue = document.getElementById('new-key-value');
+  const copyApiKeyButton = document.getElementById('copy-api-key');
 
   let apiKeys = [];
 
-  // APIキー一覧を読み込む（T080）
+  // モーダルを開く
+  function openModal() {
+    apiKeysModal.classList.remove('hidden');
+    newKeyDisplay.classList.add('hidden');
+    loadApiKeys();
+  }
+
+  // モーダルを閉じる
+  function closeModal() {
+    apiKeysModal.classList.add('hidden');
+    newKeyDisplay.classList.add('hidden');
+    apiKeyNameInput.value = '';
+    apiKeyExpirySelect.value = '';
+  }
+
+  // APIキー一覧を読み込む
   async function loadApiKeys() {
     try {
       const response = await authenticatedFetch('/api/api-keys');
       if (response.ok) {
-        apiKeys = await response.json();
+        const data = await response.json();
+        apiKeys = data.api_keys || data || [];
         renderApiKeys();
+      } else if (response.status === 401 || response.status === 403) {
+        showError('認証が必要です。ログインしてください。');
       } else {
         showError('APIキーの読み込みに失敗しました');
       }
@@ -37,10 +52,10 @@
     }
   }
 
-  // APIキー一覧を表示（T080）
+  // APIキー一覧を表示
   function renderApiKeys() {
-    if (apiKeys.length === 0) {
-      apiKeysTbody.innerHTML = '<tr><td colspan="5" class="empty-message">APIキーがありません</td></tr>';
+    if (!Array.isArray(apiKeys) || apiKeys.length === 0) {
+      apiKeysTbody.innerHTML = '<tr><td colspan="4" class="empty-message">APIキーがありません</td></tr>';
       return;
     }
 
@@ -51,7 +66,6 @@
 
         return `
           <tr>
-            <td style="font-family: monospace; font-size: 0.85em;">${key.id.substring(0, 8)}...</td>
             <td>${escapeHtml(key.name)}</td>
             <td>${createdAt}</td>
             <td>${expiresAt}</td>
@@ -63,7 +77,7 @@
       })
       .join('');
 
-    // 削除ボタンのイベントリスナーを追加（T082）
+    // 削除ボタンのイベントリスナーを追加
     document.querySelectorAll('.delete-api-key').forEach((btn) => {
       btn.addEventListener('click', function () {
         const keyId = this.dataset.id;
@@ -72,10 +86,10 @@
     });
   }
 
-  // APIキーを発行（T081）
+  // APIキーを発行
   async function createApiKey() {
     const name = apiKeyNameInput.value.trim();
-    const expiresAtValue = apiKeyExpiresInput.value;
+    const expiryDays = apiKeyExpirySelect.value;
 
     if (!name) {
       alert('キーの名前を入力してください');
@@ -83,8 +97,10 @@
     }
 
     let expiresAt = null;
-    if (expiresAtValue) {
-      expiresAt = new Date(expiresAtValue).toISOString();
+    if (expiryDays) {
+      const date = new Date();
+      date.setDate(date.getDate() + parseInt(expiryDays, 10));
+      expiresAt = date.toISOString();
     }
 
     try {
@@ -101,12 +117,13 @@
 
       if (response.ok) {
         const data = await response.json();
-        closeApiKeyModal();
-        showApiKeyDisplay(data.key);
+        showNewKey(data.key);
+        apiKeyNameInput.value = '';
+        apiKeyExpirySelect.value = '';
         loadApiKeys();
       } else {
         const error = await response.json().catch(() => ({}));
-        alert(error.error || 'APIキーの発行に失敗しました');
+        alert(error.message || error.error || 'APIキーの発行に失敗しました');
       }
     } catch (error) {
       console.error('Failed to create API key:', error);
@@ -114,7 +131,13 @@
     }
   }
 
-  // APIキーを削除（T082）
+  // 発行されたキーを表示
+  function showNewKey(key) {
+    newKeyValue.textContent = key;
+    newKeyDisplay.classList.remove('hidden');
+  }
+
+  // APIキーを削除
   async function deleteApiKey(keyId) {
     if (!confirm('このAPIキーを削除しますか？')) {
       return;
@@ -136,40 +159,27 @@
     }
   }
 
-  // APIキー発行モーダルを開く
-  function openApiKeyModal() {
-    apiKeyForm.reset();
-    apiKeyModal.classList.remove('hidden');
-  }
-
-  // APIキー発行モーダルを閉じる
-  function closeApiKeyModal() {
-    apiKeyModal.classList.add('hidden');
-    apiKeyForm.reset();
-  }
-
-  // APIキー表示モーダルを表示
-  function showApiKeyDisplay(key) {
-    apiKeyDisplayValue.value = key;
-    apiKeyDisplayModal.classList.remove('hidden');
-  }
-
-  // APIキー表示モーダルを閉じる
-  function closeApiKeyDisplayModal() {
-    apiKeyDisplayModal.classList.add('hidden');
-    apiKeyDisplayValue.value = '';
-  }
-
-  // APIキーをクリップボードにコピー
-  function copyApiKeyToClipboard() {
-    apiKeyDisplayValue.select();
-    document.execCommand('copy');
-    alert('APIキーをコピーしました');
+  // クリップボードにコピー
+  async function copyToClipboard() {
+    const key = newKeyValue.textContent;
+    try {
+      await navigator.clipboard.writeText(key);
+      alert('APIキーをコピーしました');
+    } catch (error) {
+      // フォールバック
+      const textarea = document.createElement('textarea');
+      textarea.value = key;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('APIキーをコピーしました');
+    }
   }
 
   // エラーメッセージを表示
   function showError(message) {
-    apiKeysTbody.innerHTML = `<tr><td colspan="5" class="empty-message" style="color: #c53030;">${escapeHtml(message)}</td></tr>`;
+    apiKeysTbody.innerHTML = `<tr><td colspan="4" class="empty-message" style="color: #c53030;">${escapeHtml(message)}</td></tr>`;
   }
 
   // HTMLエスケープ
@@ -180,27 +190,35 @@
   }
 
   // イベントリスナー
-  createApiKeyButton.addEventListener('click', openApiKeyModal);
-  apiKeyModalClose.addEventListener('click', closeApiKeyModal);
-  apiKeyModalCancel.addEventListener('click', closeApiKeyModal);
-  apiKeyModalCreate.addEventListener('click', createApiKey);
+  if (apiKeysButton) {
+    apiKeysButton.addEventListener('click', openModal);
+  }
+  if (apiKeysModalClose) {
+    apiKeysModalClose.addEventListener('click', closeModal);
+  }
+  if (apiKeysModalOk) {
+    apiKeysModalOk.addEventListener('click', closeModal);
+  }
+  if (createApiKeyButton) {
+    createApiKeyButton.addEventListener('click', createApiKey);
+  }
+  if (copyApiKeyButton) {
+    copyApiKeyButton.addEventListener('click', copyToClipboard);
+  }
 
-  apiKeyDisplayClose.addEventListener('click', closeApiKeyDisplayModal);
-  apiKeyDisplayOk.addEventListener('click', closeApiKeyDisplayModal);
-  apiKeyDisplayCopy.addEventListener('click', copyApiKeyToClipboard);
-
-  // タブが開かれたときにAPIキーを読み込む
-  document.querySelectorAll('.tab-button').forEach((btn) => {
-    btn.addEventListener('click', function () {
-      if (this.dataset.tab === 'api-keys') {
-        loadApiKeys();
+  // モーダル背景クリックで閉じる
+  if (apiKeysModal) {
+    apiKeysModal.addEventListener('click', function (e) {
+      if (e.target === apiKeysModal) {
+        closeModal();
       }
     });
-  });
-
-  // 初期読み込み（APIキータブがアクティブの場合）
-  const currentTab = document.querySelector('.tab-button--active');
-  if (currentTab && currentTab.dataset.tab === 'api-keys') {
-    loadApiKeys();
   }
+
+  // ESCキーで閉じる
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && apiKeysModal && !apiKeysModal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
 })();

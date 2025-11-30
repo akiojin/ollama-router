@@ -22,6 +22,9 @@
         <a href="/chat" class="refresh-button" target="_blank" rel="noreferrer">
           チャット
         </a>
+        <button id="api-keys-button" class="refresh-button" type="button">
+          APIキー管理
+        </button>
         <span id="connection-status" class="status-pill status-pill--connecting">
           接続状態: 更新中…
         </span>
@@ -465,6 +468,55 @@
       </div>
     </div>
 
+    <div id="api-keys-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="api-keys-modal-title">
+      <div class="modal__dialog modal__dialog--wide">
+        <header class="modal__header">
+          <h2 id="api-keys-modal-title">APIキー管理</h2>
+          <button type="button" id="api-keys-modal-close" class="modal__close" aria-label="閉じる">×</button>
+        </header>
+        <section class="modal__content">
+          <div class="api-key-form">
+            <input type="text" id="api-key-name" placeholder="キー名（例: Production）" class="api-key-input" />
+            <select id="api-key-expiry" class="api-key-select">
+              <option value="">有効期限なし</option>
+              <option value="7">7日間</option>
+              <option value="30">30日間</option>
+              <option value="90">90日間</option>
+            </select>
+            <button type="button" id="create-api-key" class="btn btn--primary">発行</button>
+          </div>
+
+          <div id="new-key-display" class="new-key-display hidden">
+            <p class="new-key-warning">このキーは一度だけ表示されます。必ずコピーしてください。</p>
+            <div class="new-key-box">
+              <code id="new-key-value"></code>
+              <button type="button" id="copy-api-key" class="btn btn--secondary">コピー</button>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="api-keys-table">
+              <thead>
+                <tr>
+                  <th>名前</th>
+                  <th>作成日</th>
+                  <th>有効期限</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="api-keys-tbody">
+                <tr><td colspan="4" class="empty-message">読み込み中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <footer class="modal__footer">
+          <button type="button" id="api-keys-modal-ok" class="btn">閉じる</button>
+        </footer>
+      </div>
+    </div>
+
+    <script src="/dashboard/api-keys.js" defer></script>
     <script src="/dashboard/app.js" defer></script>
   </body>
 </html>
