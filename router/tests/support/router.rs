@@ -81,6 +81,7 @@ pub async fn register_node(
 }
 
 /// テスト用の管理者ユーザーを作成してAPIキーを取得する
+#[allow(dead_code)]
 pub async fn create_test_api_key(router_addr: SocketAddr, db_pool: &SqlitePool) -> String {
     // 管理者ユーザーを作成
     let password_hash = llm_router::auth::password::hash_password("password123").unwrap();
@@ -121,6 +122,7 @@ pub async fn create_test_api_key(router_addr: SocketAddr, db_pool: &SqlitePool) 
 }
 
 /// ルーターサーバーをテスト用に起動する（DBプールも返す）
+#[allow(dead_code)]
 pub async fn spawn_test_router_with_db() -> (TestServer, SqlitePool) {
     // テスト用に一時ディレクトリを設定
     let temp_dir = std::env::temp_dir().join(format!(
