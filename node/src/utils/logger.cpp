@@ -19,10 +19,15 @@ namespace {
     constexpr const char* LOG_SUBDIR = "logs";
     constexpr int DEFAULT_RETENTION_DAYS = 7;
 
-    // Environment variable names
-    constexpr const char* LLM_LOG_DIR_ENV = "LLM_LOG_DIR";
-    constexpr const char* LLM_LOG_LEVEL_ENV = "LLM_LOG_LEVEL";
-    constexpr const char* LLM_LOG_RETENTION_DAYS_ENV = "LLM_LOG_RETENTION_DAYS";
+    // New environment variable names (LLM_NODE_* prefix)
+    constexpr const char* LLM_NODE_LOG_DIR_ENV = "LLM_NODE_LOG_DIR";
+    constexpr const char* LLM_NODE_LOG_LEVEL_ENV = "LLM_NODE_LOG_LEVEL";
+    constexpr const char* LLM_NODE_LOG_RETENTION_DAYS_ENV = "LLM_NODE_LOG_RETENTION_DAYS";
+
+    // Deprecated environment variable names (fallback)
+    constexpr const char* LEGACY_LOG_DIR_ENV = "LLM_LOG_DIR";
+    constexpr const char* LEGACY_LOG_LEVEL_ENV = "LLM_LOG_LEVEL";
+    constexpr const char* LEGACY_LOG_RETENTION_DAYS_ENV = "LLM_LOG_RETENTION_DAYS";
     constexpr const char* LEGACY_LEVEL_ENV = "LOG_LEVEL";
 
     std::string get_today_date() {
@@ -61,8 +66,13 @@ spdlog::level::level_enum parse_level(const std::string& level_text) {
 }
 
 std::string get_log_dir() {
-    // LLM_LOG_DIR takes priority
-    if (const char* env = std::getenv(LLM_LOG_DIR_ENV)) {
+    // New env var takes priority
+    if (const char* env = std::getenv(LLM_NODE_LOG_DIR_ENV)) {
+        return env;
+    }
+    // Fallback to deprecated env var
+    if (const char* env = std::getenv(LEGACY_LOG_DIR_ENV)) {
+        // Note: Can't log warning here because logger not initialized yet
         return env;
     }
 
@@ -77,7 +87,17 @@ std::string get_log_file_path() {
 }
 
 int get_retention_days() {
-    if (const char* env = std::getenv(LLM_LOG_RETENTION_DAYS_ENV)) {
+    // New env var takes priority
+    if (const char* env = std::getenv(LLM_NODE_LOG_RETENTION_DAYS_ENV)) {
+        try {
+            int days = std::stoi(env);
+            if (days > 0 && days < 365) {
+                return days;
+            }
+        } catch (...) {}
+    }
+    // Fallback to deprecated env var
+    if (const char* env = std::getenv(LEGACY_LOG_RETENTION_DAYS_ENV)) {
         try {
             int days = std::stoi(env);
             if (days > 0 && days < 365) {
@@ -147,9 +167,11 @@ void init(const std::string& level,
 }
 
 void init_from_env() {
-    // Get log level (priority: LLM_LOG_LEVEL > LOG_LEVEL)
+    // Get log level (priority: LLM_NODE_LOG_LEVEL > LLM_LOG_LEVEL > LOG_LEVEL)
     std::string level = "info";
-    if (const char* env = std::getenv(LLM_LOG_LEVEL_ENV)) {
+    if (const char* env = std::getenv(LLM_NODE_LOG_LEVEL_ENV)) {
+        level = env;
+    } else if (const char* env = std::getenv(LEGACY_LOG_LEVEL_ENV)) {
         level = env;
     } else if (const char* env = std::getenv(LEGACY_LEVEL_ENV)) {
         level = env;

@@ -21,6 +21,8 @@
 #include "api/node_endpoints.h"
 #include "api/http_server.h"
 #include "utils/config.h"
+#include "utils/cli.h"
+#include "utils/version.h"
 #include "runtime/state.h"
 #include "utils/logger.h"
 
@@ -274,11 +276,18 @@ void signalHandler(int signal) {
 
 #ifndef LLM_NODE_TESTING
 int main(int argc, char* argv[]) {
+    // Parse CLI arguments first
+    auto cli_result = ollama_node::parseCliArgs(argc, argv);
+    if (cli_result.should_exit) {
+        std::cout << cli_result.output;
+        return cli_result.exit_code;
+    }
+
     // Set up signal handlers
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
-    std::cout << "llm-node v1.0.0 starting..." << std::endl;
+    std::cout << "llm-node v" << LLM_NODE_VERSION << " starting..." << std::endl;
 
     auto cfg = ollama_node::loadNodeConfig();
     return run_node(cfg, /*single_iteration=*/false);

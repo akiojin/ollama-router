@@ -41,15 +41,17 @@ pub mod logging;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
 
-/// 設定管理（設定ファイル読み込み）
-///
-/// 将来的にTOMLベースの設定ファイル対応を追加予定（SPEC-32e2b31a T055）
-pub mod config {
-    // 未実装: 設定ファイル読み込み
-}
+/// 設定管理（環境変数ヘルパー）
+pub mod config;
+
+/// JWT秘密鍵管理
+pub mod jwt_secret;
 
 /// 認証・認可機能
 pub mod auth;
+
+/// CLIインターフェース
+pub mod cli;
 
 /// アプリケーション状態
 #[derive(Clone)]
