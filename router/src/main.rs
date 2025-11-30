@@ -1,6 +1,8 @@
 //! Ollama Router Server Entry Point
 
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use clap::Parser;
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use llm_router::cli::{Cli, Commands};
 use llm_router::config::{get_env_with_fallback_or, get_env_with_fallback_parse};
 use llm_router::{api, auth, balancer, health, logging, registry, tasks, AppState};
@@ -87,6 +89,7 @@ async fn main() {
 }
 
 /// Handle user management CLI commands
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 async fn handle_user_command(command: llm_router::cli::user::UserCommand) {
     use llm_router::cli::user::UserCommand;
     use llm_router::db;
