@@ -1,6 +1,6 @@
 # Authentication Guide
 
-This document provides comprehensive information about Ollama Coordinator's
+This document provides comprehensive information about LLM Router's
 authentication and authorization system.
 
 ## Table of Contents
@@ -17,7 +17,7 @@ authentication and authorization system.
 
 ## Overview
 
-Ollama Coordinator implements a multi-layered authentication system designed
+LLM Router implements a multi-layered authentication system designed
 to secure access to the coordinator, protect agent communication, and enable
 external application integration.
 

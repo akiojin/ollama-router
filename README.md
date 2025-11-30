@@ -122,7 +122,7 @@ Selects agents based on real-time metrics (CPU usage, memory usage, active reque
 **Configuration:**
 ```bash
 # Enable metrics-based load balancing
-LOAD_BALANCER_MODE=metrics cargo run -p ollama-router-coordinator
+LOAD_BALANCER_MODE=metrics cargo run -p llm-router
 ```
 
 **Load Score Calculation:**
@@ -143,7 +143,7 @@ Combines multiple factors including response time, active requests, and CPU usag
 **Configuration:**
 ```bash
 # Use default advanced load balancing (or omit LOAD_BALANCER_MODE)
-LOAD_BALANCER_MODE=auto cargo run -p ollama-router-coordinator
+LOAD_BALANCER_MODE=auto cargo run -p llm-router
 ```
 
 ### Metrics API
@@ -202,7 +202,7 @@ Machine 1          Machine 2          Machine 3
 
 ### Communication Flow (Proxy Pattern)
 
-Ollama Router uses a **Proxy Pattern** - clients only need to know the Coordinator URL.
+LLM Router uses a **Proxy Pattern** - clients only need to know the Router URL.
 
 #### Traditional Method (Without Coordinator)
 ```bash
@@ -326,7 +326,7 @@ The dashboard ships with the coordinator process. Once the server is running you
 
 1. Start the coordinator (inside Docker or on the host):
    ```bash
-   cargo run -p ollama-router-coordinator
+   cargo run -p llm-router
    ```
 2. Open the dashboard in your browser:
    ```
@@ -362,15 +362,15 @@ For a deeper walkthrough, including API references and customisation tips, see [
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/ollama-router.git
-cd ollama-router
+git clone https://github.com/your-org/llm-router.git
+cd llm-router
 
 # Build Coordinator
 cd coordinator
 cargo build --release
 
 # Start Coordinator
-./target/release/ollama-router-coordinator
+./target/release/llm-router
 # Default: http://0.0.0.0:8080
 ```
 
@@ -382,10 +382,10 @@ cd agent
 cargo build --release
 
 # Start Agent (環境変数で上書き)
-ROUTER_URL=http://coordinator-host:8080 ./target/release/ollama-router-agent
+ROUTER_URL=http://coordinator-host:8080 ./target/release/llm-node
 
 # 環境変数を指定しない場合はローカル設定パネルで保存した値、なければ http://localhost:8080
-./target/release/ollama-router-agent
+./target/release/llm-node
 ```
 
 **Note**: Ollama is automatically downloaded and installed on first startup if not already present. The agent will:
@@ -449,7 +449,7 @@ If automatic detection fails, set environment variables:
 LLM_GPU_AVAILABLE=true \
 LLM_GPU_MODEL="Your GPU Model" \
 LLM_GPU_COUNT=1 \
-./target/release/ollama-router-agent
+./target/release/llm-node
 ```
 
 ## Usage
@@ -465,13 +465,13 @@ LLM_GPU_COUNT=1 \
 2. **Start Agents on Multiple Machines**
    ```bash
    # Machine 1
-   ROUTER_URL=http://coordinator:8080 cargo run --release --bin ollama-router-agent
+   ROUTER_URL=http://coordinator:8080 cargo run --release --bin llm-node
 
    # Machine 2
-   ROUTER_URL=http://coordinator:8080 cargo run --release --bin ollama-router-agent
+   ROUTER_URL=http://coordinator:8080 cargo run --release --bin llm-node
 
    # Machine 3
-   ROUTER_URL=http://coordinator:8080 cargo run --release --bin ollama-router-agent
+   ROUTER_URL=http://coordinator:8080 cargo run --release --bin llm-node
    ```
 
 3. **Use Ollama API Through Coordinator**

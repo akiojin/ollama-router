@@ -1,6 +1,6 @@
-//! Ollama Router Server
+//! LLM Router Server
 //!
-//! 複数Ollamaインスタンスを管理する中央サーバー
+//! 複数LLMノードを管理する中央サーバー
 
 #![warn(missing_docs)]
 
