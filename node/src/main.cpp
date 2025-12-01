@@ -140,10 +140,14 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
             : ollama_node::InferenceEngine(llama_manager, model_storage);
         spdlog::info("InferenceEngine initialized with llama.cpp support{}", cfg.auto_repair ? " (auto-repair enabled)" : "");
 
+        // Create shared router client for both registration and progress reporting
+        auto router_client = std::make_shared<ollama_node::RouterClient>(router_url);
+
         // Start HTTP server BEFORE registration (router checks /v1/models endpoint)
         ollama_node::OpenAIEndpoints openai(registry, engine);
         ollama_node::NodeEndpoints node_endpoints;
         node_endpoints.setGpuInfo(gpus.size(), total_mem, capability);
+        node_endpoints.setRouterClient(router_client);
         ollama_node::HttpServer server(node_port, openai, node_endpoints, bind_address);
         std::cout << "Starting HTTP server on port " << node_port << "..." << std::endl;
         server.start();
@@ -204,15 +208,18 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
 
         // Sync models from router
         std::cout << "Syncing models from router..." << std::endl;
-        ollama_node::ModelSync model_sync(router_url, models_dir);
-        auto sync_result = model_sync.sync();
-        if (sync_result.to_download.empty() && sync_result.to_delete.empty() && model_sync.listLocalModels().empty()) {
+        auto model_sync = std::make_shared<ollama_node::ModelSync>(router_url, models_dir);
+        auto sync_result = model_sync->sync();
+        if (sync_result.to_download.empty() && sync_result.to_delete.empty() && model_sync->listLocalModels().empty()) {
             // If nothing synced and no local models, treat as recoverable error and retry once
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            sync_result = model_sync.sync();
+            sync_result = model_sync->sync();
         }
         // Update registry with synced models
-        registry.setModels(model_sync.fetchRemoteModels());
+        registry.setModels(model_sync->fetchRemoteModels());
+
+        // Set model sync for pull endpoint (T033)
+        node_endpoints.setModelSync(model_sync);
 
         ollama_node::set_ready(true);
 
