@@ -3,17 +3,21 @@
 //! モデル一覧取得、配布、進捗追跡のエンドポイント
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
+use once_cell::sync::Lazy;
+use reqwest;
 use serde::{Deserialize, Serialize};
+use std::sync::RwLock;
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::{
     ollama::OllamaClient,
-    registry::models::{DownloadStatus, DownloadTask, InstalledModel, ModelInfo},
+    registry::models::{DownloadStatus, DownloadTask, InstalledModel, ModelInfo, ModelSource},
     AppState,
 };
 use llm_router_common::error::RouterError;
@@ -24,6 +28,15 @@ use llm_router_common::error::RouterError;
 /// - name: 小文字英数字、ハイフン、アンダースコア
 /// - tag: 英数字、ピリオド、ハイフン
 fn validate_model_name(model_name: &str) -> Result<(), RouterError> {
+    if model_name.starts_with("hf/") {
+        // HF形式はプレフィックスだけ確認
+        if model_name.len() > 3 {
+            return Ok(());
+        }
+        return Err(RouterError::InvalidModelName(
+            "無効なHFモデル名".to_string(),
+        ));
+    }
     if model_name.is_empty() {
         return Err(RouterError::InvalidModelName(
             "モデル名が空です".to_string(),
@@ -97,8 +110,25 @@ pub struct AvailableModelView {
 pub struct AvailableModelsResponse {
     /// モデル一覧（UI表示用に整形済み）
     pub models: Vec<AvailableModelView>,
-    /// ソース（"ollama_library" または "nodes"）
+    /// ソース（"ollama_library" / "hf" など）
     pub source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// キャッシュヒットかどうか
+    pub cached: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// ページネーション情報
+    pub pagination: Option<Pagination>,
+}
+
+#[derive(Debug, Serialize)]
+/// ページネーション情報
+pub struct Pagination {
+    /// 取得件数
+    pub limit: u32,
+    /// オフセット
+    pub offset: u32,
+    /// 総件数（未取得時は0）
+    pub total: u32,
 }
 
 /// 複数ノードにまたがるロード済みモデルの集計
@@ -119,8 +149,16 @@ pub struct LoadedModelSummary {
 }
 
 fn model_info_to_view(model: ModelInfo) -> AvailableModelView {
-    let size_gb = (model.size as f64) / (1024.0 * 1024.0 * 1024.0);
-    let required_memory_gb = (model.required_memory as f64) / (1024.0 * 1024.0 * 1024.0);
+    let size_gb = if model.size > 0 {
+        Some((model.size as f64) / (1024.0 * 1024.0 * 1024.0))
+    } else {
+        None
+    };
+    let required_memory_gb = if model.required_memory > 0 {
+        Some((model.required_memory as f64) / (1024.0 * 1024.0 * 1024.0))
+    } else {
+        None
+    };
     let display_name = if let Some((prefix, tag)) = model.name.split_once(':') {
         Some(format!("{} {}", prefix.to_uppercase(), tag.to_uppercase()))
     } else {
@@ -132,9 +170,166 @@ fn model_info_to_view(model: ModelInfo) -> AvailableModelView {
         display_name,
         description: Some(model.description),
         tags: Some(model.tags),
-        size_gb: Some(size_gb),
-        required_memory_gb: Some(required_memory_gb),
+        size_gb,
+        required_memory_gb,
     }
+}
+
+// ===== Registered model store (in-memory) =====
+static REGISTERED_MODELS: Lazy<RwLock<Vec<ModelInfo>>> = Lazy::new(|| RwLock::new(Vec::new()));
+
+/// 登録済みモデルをストレージからロード
+pub async fn load_registered_models_from_storage() {
+    if let Ok(models) = crate::db::models::load_models().await {
+        let mut store = REGISTERED_MODELS.write().unwrap();
+        *store = models;
+    }
+}
+
+/// 登録済みモデル一覧を取得
+pub fn list_registered_models() -> Vec<ModelInfo> {
+    REGISTERED_MODELS.read().unwrap().clone()
+}
+
+/// 登録モデルを追加（重複チェックあり）
+fn add_registered_model(model: ModelInfo) -> Result<(), RouterError> {
+    let mut store = REGISTERED_MODELS.write().unwrap();
+    if store.iter().any(|m| m.name == model.name) {
+        return Err(RouterError::InvalidModelName("重複登録されています".into()));
+    }
+    store.push(model);
+    Ok(())
+}
+
+/// 登録モデルを永続化（失敗はログのみ）
+pub async fn persist_registered_models() {
+    if let Ok(store) = std::panic::catch_unwind(|| REGISTERED_MODELS.read().unwrap().clone()) {
+        let _ = crate::db::models::save_models(&store).await;
+    }
+}
+
+// ===== HF available cache =====
+#[derive(Clone)]
+struct HfCache {
+    fetched_at: Instant,
+    models: Vec<ModelInfo>,
+}
+
+static HF_CACHE: Lazy<RwLock<Option<HfCache>>> = Lazy::new(|| RwLock::new(None));
+
+const HF_CACHE_TTL: Duration = Duration::from_secs(300);
+
+#[derive(Deserialize)]
+/// HFカタログクエリ
+pub struct AvailableQuery {
+    /// 部分一致検索
+    pub search: Option<String>,
+    /// 取得件数
+    pub limit: Option<u32>,
+    /// オフセット
+    pub offset: Option<u32>,
+    /// ソース指定（hf/ollama_library）
+    pub source: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct HfModel {
+    #[serde(rename = "modelId")]
+    model_id: String,
+    tags: Option<Vec<String>>,
+    #[serde(default)]
+    siblings: Vec<HfSibling>,
+    #[serde(rename = "lastModified")]
+    last_modified: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct HfSibling {
+    #[serde(rename = "rfilename")]
+    rfilename: String,
+    size: Option<u64>,
+}
+
+async fn fetch_hf_models(query: &AvailableQuery) -> Result<(Vec<ModelInfo>, bool), RouterError> {
+    // cache hit
+    if query.search.is_none() {
+        if let Some(cache) = HF_CACHE.read().unwrap().as_ref() {
+            if cache.fetched_at.elapsed() < HF_CACHE_TTL {
+                return Ok((cache.models.clone(), true));
+            }
+        }
+    }
+
+    let limit = query.limit.unwrap_or(20).min(100);
+    let offset = query.offset.unwrap_or(0);
+    let search = query.search.clone().unwrap_or_default();
+
+    let token = std::env::var("HF_TOKEN").ok();
+    let url = format!(
+        "https://huggingface.co/api/models?library=gguf&limit={limit}&offset={offset}&search={search}&fields=modelId,tags,lastModified,siblings"
+    );
+
+    let client = reqwest::Client::new();
+    let mut req = client.get(url);
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| RouterError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(RouterError::Http(resp.status().to_string()));
+    }
+    let models_raw: Vec<HfModel> = resp
+        .json()
+        .await
+        .map_err(|e| RouterError::Http(e.to_string()))?;
+
+    let mut out = Vec::new();
+    for m in models_raw {
+        // pick gguf siblings
+        for sib in m.siblings {
+            if !sib.rfilename.ends_with(".gguf") {
+                continue;
+            }
+            let name = format!("hf/{}/{}", m.model_id, sib.rfilename);
+            let size = sib.size.unwrap_or(0);
+            let download_url = format!(
+                "https://huggingface.co/{}/resolve/main/{}",
+                m.model_id, sib.rfilename
+            );
+            let tags = m.tags.clone().unwrap_or_default();
+            let last_modified = m
+                .last_modified
+                .as_ref()
+                .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                .map(|dt| dt.with_timezone(&chrono::Utc));
+
+            out.push(ModelInfo {
+                name: name.clone(),
+                size,
+                description: m.model_id.clone(),
+                required_memory: size,
+                tags,
+                source: ModelSource::HfGguf,
+                download_url: Some(download_url),
+                repo: Some(m.model_id.clone()),
+                filename: Some(sib.rfilename.clone()),
+                last_modified,
+                status: Some("available".into()),
+            });
+        }
+    }
+
+    if query.search.is_none() {
+        *HF_CACHE.write().unwrap() = Some(HfCache {
+            fetched_at: Instant::now(),
+            models: out.clone(),
+        });
+    }
+
+    Ok((out, false))
 }
 
 /// モデル配布リクエスト
@@ -219,22 +414,89 @@ impl IntoResponse for AppError {
 /// T027: GET /api/models/available - 利用可能なモデル一覧を取得
 pub async fn get_available_models(
     State(_state): State<AppState>,
+    Query(query): Query<AvailableQuery>,
 ) -> Result<Json<AvailableModelsResponse>, AppError> {
+    // Default to built-in Ollama library for backward compatibility.
+    // Hugging Face catalog is available via `source=hf` query parameter.
+    let source = query
+        .source
+        .clone()
+        .unwrap_or_else(|| "ollama_library".into());
+
+    if source == "hf" {
+        tracing::debug!("Fetching available models from Hugging Face");
+        let (models, cached) = fetch_hf_models(&query).await?;
+        let models_view = models.into_iter().map(model_info_to_view).collect();
+        return Ok(Json(AvailableModelsResponse {
+            models: models_view,
+            source: "hf".to_string(),
+            cached: Some(cached),
+            pagination: Some(Pagination {
+                limit: query.limit.unwrap_or(20),
+                offset: query.offset.unwrap_or(0),
+                total: 0,
+            }),
+        }));
+    }
+
     tracing::debug!("Fetching available models from Ollama library");
-
     let client = OllamaClient::new()?;
-
-    // 事前定義モデルを取得（ノードからの取得は後で実装）
     let models = client.get_predefined_models();
-
-    tracing::info!("Available models retrieved: count={}", models.len());
-
     let models_view = models.into_iter().map(model_info_to_view).collect();
-
     Ok(Json(AvailableModelsResponse {
         models: models_view,
         source: "ollama_library".to_string(),
+        cached: None,
+        pagination: None,
     }))
+}
+
+#[derive(Deserialize)]
+/// HFモデル登録リクエスト
+pub struct RegisterModelRequest {
+    /// HFリポジトリ名 (e.g., TheBloke/Llama-2-7B-GGUF)
+    pub repo: String,
+    /// ファイル名 (e.g., llama-2-7b.Q4_K_M.gguf)
+    pub filename: String,
+    /// 表示名（任意）
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
+/// POST /api/models/register - HF GGUFを対応モデルに登録
+pub async fn register_model(
+    Json(req): Json<RegisterModelRequest>,
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let name = format!("hf/{}/{}", req.repo, req.filename);
+    let download_url = format!(
+        "https://huggingface.co/{}/resolve/main/{}",
+        req.repo, req.filename
+    );
+
+    let model = ModelInfo {
+        name: name.clone(),
+        size: 0,
+        description: req.display_name.unwrap_or_else(|| req.repo.clone()),
+        required_memory: 0,
+        tags: vec!["gguf".into()],
+        source: ModelSource::HfGguf,
+        download_url: Some(download_url),
+        repo: Some(req.repo.clone()),
+        filename: Some(req.filename.clone()),
+        last_modified: None,
+        status: Some("registered".into()),
+    };
+
+    add_registered_model(model)?;
+    persist_registered_models().await;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({
+            "name": name,
+            "status": "registered"
+        })),
+    ))
 }
 
 /// GET /api/models/loaded - ルーター全体のロード済みモデル集計
@@ -548,4 +810,169 @@ pub async fn update_progress(
     }
 
     Ok(StatusCode::OK)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_model_name_valid() {
+        assert!(validate_model_name("gpt-oss").is_ok());
+        assert!(validate_model_name("gpt-oss:7b").is_ok());
+        assert!(validate_model_name("llama3.2:latest").is_ok());
+        assert!(validate_model_name("model_name:v1.0").is_ok());
+    }
+
+    #[test]
+    fn test_validate_model_name_empty() {
+        assert!(validate_model_name("").is_err());
+    }
+
+    #[test]
+    fn test_validate_model_name_too_many_colons() {
+        assert!(validate_model_name("a:b:c").is_err());
+    }
+
+    #[test]
+    fn test_validate_model_name_invalid_characters() {
+        assert!(validate_model_name("Model Name").is_err());
+        assert!(validate_model_name("model@name").is_err());
+    }
+
+    #[test]
+    fn test_available_model_view_serialize() {
+        let view = AvailableModelView {
+            name: "gpt-oss:7b".to_string(),
+            display_name: Some("GPT-OSS 7B".to_string()),
+            description: Some("Test model".to_string()),
+            tags: Some(vec!["7b".to_string()]),
+            size_gb: Some(4.0),
+            required_memory_gb: Some(6.0),
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        assert!(json.contains("gpt-oss:7b"));
+        assert!(json.contains("GPT-OSS 7B"));
+    }
+
+    #[test]
+    fn test_available_model_view_optional_fields_skipped() {
+        let view = AvailableModelView {
+            name: "test".to_string(),
+            display_name: None,
+            description: None,
+            tags: None,
+            size_gb: None,
+            required_memory_gb: None,
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        assert!(!json.contains("display_name"));
+        assert!(!json.contains("description"));
+    }
+
+    #[test]
+    fn test_available_models_response_serialize() {
+        let response = AvailableModelsResponse {
+            models: vec![],
+            source: "ollama_library".to_string(),
+            cached: None,
+            pagination: None,
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("ollama_library"));
+    }
+
+    #[test]
+    fn test_loaded_model_summary_serialize() {
+        let summary = LoadedModelSummary {
+            model_name: "test:7b".to_string(),
+            total_nodes: 3,
+            pending: 1,
+            downloading: 1,
+            completed: 1,
+            failed: 0,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("test:7b"));
+        assert!(json.contains("\"total_nodes\":3"));
+    }
+
+    #[test]
+    fn test_distribute_models_request_deserialize() {
+        let json = r#"{"model_name": "test:7b", "target": "all"}"#;
+        let request: DistributeModelsRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(request.model_name, "test:7b");
+        assert_eq!(request.target, "all");
+        assert!(request.node_ids.is_empty());
+    }
+
+    #[test]
+    fn test_distribute_models_request_with_node_ids() {
+        let json = r#"{"model_name": "test:7b", "target": "specific", "node_ids": ["550e8400-e29b-41d4-a716-446655440000"]}"#;
+        let request: DistributeModelsRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(request.target, "specific");
+        assert_eq!(request.node_ids.len(), 1);
+    }
+
+    #[test]
+    fn test_distribute_models_response_serialize() {
+        let task_id = Uuid::new_v4();
+        let response = DistributeModelsResponse {
+            task_ids: vec![task_id],
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains(&task_id.to_string()));
+    }
+
+    #[test]
+    fn test_pull_model_request_deserialize() {
+        let json = r#"{"model_name": "gpt-oss:20b"}"#;
+        let request: PullModelRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(request.model_name, "gpt-oss:20b");
+    }
+
+    #[test]
+    fn test_pull_model_response_serialize() {
+        let task_id = Uuid::new_v4();
+        let response = PullModelResponse { task_id };
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains(&task_id.to_string()));
+    }
+
+    #[test]
+    fn test_update_progress_request_deserialize() {
+        let json = r#"{"progress": 0.5, "speed": 1024}"#;
+        let request: UpdateProgressRequest = serde_json::from_str(json).unwrap();
+        assert!((request.progress - 0.5).abs() < f32::EPSILON);
+        assert_eq!(request.speed, Some(1024));
+    }
+
+    #[test]
+    fn test_update_progress_request_without_speed() {
+        let json = r#"{"progress": 0.75}"#;
+        let request: UpdateProgressRequest = serde_json::from_str(json).unwrap();
+        assert!((request.progress - 0.75).abs() < f32::EPSILON);
+        assert!(request.speed.is_none());
+    }
+
+    #[test]
+    fn test_model_info_to_view_conversion() {
+        let mut model = crate::registry::models::ModelInfo::new(
+            "gpt-oss:7b".to_string(),
+            4 * 1024 * 1024 * 1024,
+            "Test model".to_string(),
+            6 * 1024 * 1024 * 1024,
+            vec!["7b".to_string()],
+        );
+        model.download_url = None;
+        model.repo = None;
+        model.filename = None;
+        model.last_modified = None;
+        model.status = None;
+        let view = model_info_to_view(model);
+        assert_eq!(view.name, "gpt-oss:7b");
+        assert_eq!(view.display_name, Some("GPT-OSS 7B".to_string()));
+        assert!((view.size_gb.unwrap() - 4.0).abs() < 0.001);
+        assert!((view.required_memory_gb.unwrap() - 6.0).abs() < 0.001);
+    }
 }
