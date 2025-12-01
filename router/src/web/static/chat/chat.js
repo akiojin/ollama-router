@@ -475,8 +475,23 @@
 
     dom.chatLog.querySelector(".chat-welcome")?.remove();
     dom.chatLog.appendChild(node);
-    dom.chatLog.scrollTop = dom.chatLog.scrollHeight;
+    scrollToBottom(true); // スムーズスクロール
     entry.element = node;
+  }
+
+  function isNearBottom() {
+    if (!dom.chatLog) return true;
+    const threshold = 100; // ピクセル単位のしきい値
+    const { scrollTop, scrollHeight, clientHeight } = dom.chatLog;
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  }
+
+  function scrollToBottom(smooth = false) {
+    if (!dom.chatLog) return;
+    dom.chatLog.scrollTo({
+      top: dom.chatLog.scrollHeight,
+      behavior: smooth ? "smooth" : "instant",
+    });
   }
 
   function updateMessage(entry, content) {
@@ -486,6 +501,10 @@
       const metaEl = entry.element.querySelector(".message-meta");
       if (textEl) textEl.textContent = content;
       if (metaEl) metaEl.textContent = messageMeta(entry);
+      // ストリーミング中は自動スクロール（ユーザーが下部付近にいる場合のみ）
+      if (isNearBottom()) {
+        scrollToBottom();
+      }
     }
     persistSessions();
   }
@@ -534,7 +553,7 @@
 
     dom.chatLog.querySelector(".chat-welcome")?.remove();
     dom.chatLog.appendChild(node);
-    dom.chatLog.scrollTop = dom.chatLog.scrollHeight;
+    scrollToBottom(true); // スムーズスクロール
 
     return { id, element: node };
   }
