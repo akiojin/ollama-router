@@ -501,11 +501,13 @@
   function scrollToBottom(smooth = false) {
     const container = getScrollContainer();
     if (!container) return;
-    // requestAnimationFrameでDOM更新後にスクロール
+    // ダブルrequestAnimationFrameでレイアウト完了後にスクロール
     requestAnimationFrame(() => {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: smooth ? "smooth" : "instant",
+      requestAnimationFrame(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: smooth ? "smooth" : "instant",
+        });
       });
     });
   }
