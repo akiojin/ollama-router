@@ -21,6 +21,7 @@
   ];
 
   const STORAGE_KEY = "router:chat:sessions:v1";
+  const SETTINGS_KEY = "router:chat:settings:v1";
 
   const dom = {
     modelSelect: document.getElementById("model-select"),
@@ -280,6 +281,34 @@
       }));
     } catch (_err) {
       state.sessions = [];
+    }
+  }
+
+  function persistSettings() {
+    try {
+      const settings = {
+        streamEnabled: dom.streamToggle?.checked ?? false,
+        appendSystem: dom.appendSystem?.checked ?? true,
+      };
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (_err) {
+      // 永続化失敗は致命的ではないため無視
+    }
+  }
+
+  function hydrateSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return;
+      const settings = JSON.parse(raw);
+      if (dom.streamToggle && typeof settings.streamEnabled === "boolean") {
+        dom.streamToggle.checked = settings.streamEnabled;
+      }
+      if (dom.appendSystem && typeof settings.appendSystem === "boolean") {
+        dom.appendSystem.checked = settings.appendSystem;
+      }
+    } catch (_err) {
+      // 復元失敗は無視
     }
   }
 
@@ -918,6 +947,8 @@
       selectedModel();
       updateSessionHeader(currentSession());
     });
+    dom.streamToggle?.addEventListener("change", persistSettings);
+    dom.appendSystem?.addEventListener("change", persistSettings);
     dom.newChat?.addEventListener("click", () => createSession());
     dom.newChatInline?.addEventListener("click", () => createSession());
     if (dom.sessionList) {
@@ -952,6 +983,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     setStatus("Connecting...", "connecting");
     hydrateSessions();
+    hydrateSettings();
     ensureActiveSession();
     renderSessionList();
     renderProviderButtons();
