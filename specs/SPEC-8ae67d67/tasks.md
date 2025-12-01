@@ -110,15 +110,17 @@
 
 ### ノード側モデルプル拡張
 
-- [x] **T0*33** [P] ノード側API: `agent/src/api/mod.rs` と `agent/src/api/models.rs` を作成
+- [ ] **T0*33** [P] ノード側API: `node/src/api/node_endpoints.cpp` を拡張
   - `POST /pull` エンドポイント（ルーターからの指示を受ける）
-  - 既存の `agent/src/ollama.rs` の `pull_model()` を呼び出し
+  - **現状**: スタブ実装のみ（`{"status": "accepted"}`を返すだけ）
+  - **TODO**: 実際のモデルダウンロード処理を実装
 
 ### 進捗報告機能
 
-- [x] **T0*34** 進捗報告: `agent/src/api/models.rs` で `pull_model()` の進捗をルーターに送信
+- [ ] **T0*34** 進捗報告: `node/src/api/node_endpoints.cpp` で進捗をルーターに送信
   - ストリーミングレスポンスをパースして進捗計算
   - `POST /api/tasks/{task_id}/progress` でルーターに送信
+  - **現状**: 未実装
 
 ---
 
@@ -258,7 +260,7 @@ Task T040, T041, T042, T043 を並列実行
 ---
 
 **総タスク数**: 48タスク + 12タスク（オンデマンドロード）= 60タスク
-**完了タスク数**: 66/66 (Phase 4: 12/12完了) ✅
+**完了タスク数**: 64/66 (T033, T034が未完了 - スタブ実装のみ)
 **推定並列実行**: Setup 3並列, Tests 20並列, Core 一部並列, Polish 4並列
 **TDD遵守**: Phase 3.2（テスト）→ Phase 3.3（実装）の順序厳守
 
