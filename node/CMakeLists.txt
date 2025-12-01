@@ -54,6 +54,11 @@ set(GGML_INTERNAL_SVE OFF CACHE BOOL "Force disable SVE" FORCE)
 # Add third party libraries
 set(LLAMA_BUILD_GIT_VERSION OFF CACHE BOOL "" FORCE)
 set(GGML_BUILD_GIT_VERSION OFF CACHE BOOL "" FORCE)
+# Enable common library for chat template support (minja Jinja parser)
+set(LLAMA_BUILD_COMMON ON CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/llama.cpp)
 add_subdirectory(third_party/nlohmann-json)
 include(FetchContent)
@@ -72,6 +77,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/llama.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/llama.cpp/include
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/llama.cpp/ggml/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/llama.cpp/common
 )
 
 # Find required packages
@@ -148,6 +154,7 @@ add_executable(llm-node ${SOURCES})
 # Link libraries
 target_link_libraries(llm-node
     llama
+    common
     utils_lib
     ${CMAKE_THREAD_LIBS_INIT}
     OpenSSL::SSL

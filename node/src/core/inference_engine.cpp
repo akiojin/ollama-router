@@ -3,6 +3,7 @@
 #include "models/model_storage.h"
 #include "models/model_repair.h"
 #include "include/llama.h"
+#include "chat.h"
 
 #include <spdlog/spdlog.h>
 #include <random>
@@ -44,74 +45,63 @@ std::string InferenceEngine::buildChatPrompt(const std::vector<ChatMessage>& mes
     return oss.str();
 }
 
-// ChatML形式でプロンプトを構築するフォールバック関数
-static std::string buildChatMLPrompt(const std::vector<ChatMessage>& messages) {
-    std::ostringstream oss;
-    for (const auto& msg : messages) {
-        oss << "<|im_start|>" << msg.role << "\n" << msg.content << "<|im_end|>\n";
-    }
-    // アシスタント応答の開始
-    oss << "<|im_start|>assistant\n";
-    return oss.str();
-}
-
-// モデル固有のチャットテンプレートを適用してプロンプトを構築
+// モデル固有のチャットテンプレートを適用してプロンプトを構築（Jinjaサポート）
 static std::string applyModelChatTemplate(
     llama_model* model,
     const std::vector<ChatMessage>& messages) {
 
-    // llama_chat_message 配列を構築
-    std::vector<llama_chat_message> llama_messages;
-    llama_messages.reserve(messages.size());
+    // common_chat_templates を使用してJinjaテンプレートをサポート
+    auto tmpls = common_chat_templates_init(model, "");
+    if (!tmpls) {
+        spdlog::error("Failed to initialize chat templates");
+        throw std::runtime_error(
+            "Failed to initialize chat templates. "
+            "This model may not support chat completions.");
+    }
+
+    // テンプレートソースを取得してログ出力
+    const char* tmpl_src = common_chat_templates_source(tmpls.get());
+    if (tmpl_src) {
+        spdlog::debug("Model chat template source (first 200 chars): {}",
+            std::string(tmpl_src).substr(0, 200));
+    }
+
+    // メッセージを common_chat_msg 形式に変換
+    std::vector<common_chat_msg> chat_messages;
+    chat_messages.reserve(messages.size());
     for (const auto& msg : messages) {
-        llama_messages.push_back({msg.role.c_str(), msg.content.c_str()});
+        common_chat_msg chat_msg;
+        chat_msg.role = msg.role;
+        chat_msg.content = msg.content;
+        chat_messages.push_back(chat_msg);
     }
 
-    // モデルからチャットテンプレートを取得
-    const char* tmpl = llama_model_chat_template(model, nullptr);
+    // テンプレート入力を構築
+    common_chat_templates_inputs inputs;
+    inputs.messages = chat_messages;
+    inputs.add_generation_prompt = true;
+    inputs.use_jinja = true;  // Jinjaテンプレートを有効化（gpt-oss等）
 
-    // テンプレートがない場合はChatML形式を使用
-    if (tmpl == nullptr || tmpl[0] == '\0') {
-        spdlog::info("Model has no chat template, using ChatML format");
-        return buildChatMLPrompt(messages);
+    // テンプレートを適用
+    common_chat_params params;
+    try {
+        params = common_chat_templates_apply(tmpls.get(), inputs);
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to apply chat template: {}", e.what());
+        throw std::runtime_error(
+            std::string("Failed to apply chat template: ") + e.what());
     }
 
-    spdlog::debug("Model chat template found: {}", tmpl);
-
-    // 初回呼び出しで必要なバッファサイズを取得
-    int32_t required_size = llama_chat_apply_template(
-        tmpl,
-        llama_messages.data(),
-        llama_messages.size(),
-        true,  // add_ass: アシスタント応答の開始を追加
-        nullptr,
-        0);
-
-    if (required_size < 0) {
-        // テンプレート適用に失敗した場合、ChatML形式にフォールバック
-        spdlog::warn("llama_chat_apply_template failed (size={}), using ChatML fallback", required_size);
-        return buildChatMLPrompt(messages);
+    if (params.prompt.empty()) {
+        spdlog::error("Chat template produced empty prompt");
+        throw std::runtime_error(
+            "Chat template produced empty prompt. "
+            "This model's chat template may not be supported.");
     }
 
-    // バッファを確保してテンプレートを適用
-    std::vector<char> buf(static_cast<size_t>(required_size) + 1);
-    int32_t actual_size = llama_chat_apply_template(
-        tmpl,
-        llama_messages.data(),
-        llama_messages.size(),
-        true,
-        buf.data(),
-        static_cast<int32_t>(buf.size()));
-
-    if (actual_size < 0 || actual_size > static_cast<int32_t>(buf.size())) {
-        spdlog::error("llama_chat_apply_template failed on second call");
-        // ChatML形式にフォールバック
-        return buildChatMLPrompt(messages);
-    }
-
-    std::string prompt(buf.data(), static_cast<size_t>(actual_size));
-    spdlog::debug("Applied chat template: {} chars", prompt.size());
-    return prompt;
+    spdlog::debug("Applied chat template: {} chars, format: {}",
+        params.prompt.size(), common_chat_format_name(params.format));
+    return params.prompt;
 }
 
 // チャット生成（llama.cpp API使用）
