@@ -143,11 +143,15 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
         // Create shared router client for both registration and progress reporting
         auto router_client = std::make_shared<ollama_node::RouterClient>(router_url);
 
+        // Create model_sync early so pull endpoint is ready for auto-distribution
+        auto model_sync = std::make_shared<ollama_node::ModelSync>(router_url, models_dir);
+
         // Start HTTP server BEFORE registration (router checks /v1/models endpoint)
         ollama_node::OpenAIEndpoints openai(registry, engine);
         ollama_node::NodeEndpoints node_endpoints;
         node_endpoints.setGpuInfo(gpus.size(), total_mem, capability);
         node_endpoints.setRouterClient(router_client);
+        node_endpoints.setModelSync(model_sync);
         ollama_node::HttpServer server(node_port, openai, node_endpoints, bind_address);
         std::cout << "Starting HTTP server on port " << node_port << "..." << std::endl;
         server.start();
@@ -206,20 +210,23 @@ int run_node(const ollama_node::NodeConfig& cfg, bool single_iteration) {
             return 1;
         }
 
-        // Sync models from router
+        // Sync models from router (model_sync already created earlier for pull endpoint)
         std::cout << "Syncing models from router..." << std::endl;
-        auto model_sync = std::make_shared<ollama_node::ModelSync>(router_url, models_dir);
         auto sync_result = model_sync->sync();
         if (sync_result.to_download.empty() && sync_result.to_delete.empty() && model_sync->listLocalModels().empty()) {
             // If nothing synced and no local models, treat as recoverable error and retry once
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             sync_result = model_sync->sync();
         }
-        // Update registry with synced models
-        registry.setModels(model_sync->fetchRemoteModels());
-
-        // Set model sync for pull endpoint (T033)
-        node_endpoints.setModelSync(model_sync);
+        // Update registry with local models (models actually available on this node)
+        auto local_model_infos = model_storage.listAvailable();
+        std::vector<std::string> local_model_names;
+        local_model_names.reserve(local_model_infos.size());
+        for (const auto& info : local_model_infos) {
+            local_model_names.push_back(info.name);
+        }
+        registry.setModels(local_model_names);
+        spdlog::info("Registered {} local models", local_model_names.size());
 
         ollama_node::set_ready(true);
 

@@ -84,6 +84,10 @@ public:
     // 直近の同期ステータスを取得
     SyncStatusInfo getStatus() const;
 
+    // Getter methods for paths
+    const std::string& getModelsDir() const { return models_dir_; }
+    const std::string& getBaseUrl() const { return base_url_; }
+
 private:
     std::string base_url_;
     std::string models_dir_;

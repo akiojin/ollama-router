@@ -44,10 +44,10 @@ void NodeEndpoints::registerRoutes(httplib::Server& server) {
             std::thread([sync, client, model_name, task_id]() {
                 spdlog::info("Starting model download: model={}, task_id={}", model_name, task_id);
 
-                // Create downloader with same config as sync
+                // Create downloader with proper paths from sync
                 ModelDownloader downloader(
-                    "", // registry_base (not used for downloadModel)
-                    sync->listLocalModels().empty() ? "" : "",
+                    sync->getBaseUrl(),
+                    sync->getModelsDir(),
                     std::chrono::milliseconds(30000));
 
                 // Progress callback that reports to router
