@@ -96,9 +96,9 @@ async fn chat_page_contains_settings_toggle() {
         "settings toggle button is missing"
     );
 
-    // Settings panel should be collapsed by default
+    // Settings modal should exist
     assert!(
-        html.contains("openui-controls--collapsed"),
-        "settings panel should be collapsed by default"
+        html.contains("id=\"settings-modal\""),
+        "settings modal is missing"
     );
 }

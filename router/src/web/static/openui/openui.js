@@ -47,10 +47,14 @@
     activeSessionMeta: document.getElementById("active-session-meta"),
     chatMeta: document.getElementById("chat-meta-hint"),
     settingsToggle: document.getElementById("settings-toggle"),
-    settingsPanel: document.querySelector(".openui-controls"),
+    settingsModal: document.getElementById("settings-modal"),
+    modalClose: document.getElementById("modal-close"),
+    sidebar: document.getElementById("sidebar"),
+    sidebarToggle: document.getElementById("sidebar-toggle"),
+    sidebarToggleMobile: document.getElementById("sidebar-toggle-mobile"),
   };
   dom.providerButtons = dom.providerToggle
-    ? Array.from(dom.providerToggle.querySelectorAll(".segmented__btn"))
+    ? Array.from(dom.providerToggle.querySelectorAll(".provider-btn"))
     : [];
 
   const state = {
@@ -82,23 +86,23 @@
   function setStatus(text, variant = "online") {
     const el = dom.routerStatus;
     if (!el) return;
-    el.textContent = text;
+    el.title = text;
 
     el.classList.remove(
-      "status-pill--connecting",
-      "status-pill--offline",
-      "status-pill--online",
-      "status-pill--error",
+      "status-indicator--connecting",
+      "status-indicator--offline",
+      "status-indicator--online",
+      "status-indicator--error",
     );
 
     const map = {
-      online: "status-pill--online",
-      offline: "status-pill--offline",
-      connecting: "status-pill--connecting",
-      error: "status-pill--error",
+      online: "status-indicator--online",
+      offline: "status-indicator--offline",
+      connecting: "status-indicator--connecting",
+      error: "status-indicator--error",
     };
 
-    el.classList.add(map[variant] ?? "status-pill--online");
+    el.classList.add(map[variant] ?? "status-indicator--online");
   }
 
   function showError(message) {
@@ -359,7 +363,7 @@
     dom.chatLog.innerHTML = "";
     if (!history || !history.length) {
       dom.chatLog.innerHTML =
-        '<div class="chat-empty">No messages yet. Send a message using the input below.</div>';
+        '<div class="chat-welcome"><h2>LLM Router Chat</h2><p>Select a model and start chatting</p></div>';
       return;
     }
     for (const entry of history) {
@@ -435,15 +439,19 @@
     node.dataset.messageId = entry.id;
     node.classList.add(`message--${entry.role}`);
 
-    const roleEl = node.querySelector(".message__role");
-    const textEl = node.querySelector(".message__text");
-    const metaEl = node.querySelector(".message__meta");
+    const avatarEl = node.querySelector(".message-avatar");
+    const roleEl = node.querySelector(".message-role");
+    const textEl = node.querySelector(".message-text");
+    const metaEl = node.querySelector(".message-meta");
 
-    roleEl.textContent = messageLabel(entry.role);
-    textEl.textContent = entry.content;
-    metaEl.textContent = messageMeta(entry);
+    if (avatarEl) {
+      avatarEl.textContent = entry.role === "assistant" ? "AI" : "You";
+    }
+    if (roleEl) roleEl.textContent = messageLabel(entry.role);
+    if (textEl) textEl.textContent = entry.content;
+    if (metaEl) metaEl.textContent = messageMeta(entry);
 
-    dom.chatLog.querySelector(".chat-empty")?.remove();
+    dom.chatLog.querySelector(".chat-welcome")?.remove();
     dom.chatLog.appendChild(node);
     dom.chatLog.scrollTop = dom.chatLog.scrollHeight;
     entry.element = node;
@@ -452,8 +460,8 @@
   function updateMessage(entry, content) {
     entry.content = content;
     if (entry.element) {
-      const textEl = entry.element.querySelector(".message__text");
-      const metaEl = entry.element.querySelector(".message__meta");
+      const textEl = entry.element.querySelector(".message-text");
+      const metaEl = entry.element.querySelector(".message-meta");
       if (textEl) textEl.textContent = content;
       if (metaEl) metaEl.textContent = messageMeta(entry);
     }
@@ -637,9 +645,9 @@
     dom.providerButtons?.forEach((btn) => {
       const value = btn.dataset.provider;
       if (value === state.providerFilter) {
-        btn.classList.add("segmented__btn--active");
+        btn.classList.add("provider-btn--active");
       } else {
-        btn.classList.remove("segmented__btn--active");
+        btn.classList.remove("provider-btn--active");
       }
     });
   }
@@ -757,15 +765,22 @@
     }
   }
 
-  function toggleSettings() {
-    if (!dom.settingsPanel || !dom.settingsToggle) return;
-    const isCollapsed = dom.settingsPanel.classList.toggle(
-      "openui-controls--collapsed",
-    );
-    const icon = dom.settingsToggle.querySelector(".settings-toggle__icon");
-    const text = dom.settingsToggle.querySelector(".settings-toggle__text");
-    if (icon) icon.textContent = isCollapsed ? "\u25B6" : "\u25BC";
-    if (text) text.textContent = isCollapsed ? "設定を表示" : "設定を隠す";
+  function openSettingsModal() {
+    if (dom.settingsModal) {
+      dom.settingsModal.showModal();
+    }
+  }
+
+  function closeSettingsModal() {
+    if (dom.settingsModal) {
+      dom.settingsModal.close();
+    }
+  }
+
+  function toggleSidebar() {
+    if (dom.sidebar) {
+      dom.sidebar.classList.toggle("sidebar--collapsed");
+    }
   }
 
   function initEvents() {
@@ -794,7 +809,19 @@
     dom.providerButtons?.forEach((btn) => {
       btn.addEventListener("click", () => setProviderFilter(btn.dataset.provider));
     });
-    dom.settingsToggle?.addEventListener("click", toggleSettings);
+
+    // Settings modal
+    dom.settingsToggle?.addEventListener("click", openSettingsModal);
+    dom.modalClose?.addEventListener("click", closeSettingsModal);
+    dom.settingsModal?.addEventListener("click", (event) => {
+      if (event.target === dom.settingsModal) {
+        closeSettingsModal();
+      }
+    });
+
+    // Sidebar toggle
+    dom.sidebarToggle?.addEventListener("click", toggleSidebar);
+    dom.sidebarToggleMobile?.addEventListener("click", toggleSidebar);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
