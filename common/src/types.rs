@@ -271,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn test_agent_alias_legacy_ollama_fields() {
+    fn test_agent_runtime_fields() {
         let json = r#"{
             "id": "00000000-0000-0000-0000-000000000000",
             "machine_name": "machine",

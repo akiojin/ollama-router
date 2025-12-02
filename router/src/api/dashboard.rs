@@ -30,9 +30,9 @@ pub struct DashboardNode {
     pub machine_name: String,
     /// IPアドレス（文字列化）
     pub ip_address: String,
-    /// Ollama バージョン
+    /// LLM runtime バージョン
     pub runtime_version: String,
-    /// Ollama ポート
+    /// LLM runtime ポート
     pub runtime_port: u16,
     /// ステータス
     pub status: NodeStatus,

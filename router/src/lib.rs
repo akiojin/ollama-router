@@ -22,7 +22,7 @@ pub mod registry;
 /// データベースアクセス
 pub mod db;
 
-/// Ollama公式ライブラリAPI通信
+/// LLM runtime公式ライブラリAPI通信
 pub mod runtime;
 
 /// ダウンロードタスク管理

@@ -115,7 +115,7 @@ pub struct HealthCheckRequest {
     pub ready_models: Option<(u8, u8)>,
 }
 
-/// Ollamaチャットリクエスト
+/// LLM runtimeチャットリクエスト
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatRequest {
     /// モデル名
@@ -136,7 +136,7 @@ pub struct ChatMessage {
     pub content: String,
 }
 
-/// Ollamaチャットレスポンス
+/// LLM runtimeチャットレスポンス
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatResponse {
     /// レスポンスメッセージ
@@ -145,7 +145,7 @@ pub struct ChatResponse {
     pub done: bool,
 }
 
-/// Ollama Generateリクエスト
+/// LLM runtime Generateリクエスト
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerateRequest {
     /// モデル名

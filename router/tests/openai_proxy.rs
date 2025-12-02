@@ -782,7 +782,7 @@ async fn test_openai_models_list_success() {
             "data": [{
                 "id": "gpt-oss:20b",
                 "object": "model",
-                "owned_by": "ollama"
+                "owned_by": "runtime"
             }]
         })))
         .mount(&mock_server)
@@ -822,7 +822,7 @@ async fn test_openai_model_detail_success() {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "id": "gpt-oss:20b",
             "object": "model",
-            "owned_by": "ollama"
+            "owned_by": "runtime"
         })))
         .mount(&mock_server)
         .await;

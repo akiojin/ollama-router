@@ -68,11 +68,7 @@ pub struct AgentConfig {
     pub router_url: String,
 
     /// ノードランタイムのURL (デフォルト: "http://localhost:11434")
-    #[serde(
-        rename = "runtime_url",
-        alias = "ollama_url",
-        default = "default_runtime_url"
-    )]
+    #[serde(rename = "runtime_url", default = "default_runtime_url")]
     pub runtime_url: String,
 
     /// ハートビート送信間隔（秒）(デフォルト: 10)

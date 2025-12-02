@@ -657,7 +657,7 @@ pub async fn get_node_models(
     let node_url = format!("http://{}:{}", node.ip_address, node.runtime_port);
     tracing::info!("Fetching models from node at {}", node_url);
 
-    // TODO: ノードのOllama APIからモデル一覧を取得
+    // TODO: ノードのLLM runtime APIからモデル一覧を取得
     // 現在は空の配列を返す
     Ok(Json(Vec::new()))
 }

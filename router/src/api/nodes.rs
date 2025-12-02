@@ -258,7 +258,7 @@ pub async fn register_node(
         tokio::spawn(async move {
             match registry.get(node_id).await {
                 Ok(node) => {
-                    // ノードAPIのポート（デフォルト: Ollama port + 1）
+                    // ノードAPIのポート（デフォルト: LLM runtime port + 1）
                     let node_api_port = node.agent_api_port.unwrap_or(node.runtime_port + 1);
                     let node_url = format!("http://{}:{}/pull", node.ip_address, node_api_port);
 

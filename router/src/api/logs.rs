@@ -77,7 +77,7 @@ pub async fn get_node_logs(
     }
 
     let limit = clamp_limit(query.limit);
-    let node_api_port = node.runtime_port.saturating_add(1); // APIポートはOllamaポート+1
+    let node_api_port = node.runtime_port.saturating_add(1); // APIポートはLLM runtimeポート+1
     let url = format!(
         "http://{}:{}/api/logs?tail={}",
         node.ip_address, node_api_port, limit

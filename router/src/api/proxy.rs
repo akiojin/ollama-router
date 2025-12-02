@@ -1,5 +1,5 @@
-//! Ollamaプロキシ APIハンドラー
-//! Ollamaプロキシ APIハンドラー
+//! LLM runtimeプロキシ APIハンドラー
+//! LLM runtimeプロキシ APIハンドラー
 
 use crate::{api::nodes::AppError, balancer::RequestOutcome, AppState};
 use axum::{
@@ -41,7 +41,7 @@ fn max_waiters() -> usize {
     DEFAULT_MAX_WAITERS
 }
 
-/// POST /api/chat - Ollama Chat APIプロキシ
+/// POST /api/chat - LLM runtime Chat APIプロキシ
 pub async fn proxy_chat(
     ConnectInfo(client_addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
@@ -57,7 +57,7 @@ pub async fn proxy_chat(
     .await
 }
 
-/// POST /api/generate - Ollama Generate APIプロキシ
+/// POST /api/generate - LLM runtime Generate APIプロキシ
 pub async fn proxy_generate(
     ConnectInfo(client_addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,

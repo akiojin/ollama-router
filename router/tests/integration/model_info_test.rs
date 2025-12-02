@@ -37,9 +37,9 @@ async fn build_app() -> Router {
     api::create_router(state)
 }
 
-/// T018: Ollamaライブラリから利用可能なモデル一覧を取得
+/// T018: LLM runtimeライブラリから利用可能なモデル一覧を取得
 #[tokio::test]
-async fn test_list_available_models_from_ollama_library() {
+async fn test_list_available_models_from_runtime_library() {
     let app = build_app().await;
 
     let response = app
