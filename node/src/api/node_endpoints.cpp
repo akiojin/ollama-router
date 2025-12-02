@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <thread>
+#include <filesystem>
 #include <nlohmann/json.hpp>
 #include "runtime/state.h"
 #include "utils/logger.h"
@@ -41,33 +42,64 @@ void NodeEndpoints::registerRoutes(httplib::Server& server) {
         if (model_sync_ && router_client_ && !task_id.empty()) {
             auto sync = model_sync_;
             auto client = router_client_;
-            std::thread([sync, client, model_name, task_id]() {
-                spdlog::info("Starting model download: model={}, task_id={}", model_name, task_id);
 
-                // Create downloader with proper paths from sync
-                ModelDownloader downloader(
-                    sync->getBaseUrl(),
-                    sync->getModelsDir(),
-                    std::chrono::milliseconds(30000));
+            // optional fields from request
+            std::string path = j.value("path", "");
+            std::string download_url = j.value("download_url", "");
 
-                // Progress callback that reports to router
+            // helper: model name -> dir (colon to underscore, append _latest when tagなし)
+            auto modelNameToDir = [](const std::string& name) {
+                std::string dir = name;
+                std::replace(dir.begin(), dir.end(), ':', '_');
+                if (name.find(':') == std::string::npos) {
+                    dir += "_latest";
+                }
+                return dir;
+            };
+
+            std::thread([sync, client, model_name, task_id, path, download_url, modelNameToDir]() {
+                spdlog::info("Starting model pull: model={}, task_id={}, path='{}', download_url='{}'",
+                              model_name, task_id, path, download_url);
+
+                const std::string models_dir = sync->getModelsDir();
+                const std::string dir_name = modelNameToDir(model_name);
+                const std::filesystem::path target_dir = std::filesystem::path(models_dir) / dir_name;
+                const std::filesystem::path target_path = target_dir / "model.gguf";
+
+                bool success = false;
+
                 auto progress_cb = [&client, &task_id](size_t downloaded, size_t total) {
                     if (total > 0) {
                         double progress = static_cast<double>(downloaded) / static_cast<double>(total);
-                        double speed = 0.0; // TODO: calculate actual speed
-                        client->reportProgress(task_id, progress, speed);
+                        client->reportProgress(task_id, progress, std::nullopt);
                     }
                 };
 
-                // Download model
-                bool success = sync->downloadModel(downloader, model_name, progress_cb);
+                // 1) shared path copy
+                if (!path.empty()) {
+                    std::error_code ec;
+                    if (std::filesystem::exists(path, ec) && std::filesystem::is_regular_file(path, ec)) {
+                        std::filesystem::create_directories(target_dir, ec);
+                        if (!ec) {
+                            std::filesystem::copy_file(path, target_path, std::filesystem::copy_options::overwrite_existing, ec);
+                            if (!ec) success = true;
+                        }
+                    }
+                }
+
+                // 2) download if needed
+                if (!success && !download_url.empty()) {
+                    ModelDownloader downloader(sync->getBaseUrl(), models_dir, std::chrono::milliseconds(30000));
+                    std::string filename = dir_name + "/model.gguf";
+                    auto out = downloader.downloadBlob(download_url, filename, progress_cb);
+                    success = !out.empty();
+                }
 
                 if (success) {
-                    spdlog::info("Model download complete: model={}, task_id={}", model_name, task_id);
+                    spdlog::info("Model pull complete: model={}, task_id={}", model_name, task_id);
                     client->reportProgress(task_id, 1.0, std::nullopt);
                 } else {
-                    spdlog::error("Model download failed: model={}, task_id={}", model_name, task_id);
-                    // Report failure by not updating progress (task stays incomplete)
+                    spdlog::error("Model pull failed: model={}, task_id={}", model_name, task_id);
                 }
             }).detach();
         } else {
@@ -80,7 +112,7 @@ void NodeEndpoints::registerRoutes(httplib::Server& server) {
         res.set_content(body.dump(), "application/json");
     });
 
-    server.Get("/startup", [this](const httplib::Request&, httplib::Response& res) {
+    server.Get("/startup", [](const httplib::Request&, httplib::Response& res) {
         if (ollama_node::is_ready()) {
             res.set_content(R"({"status":"ready"})", "application/json");
         } else {

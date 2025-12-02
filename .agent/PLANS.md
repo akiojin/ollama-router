@@ -621,11 +621,64 @@ gpt-oss モデルはマルチチャンネル推論システムを持つ:
 2. `Reasoning: none` でanalysisを無効化しようとしているが効果なし
 3. 出力に `step=analysis` が含まれる → analysis チャンネルが出力されている
 
+### 実施済み対策 (2025-12-02)
+
+#### 1. トークナイゼーションパラメータの修正
+
+gpt-ossモデル用にトークナイゼーション設定を調整:
+
+```cpp
+bool is_gptoss = isGptOssModel(model);
+bool add_special = !is_gptoss;  // gpt-oss はBOS不要
+bool parse_special = is_gptoss; // gpt-oss は特殊トークンをパース
+```
+
+- 非ストリーミングとストリーミング両方に適用
+
+#### 2. `cleanGptOssOutput()` 関数の強化
+
+出力クリーンアップ処理を大幅に拡張:
+
+**追加した除去対象:**
+
+```cpp
+// ChatMLトークン
+"<|im_start|>", "<|im_end|>", "<|assistant>", "<|user>", "<|system>",
+// 共通制御トークン
+"<|eot_id|>", "</s>", "<s>", "<|begin_of_text|>", "<|end_of_text|>"
+```
+
+**チャンネルパターンの除去:**
+
+```cpp
+// 連結パターン
+"assistantanalysis:", "assistantfinal:", "assistantcommentary:",
+"useranalysis:", "userfinal:", "usercommentary:",
+"systemanalysis:", "systemfinal:", "systemcommentary:",
+// 単独パターン
+"analysis:", "final:", "commentary:",
+"assistant:", "user:", "system:", "developer:",
+// "=name" パターン
+"=assistant", "=analysis", "=final", "=commentary",
+"=user", "=system", "=developer"
+```
+
+**行ベースのクリーンアップ:**
+
+- 行頭のチャンネル名（`assistant`, `analysis`等）を除去
+- 出力開始時の余分な改行を除去
+
+#### 3. 結果
+
+- 特殊トークンの表示は除去できた
+- チャンネルパターン（`assistantanalysis:`等）は除去できた
+- **未解決**: モデル自体がanalysisチャンネルの内容を出力する問題は継続
+
 ### 今後の計画
 
 #### 短期対策（即時）
 
-1. **出力後処理の強化**
+1. **出力後処理のさらなる強化**
    - analysis チャンネルの内容を検出して除去
    - `<|channel|>final` 以降の内容のみを抽出
    - `step=analysis` などの推論マーカーを除去
@@ -652,6 +705,27 @@ gpt-oss モデルはマルチチャンネル推論システムを持つ:
    - モデル出力をチャンネルごとに分離
    - final チャンネルのみをAPIレスポンスに含める
    - analysis/commentary は内部ログに出力
+
+---
+
+## 新規課題: モデル配布フローの再設計（Router主導）
+
+### 方針
+- モデルは Router で管理し、`/v1/models` に `path`（共有ストレージパス）と `download_url` を返す。
+- ノードはまずローカル `~/.llm-router/models` を確認し、なければ `path` が読めるかチェック、不可なら `download_url` をダウンロード。Ollama blob など外部フォールバックは廃止。
+
+### 実装タスク
+1. Router `/v1/models` スキーマ拡張: `path`, `download_url` をオプションで返す（spec反映済み） **実装完了**。
+2. Node model resolver 改修:
+   - ローカル固定パスのみを見るようにする（フォールバック削除済み）。
+   - `/v1/models` / `/pull` から受け取った `path` が読めればコピー、不可なら `download_url` or manifest でダウンロードして `~/.llm-router/models` に保存（実装済み、manifestはフォールバックで維持）。
+3. テスト:
+   - pathのみ有効 / downloadのみ有効 / 両方無効（エラー）のユニットテスト。
+   - E2Eで共有パス経由でロードできるケースを追加。
+
+### 留意事項
+- モデル配置パスは固定 `~/.llm-router/models`（環境変数による変更は廃止）。
+- 配布手段がない場合は即エラーとし、外部アプリ資産への暗黙フォールバックは行わない。
 
 ### 関連ファイル
 

@@ -34,18 +34,18 @@ public:
 class RouterAndRegistryServer {
 public:
     void start(int router_port, int registry_port) {
-        router_.Get("/v1/models", [this](const httplib::Request&, httplib::Response& res) {
+        router_.Get("/v1/models", [](const httplib::Request&, httplib::Response& res) {
             res.status = 200;
             res.set_content(R"({"data":[{"id":"gpt-oss:7b","etag":"\"etag-1\"","size":3}]})", "application/json");
         });
 
-        registry_.Get(R"(/gpt-oss:7b/manifest.json)", [this](const httplib::Request&, httplib::Response& res) {
+        registry_.Get(R"(/gpt-oss:7b/manifest.json)", [](const httplib::Request&, httplib::Response& res) {
             res.status = 200;
             res.set_content(R"({"model":"gpt-oss:7b","files":[{"name":"blob.bin","digest":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}]})",
                             "application/json");
         });
 
-        registry_.Get("/blob.bin", [this](const httplib::Request& req, httplib::Response& res) {
+        registry_.Get("/blob.bin", [](const httplib::Request& req, httplib::Response& res) {
             const std::string body = "abc";
             auto inm = req.get_header_value("If-None-Match");
             if (inm == "\"etag-1\"" || inm == "etag-1") {

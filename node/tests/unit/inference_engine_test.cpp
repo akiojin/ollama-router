@@ -4,6 +4,12 @@
 
 using namespace ollama_node;
 
+// テスト専用ヘルパー（inference_engine.cppで定義）
+namespace ollama_node {
+std::string extractGptOssFinalMessageForTest(const std::string& output);
+}
+using ollama_node::extractGptOssFinalMessageForTest;
+
 TEST(InferenceEngineTest, GeneratesChatFromLastUserMessage) {
     InferenceEngine engine;
     std::vector<ChatMessage> msgs = {
@@ -52,4 +58,13 @@ TEST(InferenceEngineTest, SampleNextTokenReturnsLast) {
     InferenceEngine engine;
     std::vector<std::string> tokens = {"x", "y", "z"};
     EXPECT_EQ(engine.sampleNextToken(tokens), "z");
+}
+
+TEST(InferenceEngineTest, ExtractsFinalChannelFromGptOssOutput) {
+    const std::string raw =
+        "<|start|>assistant<|channel|>analysis<|message|>think here<|end|>"
+        "<|start|>assistant<|channel|>final<|message|>the answer<|end|>";
+
+    auto extracted = extractGptOssFinalMessageForTest(raw);
+    EXPECT_EQ(extracted, "the answer");
 }

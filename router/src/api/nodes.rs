@@ -248,6 +248,10 @@ pub async fn register_node(
         let task_id = task.id;
         created_tasks.push((model.name.clone(), task_id));
 
+        let shared_path = crate::registry::models::router_model_path(&model.name)
+            .map(|p| p.to_string_lossy().to_string());
+        let download_url = model.download_url.clone();
+
         info!(
             "Auto-distribution started: node_id={}, model={}, task_id={}",
             node_id, model.name, task_id
@@ -268,6 +272,8 @@ pub async fn register_node(
                     let pull_request = serde_json::json!({
                         "model": model.name,
                         "task_id": task_id,
+                        "path": shared_path,
+                        "download_url": download_url,
                     });
 
                     match client.post(&node_url).json(&pull_request).send().await {

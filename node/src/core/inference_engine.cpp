@@ -11,6 +11,11 @@
 
 namespace ollama_node {
 
+// 前方宣言
+static std::string stripControlTokens(std::string text);
+static std::string extractGptOssFinalMessage(const std::string& output);
+std::string extractGptOssFinalMessageForTest(const std::string& output);
+
 // コンストラクタ
 InferenceEngine::InferenceEngine(LlamaManager& manager, ModelStorage& model_storage)
     : manager_(&manager)
@@ -53,6 +58,55 @@ static std::string buildChatMLPrompt(const std::vector<ChatMessage>& messages) {
     // アシスタント応答の開始
     oss << "<|im_start|>assistant\n";
     return oss.str();
+}
+
+// 制御トークンを除去してトリム
+static std::string stripControlTokens(std::string text) {
+    const std::vector<std::string> tokens = {
+        "<|start|>", "<|end|>", "<|message|>", "<|channel|>",
+        "<|im_start|>", "<|im_end|>", "<s>", "</s>", "<|endoftext|>", "<|eot_id|>"
+    };
+    for (const auto& t : tokens) {
+        size_t pos = 0;
+        while ((pos = text.find(t, pos)) != std::string::npos) {
+            text.erase(pos, t.size());
+        }
+    }
+    auto l = text.find_first_not_of(" \t\n\r");
+    if (l == std::string::npos) return "";
+    auto r = text.find_last_not_of(" \t\n\r");
+    return text.substr(l, r - l + 1);
+}
+
+// gpt-ossテンプレート（モデル側にテンプレが無い場合のフォールバック）。ユーザー入力は改変しない。
+static const char * GPT_OSS_TEMPLATE = R"tmpl({% for message in messages %}
+{% if message['role'] == 'system' %}
+<|start|>system<|message|>{{ message['content'] }}<|end|>
+{% elif message['role'] == 'user' %}
+<|start|>user<|message|>{{ message['content'] }}<|end|>
+{% elif message['role'] == 'assistant' %}
+<|start|>assistant<|channel|>final<|message|>{{ message['content'] }}<|end|>
+{% endif %}
+{% endfor %}
+<|start|>assistant<|channel|>final<|message|>
+)tmpl";
+
+// gpt-oss: finalチャンネルだけを抽出して制御トークンを除去
+static std::string extractGptOssFinalMessage(const std::string& output) {
+    const std::string marker = "<|channel|>final<|message|>";
+    const std::string end = "<|end|>";
+
+    size_t mpos = output.rfind(marker);
+    if (mpos == std::string::npos) return output;
+    size_t start = mpos + marker.size();
+    size_t endpos = output.find(end, start);
+    std::string seg = endpos == std::string::npos ? output.substr(start) : output.substr(start, endpos - start);
+    return stripControlTokens(seg);
+}
+
+// テスト用に公開する薄いラッパー（本番コードには影響なし）
+std::string extractGptOssFinalMessageForTest(const std::string& output) {
+    return extractGptOssFinalMessage(output);
 }
 
 // gpt-oss形式でプロンプトを構築する関数
@@ -230,10 +284,15 @@ static std::string applyModelChatTemplate(
     // モデルからチャットテンプレートを取得
     const char* tmpl = llama_model_chat_template(model, nullptr);
 
-    // テンプレートがない場合はChatML形式を使用
+    // テンプレートがない場合はgpt-oss用テンプレかChatMLにフォールバック
     if (tmpl == nullptr || tmpl[0] == '\0') {
-        spdlog::info("Model has no chat template, using ChatML format");
-        return buildChatMLPrompt(messages);
+        if (isGptOssModel(model)) {
+            spdlog::info("Model has no chat template, using built-in gpt-oss template");
+            tmpl = GPT_OSS_TEMPLATE;
+        } else {
+            spdlog::info("Model has no chat template, using ChatML format");
+            return buildChatMLPrompt(messages);
+        }
     }
 
     spdlog::debug("Model chat template found: {}", tmpl);
@@ -287,37 +346,16 @@ std::string InferenceEngine::generateChat(
         return "Response to: " + messages.back().content;
     }
 
-    // 1. モデルパス解決
+    // 1. モデルパス解決（固定ディレクトリのみを許容）
     std::string gguf_path = model_storage_->resolveGguf(model_name);
     if (gguf_path.empty()) {
-        spdlog::error("Model not found: {}", model_name);
-        throw std::runtime_error("Model not found: " + model_name);
+        spdlog::error("Model not found in ~/.llm-router/models: {}", model_name);
+        throw std::runtime_error("Model not found in ~/.llm-router/models: " + model_name);
     }
 
-    // 2. モデルロード（オンデマンドロード + 自動修復機能）
-    // loadModelIfNeeded() はアクセス時刻追跡とLRU管理を行う
-    if (!manager_->isLoaded(gguf_path)) {
-        spdlog::info("Loading model on demand: {}", gguf_path);
-
-        // 自動修復が有効な場合は loadModelWithRepair を使用
-        if (repair_) {
-            auto load_result = const_cast<InferenceEngine*>(this)->loadModelWithRepair(model_name);
-            if (!load_result.success) {
-                if (load_result.repair_triggered) {
-                    // 修復中の場合は例外をスロー
-                    throw ModelRepairingException(model_name);
-                }
-                throw std::runtime_error(load_result.error_message);
-            }
-        } else {
-            // 自動修復が無効な場合はオンデマンドロードを使用
-            if (!manager_->loadModelIfNeeded(gguf_path)) {
-                throw std::runtime_error("Failed to load model: " + gguf_path);
-            }
-        }
-    } else {
-        // 既にロード済みの場合もアクセス時刻を更新
-        manager_->loadModelIfNeeded(gguf_path);
+    // 2. モデルロード（オンデマンドロードのみ。Ollama blob 等へのフォールバックはしない）
+    if (!manager_->loadModelIfNeeded(gguf_path)) {
+        throw std::runtime_error("Failed to load model: " + gguf_path);
     }
 
     // 3. コンテキストとモデル取得
@@ -421,7 +459,7 @@ std::string InferenceEngine::generateChat(
 
     // 9. トークン生成ループ
     std::string output;
-    int32_t n_cur = n_tokens;
+    // int32_t n_cur = n_tokens; // unused
 
     for (size_t i = 0; i < params.max_tokens; i++) {
         // トークンサンプリング
@@ -459,7 +497,7 @@ std::string InferenceEngine::generateChat(
             break;
         }
 
-        n_cur++;
+        // n_cur++; // unused
     }
 
     // 10. クリーンアップ
@@ -535,35 +573,15 @@ std::vector<std::string> InferenceEngine::generateChatStream(
         return tokens;
     }
 
-    // 1. モデルパス解決
+    // 1. モデルパス解決（固定ディレクトリのみ）
     std::string gguf_path = model_storage_->resolveGguf(model_name);
     if (gguf_path.empty()) {
-        throw std::runtime_error("Model not found: " + model_name);
+        throw std::runtime_error("Model not found in ~/.llm-router/models: " + model_name);
     }
 
-    // 2. モデルロード（オンデマンドロード + 自動修復機能）
-    if (!manager_->isLoaded(gguf_path)) {
-        spdlog::info("Loading model on demand for streaming: {}", gguf_path);
-
-        // 自動修復が有効な場合は loadModelWithRepair を使用
-        if (repair_) {
-            auto load_result = const_cast<InferenceEngine*>(this)->loadModelWithRepair(model_name);
-            if (!load_result.success) {
-                if (load_result.repair_triggered) {
-                    // 修復中の場合は例外をスロー
-                    throw ModelRepairingException(model_name);
-                }
-                throw std::runtime_error(load_result.error_message);
-            }
-        } else {
-            // 自動修復が無効な場合はオンデマンドロードを使用
-            if (!manager_->loadModelIfNeeded(gguf_path)) {
-                throw std::runtime_error("Failed to load model: " + gguf_path);
-            }
-        }
-    } else {
-        // 既にロード済みの場合もアクセス時刻を更新
-        manager_->loadModelIfNeeded(gguf_path);
+    // 2. モデルロード（フォールバックなし）
+    if (!manager_->loadModelIfNeeded(gguf_path)) {
+        throw std::runtime_error("Failed to load model: " + gguf_path);
     }
 
     llama_context* ctx = manager_->getContext(gguf_path);

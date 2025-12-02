@@ -18,6 +18,7 @@ use std::{net::IpAddr, time::Instant};
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::registry::models::router_model_path;
 use crate::{
     api::{
         models::list_registered_models,
@@ -114,12 +115,22 @@ pub async fn list_models(State(_state): State<AppState>) -> Result<Response, App
     let data: Vec<Value> = models
         .into_iter()
         .map(|m| {
-            json!({
+            let path = router_model_path(&m.name).map(|p| p.to_string_lossy().to_string());
+
+            let mut obj = json!({
                 "id": m.name,
                 "object": "model",
                 "created": 0,
                 "owned_by": "coordinator",
-            })
+            });
+
+            if let Some(p) = path {
+                obj["path"] = json!(p);
+            }
+            if let Some(url) = m.download_url {
+                obj["download_url"] = json!(url);
+            }
+            obj
         })
         .collect();
 
@@ -139,7 +150,7 @@ pub async fn get_model(
     let client = crate::ollama::OllamaClient::new()?;
     let mut all = client.get_predefined_models();
     all.extend(list_registered_models());
-    let exists = all.into_iter().any(|m| m.name == model_id);
+    let exists = all.iter().any(|m| m.name == model_id);
 
     if !exists {
         // 404 を OpenAI 換算で返す
@@ -154,12 +165,24 @@ pub async fn get_model(
         return Ok((StatusCode::NOT_FOUND, Json(body)).into_response());
     }
 
-    let body = json!({
+    let path = router_model_path(&model_id).map(|p| p.to_string_lossy().to_string());
+
+    let mut body = json!({
         "id": model_id,
         "object": "model",
         "created": 0,
         "owned_by": "coordinator",
     });
+
+    if let Some(p) = path {
+        body["path"] = json!(p);
+    }
+    // download_url は事前登録モデル情報から取得
+    if let Some(model) = all.into_iter().find(|m| m.name == body["id"]) {
+        if let Some(url) = model.download_url {
+            body["download_url"] = json!(url);
+        }
+    }
 
     Ok((StatusCode::OK, Json(body)).into_response())
 }

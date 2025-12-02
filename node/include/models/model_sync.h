@@ -35,6 +35,12 @@ struct DownloadHint {
     std::optional<size_t> size;
 };
 
+struct RemoteModel {
+    std::string id;
+    std::string path;
+    std::string download_url;
+};
+
 class ModelSync {
 public:
     ModelSync(std::string base_url, std::string models_dir,
@@ -42,7 +48,7 @@ public:
 
     ModelSyncResult sync();
 
-    std::vector<std::string> fetchRemoteModels();
+    std::vector<RemoteModel> fetchRemoteModels();
     std::vector<std::string> listLocalModels() const;
 
     // キャッシュされたETagを取得（存在しなければ空文字）
@@ -97,6 +103,7 @@ private:
     std::unordered_map<std::string, std::string> etag_cache_;
     std::unordered_map<std::string, size_t> size_cache_;
     std::unordered_map<std::string, ModelOverrides> model_overrides_;
+    std::unordered_map<std::string, RemoteModel> remote_models_;
 
     mutable std::mutex status_mutex_;
     SyncStatusInfo status_;

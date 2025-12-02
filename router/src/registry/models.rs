@@ -4,6 +4,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::env;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -39,6 +41,9 @@ pub struct ModelInfo {
     /// ダウンロードURL（HFなど外部ソース用）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub download_url: Option<String>,
+    /// 共有ストレージ上のモデルパス（存在する場合のみ）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
     /// HFリポジトリ名
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repo: Option<String>,
@@ -70,6 +75,7 @@ impl ModelInfo {
             tags,
             source: ModelSource::Predefined,
             download_url: None,
+            path: None,
             repo: None,
             filename: None,
             last_modified: None,
@@ -85,6 +91,35 @@ impl ModelInfo {
     /// 必要メモリをGB単位で取得
     pub fn required_memory_gb(&self) -> f64 {
         self.required_memory as f64 / (1024.0 * 1024.0 * 1024.0)
+    }
+}
+
+/// モデル名をディレクトリ名に変換（gpt-oss:20b -> gpt-oss_20b）
+pub fn model_name_to_dir(name: &str) -> String {
+    if name.is_empty() {
+        return "_latest".into();
+    }
+    let mut dir = name.replace(':', "_");
+    if !name.contains(':') {
+        dir.push_str("_latest");
+    }
+    dir
+}
+
+/// ルーター側のデフォルトモデルディレクトリ（~/.llm-router/models）
+pub fn router_models_dir() -> Option<PathBuf> {
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).ok()?;
+    Some(PathBuf::from(home).join(".llm-router").join("models"))
+}
+
+/// モデルのggufパスを返す（存在しない場合はNone）
+pub fn router_model_path(name: &str) -> Option<PathBuf> {
+    let base = router_models_dir()?;
+    let path = base.join(model_name_to_dir(name)).join("model.gguf");
+    if path.exists() {
+        Some(path)
+    } else {
+        None
     }
 }
 

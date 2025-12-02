@@ -17,7 +17,9 @@ use uuid::Uuid;
 
 use crate::{
     ollama::OllamaClient,
-    registry::models::{DownloadStatus, DownloadTask, InstalledModel, ModelInfo, ModelSource},
+    registry::models::{
+        router_model_path, DownloadStatus, DownloadTask, InstalledModel, ModelInfo, ModelSource,
+    },
     AppState,
 };
 use llm_router_common::error::RouterError;
@@ -191,6 +193,13 @@ pub fn list_registered_models() -> Vec<ModelInfo> {
     REGISTERED_MODELS.read().unwrap().clone()
 }
 
+fn find_model_by_name(name: &str) -> Option<ModelInfo> {
+    let client = OllamaClient::new().ok()?;
+    let mut all = client.get_predefined_models();
+    all.extend(list_registered_models());
+    all.into_iter().find(|m| m.name == name)
+}
+
 /// 登録モデルを追加（重複チェックあり）
 fn add_registered_model(model: ModelInfo) -> Result<(), RouterError> {
     let mut store = REGISTERED_MODELS.write().unwrap();
@@ -314,6 +323,7 @@ async fn fetch_hf_models(query: &AvailableQuery) -> Result<(Vec<ModelInfo>, bool
                 tags,
                 source: ModelSource::HfGguf,
                 download_url: Some(download_url),
+                path: None,
                 repo: Some(m.model_id.clone()),
                 filename: Some(sib.rfilename.clone()),
                 last_modified,
@@ -481,6 +491,7 @@ pub async fn register_model(
         tags: vec!["gguf".into()],
         source: ModelSource::HfGguf,
         download_url: Some(download_url),
+        path: None,
         repo: Some(req.repo.clone()),
         filename: Some(req.filename.clone()),
         last_modified: None,
@@ -609,11 +620,20 @@ pub async fn distribute_models(
         let node_url = format!("http://{}:{}/pull", node.ip_address, node_api_port);
         let model_name = request.model_name.clone();
 
+        let model_info = find_model_by_name(&model_name);
+        let shared_path = model_info
+            .as_ref()
+            .and_then(|m| router_model_path(&m.name))
+            .map(|p| p.to_string_lossy().to_string());
+        let download_url = model_info.and_then(|m| m.download_url.clone());
+
         tokio::spawn(async move {
             let client = reqwest::Client::new();
             let pull_request = serde_json::json!({
                 "model": model_name,
                 "task_id": task_id,
+                "path": shared_path,
+                "download_url": download_url,
             });
 
             match client.post(&node_url).json(&pull_request).send().await {

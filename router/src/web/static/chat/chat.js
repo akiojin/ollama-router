@@ -717,7 +717,7 @@
     return res.json();
   }
 
-  async function streamChat(payload, assistantEntry) {
+  async function streamChat(payload, assistantEntry, typingEntry = null) {
     const controller = new AbortController();
     state.controller = controller;
     const res = await fetch(state.endpoint, {
@@ -740,6 +740,7 @@
     const decoder = new TextDecoder();
     let buffer = "";
     let assembled = "";
+    let firstTokenReceived = false;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -764,6 +765,14 @@
         // OpenAI互換形式: choices[0].delta.content (ストリーミング)
         const delta = parsed.choices?.[0]?.delta?.content;
         if (delta) {
+          // 最初のトークン到着時にタイピングインジケーターを削除し、メッセージを表示
+          if (!firstTokenReceived) {
+            firstTokenReceived = true;
+            removeTypingIndicator(typingEntry);
+            if (assistantEntry.element) {
+              assistantEntry.element.classList.remove("hidden");
+            }
+          }
           assembled += delta;
           updateMessage(assistantEntry, assembled);
         }
@@ -781,9 +790,24 @@
         // OpenAI互換形式: choices[0].delta.content
         const delta = parsed?.choices?.[0]?.delta?.content;
         if (delta) {
+          if (!firstTokenReceived) {
+            firstTokenReceived = true;
+            removeTypingIndicator(typingEntry);
+            if (assistantEntry.element) {
+              assistantEntry.element.classList.remove("hidden");
+            }
+          }
           assembled += delta;
           updateMessage(assistantEntry, assembled);
         }
+      }
+    }
+
+    // 応答が空の場合もタイピングインジケーターを削除
+    if (!firstTokenReceived) {
+      removeTypingIndicator(typingEntry);
+      if (assistantEntry.element) {
+        assistantEntry.element.classList.remove("hidden");
       }
     }
 
@@ -837,11 +861,19 @@
       setLoading(true, { streaming: payload.stream });
       let assistantContent = "";
       if (payload.stream) {
-        const assistantEntry = addMessage("assistant", "…", { model: payload.model });
+        // ストリーミングモードでもタイピングインジケーターを表示
+        const typingEntry = addTypingIndicator(payload.model);
+        const assistantEntry = addMessage("assistant", "", { model: payload.model });
+        assistantEntry.element.classList.add("hidden"); // 最初は非表示
         state.pendingAssistant = assistantEntry;
-        assistantContent = await streamChat(payload, assistantEntry);
-        if (!assistantContent) {
-          updateMessage(assistantEntry, "(Empty response)");
+        try {
+          assistantContent = await streamChat(payload, assistantEntry, typingEntry);
+          if (!assistantContent) {
+            updateMessage(assistantEntry, "(Empty response)");
+          }
+        } catch (err) {
+          removeTypingIndicator(typingEntry);
+          throw err;
         }
       } else {
         // 非ストリーミングモードでもタイピングインジケーターを表示
