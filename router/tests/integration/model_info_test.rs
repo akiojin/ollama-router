@@ -108,8 +108,8 @@ async fn test_list_installed_models_on_agent() {
     let register_payload = json!({
         "machine_name": "model-info-agent",
         "ip_address": "192.168.1.230",
-        "ollama_version": "0.1.42",
-        "ollama_port": 11434,
+        "runtime_version": "0.1.42",
+        "runtime_port": 11434,
         "gpu_available": true,
         "gpu_devices": [
             {"model": "NVIDIA RTX 4090", "count": 1}
@@ -191,8 +191,8 @@ async fn test_model_matrix_view_multiple_agents() {
         let register_payload = json!({
             "machine_name": format!("matrix-agent-{}", i),
             "ip_address": format!("192.168.1.{}", 240 + i),
-            "ollama_version": "0.1.42",
-            "ollama_port": 11434,
+            "runtime_version": "0.1.42",
+            "runtime_port": 11434,
             "gpu_available": true,
             "gpu_devices": [
                 {"model": "NVIDIA RTX 3090", "count": 1}

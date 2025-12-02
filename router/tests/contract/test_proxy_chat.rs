@@ -220,7 +220,7 @@ async fn proxy_chat_propagates_upstream_error() {
     // Assert: ルーターが404とOpenAI互換のエラー形式を返す
     assert_eq!(response.status(), ReqStatusCode::NOT_FOUND);
     let body: serde_json::Value = response.json().await.expect("error payload");
-    assert_eq!(body["error"]["type"], "ollama_upstream_error");
+    assert_eq!(body["error"]["type"], "runtime_upstream_error");
     assert_eq!(body["error"]["code"], 404);
     assert!(
         body["error"]["message"]
