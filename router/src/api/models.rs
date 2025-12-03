@@ -370,9 +370,12 @@ pub struct PullFromHfRequest {
     pub chat_template: Option<String>,
 }
 
+/// HF pull APIのレスポンス
 #[derive(Debug, Serialize)]
 pub struct PullFromHfResponse {
+    /// 登録名（hf/<repo>/<file>）
     pub name: String,
+    /// ルーター側にキャッシュされたローカルパス
     pub path: String,
 }
 
