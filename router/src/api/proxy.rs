@@ -198,7 +198,7 @@ where
         let payload = serde_json::json!({
             "error": {
                 "message": message,
-                "type": "ollama_upstream_error",
+                "type": "node_upstream_error",
                 "code": status_code.as_u16(),
             }
         });
@@ -426,7 +426,7 @@ where
         let payload = serde_json::json!({
             "error": {
                 "message": message,
-                "type": "ollama_upstream_error",
+                "type": "node_upstream_error",
                 "code": status_code.as_u16(),
             }
         });

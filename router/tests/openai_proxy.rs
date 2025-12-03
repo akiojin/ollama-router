@@ -277,7 +277,7 @@ async fn test_proxy_chat_missing_model_returns_openai_error() {
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(json["error"]["type"], "ollama_upstream_error");
+    assert_eq!(json["error"]["type"], "node_upstream_error");
     assert_eq!(json["error"]["code"], 404);
     assert!(json["error"]["message"]
         .as_str()

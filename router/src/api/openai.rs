@@ -898,7 +898,7 @@ async fn proxy_openai_post(
         let payload = json!({
             "error": {
                 "message": message,
-                "type": "ollama_upstream_error",
+                "type": "node_upstream_error",
                 "code": status_code.as_u16(),
             }
         });
@@ -1051,7 +1051,7 @@ async fn proxy_openai_get(state: &AppState, target_path: &str) -> Result<Respons
         let payload = json!({
             "error": {
                 "message": message,
-                "type": "ollama_upstream_error",
+                "type": "node_upstream_error",
                 "code": status_code.as_u16(),
             }
         });
