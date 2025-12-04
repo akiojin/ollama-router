@@ -115,7 +115,7 @@ where
         .await
         .map_err(AppError::from)?;
 
-    let client = reqwest::Client::new();
+    let client = state.http_client.clone();
     let runtime_url = format!(
         "http://{}:{}/v1/chat/completions",
         agent.ip_address, agent_api_port
@@ -340,7 +340,7 @@ where
         .await
         .map_err(AppError::from)?;
 
-    let client = reqwest::Client::new();
+    let client = state.http_client.clone();
     let agent_api_port = agent.runtime_port + 1;
     let runtime_url = format!(
         "http://{}:{}/v1/completions",
