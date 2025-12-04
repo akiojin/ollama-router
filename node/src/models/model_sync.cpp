@@ -11,6 +11,7 @@
 #include <thread>
 #include "utils/config.h"
 #include "utils/file_lock.h"
+#include "models/model_storage.h"
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -70,7 +71,7 @@ ModelSync::ModelSync(std::string base_url, std::string models_dir, std::chrono::
 }
     
 
-std::vector<std::string> ModelSync::fetchRemoteModels() {
+std::vector<RemoteModel> ModelSync::fetchRemoteModels() {
     httplib::Client cli(base_url_.c_str());
     cli.set_connection_timeout(static_cast<int>(timeout_.count() / 1000), static_cast<int>((timeout_.count() % 1000) * 1000));
     cli.set_read_timeout(static_cast<int>(timeout_.count() / 1000), static_cast<int>((timeout_.count() % 1000) * 1000));
@@ -82,22 +83,29 @@ std::vector<std::string> ModelSync::fetchRemoteModels() {
 
     try {
         auto body = json::parse(res->body);
-        std::vector<std::string> ids;
+        std::vector<RemoteModel> remote;
         if (body.contains("data") && body["data"].is_array()) {
             for (const auto& m : body["data"]) {
-                if (m.contains("id")) {
-                    const auto id = m["id"].get<std::string>();
-                    ids.push_back(id);
-                    if (m.contains("etag") && m["etag"].is_string()) {
-                        setCachedEtag(id, m["etag"].get<std::string>());
-                    }
-                    if (m.contains("size") && m["size"].is_number_unsigned()) {
-                        setCachedSize(id, m["size"].get<size_t>());
-                    }
+                if (!m.contains("id")) continue;
+
+                RemoteModel rm;
+                rm.id = m["id"].get<std::string>();
+                rm.path = m.value("path", "");
+                rm.download_url = m.value("download_url", "");
+                rm.chat_template = m.value("chat_template", "");
+
+                if (m.contains("etag") && m["etag"].is_string()) {
+                    setCachedEtag(rm.id, m["etag"].get<std::string>());
                 }
+                if (m.contains("size") && m["size"].is_number_unsigned()) {
+                    setCachedSize(rm.id, m["size"].get<size_t>());
+                }
+
+                remote_models_[rm.id] = rm;
+                remote.push_back(std::move(rm));
             }
         }
-        return ids;
+        return remote;
     } catch (...) {
         return {};
     }
@@ -123,7 +131,7 @@ ModelSyncResult ModelSync::sync() {
             status_.updated_at = std::chrono::system_clock::now();
         }
 
-        auto remote = fetchRemoteModels();
+        auto remote_models = fetchRemoteModels();
         auto local = listLocalModels();
 
         // Persist ETag cache for next run (best-effort)
@@ -182,12 +190,56 @@ ModelSyncResult ModelSync::sync() {
             }
         }
 
-        std::unordered_set<std::string> remote_set(remote.begin(), remote.end());
+        std::unordered_set<std::string> remote_set;
+        std::unordered_map<std::string, RemoteModel> remote_map;
+        for (const auto& rm : remote_models) {
+            remote_set.insert(rm.id);
+            remote_map[rm.id] = rm;
+        }
         std::unordered_set<std::string> local_set(local.begin(), local.end());
 
         ModelSyncResult result;
-        for (const auto& id : remote) {
-            if (!local_set.count(id)) {
+        ModelDownloader downloader(base_url_, models_dir_, timeout_);
+
+        for (const auto& id : remote_set) {
+            if (local_set.count(id)) continue;
+
+            bool ok = false;
+            auto it = remote_map.find(id);
+            if (it != remote_map.end()) {
+                const auto& info = it->second;
+                if (!info.path.empty()) {
+                    std::error_code ec;
+                    auto src = fs::path(info.path);
+                    if (fs::exists(src, ec) && fs::is_regular_file(src, ec)) {
+                        auto dest_dir = fs::path(models_dir_) / ModelStorage::modelNameToDir(id);
+                        auto dest = dest_dir / "model.gguf";
+                        fs::create_directories(dest_dir, ec);
+                        if (!ec) {
+                            fs::copy_file(src, dest, fs::copy_options::overwrite_existing, ec);
+                            ok = !ec;
+                        }
+                    }
+                }
+
+                if (!ok && !info.download_url.empty()) {
+                    auto filename = ModelStorage::modelNameToDir(id) + "/model.gguf";
+                    auto out = downloader.downloadBlob(info.download_url, filename, nullptr);
+                    ok = !out.empty();
+                }
+
+                // metadata (chat_template)
+                if (ok && !info.chat_template.empty()) {
+                    auto meta_dir = fs::path(models_dir_) / ModelStorage::modelNameToDir(id);
+                    auto meta_path = meta_dir / "metadata.json";
+                    nlohmann::json meta;
+                    meta["chat_template"] = info.chat_template;
+                    std::ofstream ofs(meta_path, std::ios::binary | std::ios::trunc);
+                    ofs << meta.dump();
+                }
+            }
+
+            if (!ok) {
                 result.to_download.push_back(id);
             }
         }

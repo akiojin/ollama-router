@@ -39,10 +39,10 @@
 
 ## 本日のToDo (2025-11-30)
 
-- [ ] **T710 (RED)** `coordinator/tests/contract/chat_modal_embed.rs` を作成し、`GET /dashboard` のHTMLに `id="chat-open"` ボタンと `id="chat-modal"` iframe（src=/chat）が存在することをスナップショットで検証
-- [ ] **T711 (GREEN)** 上記テストをパスするようダッシュボードHTML/JS/スタイルを整備（モーダル表示/ESC・背景クリック閉鎖/iframe再読み込み）
-- [ ] **T712 (RED)** `coordinator/tests/contract/chat_page_spec.rs` を追加し、`GET /chat` でサイドバーセッションリスト、プロバイダー切替(ローカル/クラウド/すべて)が含まれることを検証
-- [ ] **T713 (GREEN)** `/chat` の静的アセットをビルドに含め、モデルフィルタ・セッション永続化が壊れていないことを手動確認＆必要なら追加単体テスト
+- [x] **T710 (RED)** `router/tests/contract/chat_modal_embed.rs` を作成し、`GET /dashboard` のHTMLに `id="chat-open"` ボタンと `id="chat-modal"` iframe（src=/chat）が存在することをスナップショットで検証
+- [x] **T711 (GREEN)** 上記テストをパスするようダッシュボードHTML/JS/スタイルを整備（モーダル表示/ESC・背景クリック閉鎖/iframe再読み込み）
+- [x] **T712 (RED)** `router/tests/contract/chat_page_spec.rs` を追加し、`GET /chat` でサイドバーセッションリスト、プロバイダー切替(ローカル/クラウド/すべて)が含まれることを検証
+- [x] **T713 (GREEN)** `/chat` の静的アセットをビルドに含め、モデルフィルタ・セッション永続化が壊れていないことを手動確認＆必要なら追加単体テスト
 - [x] **T714 (DOCS)** `specs/SPEC-712c20cf/spec.md` にチャットモーダル要件と受け入れシナリオを追記
 
 ## Phase 1: 基本UI実装 📋 (推定3時間)

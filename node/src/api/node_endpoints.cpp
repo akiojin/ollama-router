@@ -1,9 +1,15 @@
 #include "api/node_endpoints.h"
 
 #include <stdexcept>
+#include <thread>
+#include <filesystem>
+#include <fstream>
 #include <nlohmann/json.hpp>
 #include "runtime/state.h"
 #include "utils/logger.h"
+#include "models/model_sync.h"
+#include "models/model_downloader.h"
+#include "api/router_client.h"
 
 namespace llm_node {
 
@@ -12,11 +18,106 @@ NodeEndpoints::NodeEndpoints() : health_status_("ok") {}
 void NodeEndpoints::registerRoutes(httplib::Server& server) {
     start_time_ = std::chrono::steady_clock::now();
 
-    server.Post("/pull", [this](const httplib::Request&, httplib::Response& res) {
+    server.Post("/pull", [this](const httplib::Request& req, httplib::Response& res) {
         pull_count_.fetch_add(1);
         exporter_.inc_counter("llm_node_pull_total", 1.0, "Number of pull requests received");
+
+        // Parse request JSON
+        auto j = nlohmann::json::parse(req.body, nullptr, false);
+        if (j.is_discarded() || !j.contains("model")) {
+            res.status = 400;
+            res.set_content(R"({"error":"model required"})", "application/json");
+            return;
+        }
+
+        std::string model_name = j["model"].get<std::string>();
+        std::string task_id = j.value("task_id", "");
+
+        spdlog::info("Pull request received: model={}, task_id={}", model_name, task_id);
+
+        // Return accepted immediately, process in background
         nlohmann::json body = {{"status", "accepted"}};
         res.set_content(body.dump(), "application/json");
+
+        // Process download in background thread
+        if (model_sync_ && router_client_ && !task_id.empty()) {
+            auto sync = model_sync_;
+            auto client = router_client_;
+
+            // optional fields from request
+            std::string path = j.value("path", "");
+            std::string download_url = j.value("download_url", "");
+            std::string chat_template = j.value("chat_template", "");
+
+            // helper: model name -> dir (colon to underscore, append _latest when tagなし)
+            auto modelNameToDir = [](const std::string& name) {
+                std::string dir = name;
+                std::replace(dir.begin(), dir.end(), ':', '_');
+                if (name.find(':') == std::string::npos) {
+                    dir += "_latest";
+                }
+                return dir;
+            };
+
+            std::thread([sync, client, model_name, task_id, path, download_url, chat_template, modelNameToDir]() {
+                spdlog::info("Starting model pull: model={}, task_id={}, path='{}', download_url='{}'",
+                              model_name, task_id, path, download_url);
+
+                const std::string models_dir = sync->getModelsDir();
+                const std::string dir_name = modelNameToDir(model_name);
+                const std::filesystem::path target_dir = std::filesystem::path(models_dir) / dir_name;
+                const std::filesystem::path target_path = target_dir / "model.gguf";
+
+                bool success = false;
+
+                auto progress_cb = [&client, &task_id](size_t downloaded, size_t total) {
+                    if (total > 0) {
+                        double progress = static_cast<double>(downloaded) / static_cast<double>(total);
+                        client->reportProgress(task_id, progress, std::nullopt);
+                    }
+                };
+
+                // 1) shared path copy
+                if (!path.empty()) {
+                    std::error_code ec;
+                    if (std::filesystem::exists(path, ec) && std::filesystem::is_regular_file(path, ec)) {
+                        std::filesystem::create_directories(target_dir, ec);
+                        if (!ec) {
+                            std::filesystem::copy_file(path, target_path, std::filesystem::copy_options::overwrite_existing, ec);
+                            if (!ec) success = true;
+                        }
+                    }
+                }
+
+                // 2) download if needed
+                if (!success && !download_url.empty()) {
+                    ModelDownloader downloader(sync->getBaseUrl(), models_dir, std::chrono::milliseconds(30000));
+                    std::string filename = dir_name + "/model.gguf";
+                    auto out = downloader.downloadBlob(download_url, filename, progress_cb);
+                    success = !out.empty();
+                }
+
+                if (success) {
+                    // persist chat_template if provided
+                    if (!chat_template.empty()) {
+                        std::error_code ec;
+                        std::filesystem::create_directories(target_dir, ec);
+                        if (!ec) {
+                            nlohmann::json meta;
+                            meta["chat_template"] = chat_template;
+                            std::ofstream ofs(target_dir / "metadata.json", std::ios::binary | std::ios::trunc);
+                            ofs << meta.dump();
+                        }
+                    }
+                    spdlog::info("Model pull complete: model={}, task_id={}", model_name, task_id);
+                    client->reportProgress(task_id, 1.0, std::nullopt);
+                } else {
+                    spdlog::error("Model pull failed: model={}, task_id={}", model_name, task_id);
+                }
+            }).detach();
+        } else {
+            spdlog::warn("Pull request ignored: model_sync or router_client not set, or no task_id");
+        }
     });
 
     server.Get("/health", [this](const httplib::Request&, httplib::Response& res) {

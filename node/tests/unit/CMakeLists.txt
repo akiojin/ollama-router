@@ -42,6 +42,7 @@ target_link_libraries(llm-node-unit-tests
     PRIVATE
         test_common
         llama
+        common
         nlohmann_json::nlohmann_json
         utils_lib
         OpenSSL::SSL

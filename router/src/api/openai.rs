@@ -18,6 +18,7 @@ use std::{net::IpAddr, time::Instant};
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::registry::models::{ensure_router_model_cached, router_model_path};
 use crate::{
     api::{
         models::list_registered_models,
@@ -111,17 +112,32 @@ pub async fn list_models(State(_state): State<AppState>) -> Result<Response, App
 
     // OpenAI互換レスポンス形式に合わせる
     // https://platform.openai.com/docs/api-reference/models/list
-    let data: Vec<Value> = models
-        .into_iter()
-        .map(|m| {
-            json!({
-                "id": m.name,
-                "object": "model",
-                "created": 0,
-                "owned_by": "coordinator",
-            })
-        })
-        .collect();
+    let mut data: Vec<Value> = Vec::new();
+    for m in models {
+        // ルーター側でキャッシュを試行
+        let cached = ensure_router_model_cached(&m).await;
+        let path = cached
+            .or_else(|| router_model_path(&m.name))
+            .map(|p| p.to_string_lossy().to_string());
+
+        let mut obj = json!({
+            "id": m.name,
+            "object": "model",
+            "created": 0,
+            "owned_by": "coordinator",
+        });
+
+        if let Some(p) = path {
+            obj["path"] = json!(p);
+        }
+        if let Some(url) = m.download_url.clone() {
+            obj["download_url"] = json!(url);
+        }
+        if let Some(tpl) = m.chat_template.clone() {
+            obj["chat_template"] = json!(tpl);
+        }
+        data.push(obj);
+    }
 
     let body = json!({
         "object": "list",
@@ -139,7 +155,7 @@ pub async fn get_model(
     let client = crate::runtime::RuntimeClient::new()?;
     let mut all = client.get_predefined_models();
     all.extend(list_registered_models());
-    let exists = all.into_iter().any(|m| m.name == model_id);
+    let exists = all.iter().any(|m| m.name == model_id);
 
     if !exists {
         // 404 を OpenAI 換算で返す
@@ -154,12 +170,34 @@ pub async fn get_model(
         return Ok((StatusCode::NOT_FOUND, Json(body)).into_response());
     }
 
-    let body = json!({
+    // ルーター側キャッシュを試行
+    let cached =
+        ensure_router_model_cached(all.iter().find(|m| m.name == model_id).unwrap_or(&all[0]))
+            .await;
+
+    let path = cached
+        .or_else(|| router_model_path(&model_id))
+        .map(|p| p.to_string_lossy().to_string());
+
+    let mut body = json!({
         "id": model_id,
         "object": "model",
         "created": 0,
         "owned_by": "coordinator",
     });
+
+    if let Some(p) = path {
+        body["path"] = json!(p);
+    }
+    // download_url は事前登録モデル情報から取得
+    if let Some(model) = all.into_iter().find(|m| m.name == body["id"]) {
+        if let Some(url) = model.download_url {
+            body["download_url"] = json!(url);
+        }
+        if let Some(tpl) = model.chat_template {
+            body["chat_template"] = json!(tpl);
+        }
+    }
 
     Ok((StatusCode::OK, Json(body)).into_response())
 }
@@ -860,7 +898,7 @@ async fn proxy_openai_post(
         let payload = json!({
             "error": {
                 "message": message,
-                "type": "runtime_upstream_error",
+                "type": "node_upstream_error",
                 "code": status_code.as_u16(),
             }
         });
@@ -1013,7 +1051,7 @@ async fn proxy_openai_get(state: &AppState, target_path: &str) -> Result<Respons
         let payload = json!({
             "error": {
                 "message": message,
-                "type": "runtime_upstream_error",
+                "type": "node_upstream_error",
                 "code": status_code.as_u16(),
             }
         });

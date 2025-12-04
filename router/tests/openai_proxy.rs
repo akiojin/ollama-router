@@ -6,7 +6,7 @@ use llm_router::{
     api, balancer::LoadManager, registry::NodeRegistry, tasks::DownloadTaskManager, AppState,
 };
 use llm_router_common::{
-    protocol::{ChatRequest, ChatResponse, GenerateRequest},
+    protocol::{ChatRequest, GenerateRequest},
     types::GpuDeviceInfo,
 };
 use std::net::SocketAddr;
@@ -130,13 +130,19 @@ fn attach_test_client_ip<B>(mut request: axum::http::Request<B>) -> axum::http::
 async fn test_proxy_chat_success() {
     let mock_server = MockServer::start().await;
 
-    let chat_response = ChatResponse {
-        message: llm_router_common::protocol::ChatMessage {
-            role: "assistant".into(),
-            content: "hello".into(),
-        },
-        done: true,
-    };
+    // OpenAI互換形式のレスポンス
+    let chat_response = serde_json::json!({
+        "id": "chatcmpl-test",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "hello"
+            },
+            "finish_reason": "stop"
+        }]
+    });
 
     Mock::given(method("POST"))
         .and(path("/v1/chat/completions"))
@@ -174,8 +180,8 @@ async fn test_proxy_chat_success() {
     let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
         .await
         .unwrap();
-    let parsed: ChatResponse = serde_json::from_slice(&body).unwrap();
-    assert_eq!(parsed.message.content, "hello");
+    let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(parsed["choices"][0]["message"]["content"], "hello");
 }
 
 #[tokio::test]
@@ -271,7 +277,7 @@ async fn test_proxy_chat_missing_model_returns_openai_error() {
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(json["error"]["type"], "runtime_upstream_error");
+    assert_eq!(json["error"]["type"], "node_upstream_error");
     assert_eq!(json["error"]["code"], 404);
     assert!(json["error"]["message"]
         .as_str()

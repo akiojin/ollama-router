@@ -30,7 +30,7 @@ use mime_guess::MimeGuess;
 
 static DASHBOARD_ASSETS: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/web/static");
 const DASHBOARD_INDEX: &str = "index.html";
-const CHAT_INDEX: &str = "openui/index.html";
+const CHAT_INDEX: &str = "chat/index.html";
 
 /// APIルーターを作成
 pub fn create_router(state: AppState) -> Router {
@@ -141,6 +141,7 @@ pub fn create_router(state: AppState) -> Router {
         // モデル管理API (SPEC-8ae67d67)
         .route("/api/models/available", get(models::get_available_models))
         .route("/api/models/register", post(models::register_model))
+        .route("/api/models/pull", post(models::pull_model_from_hf))
         .route("/api/models/loaded", get(models::get_loaded_models))
         .route("/api/models/distribute", post(models::distribute_models))
         .route("/api/models/download", post(models::distribute_models))
@@ -149,6 +150,7 @@ pub fn create_router(state: AppState) -> Router {
             "/api/nodes/:node_id/models/pull",
             post(models::pull_model_to_node),
         )
+        .route("/api/tasks", get(models::list_tasks))
         .route("/api/tasks/:task_id", get(models::get_task_progress))
         .route(
             "/api/tasks/:task_id/progress",
@@ -226,7 +228,7 @@ fn normalize_chat_path(request_path: &str) -> Option<String> {
     if trimmed.contains("..") || trimmed.contains('\\') {
         return None;
     }
-    Some(format!("openui/{}", trimmed))
+    Some(format!("chat/{}", trimmed))
 }
 
 #[cfg(test)]

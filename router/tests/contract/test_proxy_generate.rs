@@ -134,7 +134,7 @@ async fn proxy_generate_propagates_upstream_error() {
 
     assert_eq!(response.status(), ReqStatusCode::BAD_REQUEST);
     let body: Value = response.json().await.expect("error payload");
-    assert_eq!(body["error"]["type"], "runtime_upstream_error");
+    assert_eq!(body["error"]["type"], "node_upstream_error");
     assert_eq!(body["error"]["code"], 400);
     assert!(body["error"]["message"]
         .as_str()

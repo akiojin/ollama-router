@@ -21,6 +21,7 @@
   ];
 
   const STORAGE_KEY = "router:chat:sessions:v1";
+  const SETTINGS_KEY = "router:chat:settings:v1";
 
   const dom = {
     modelSelect: document.getElementById("model-select"),
@@ -34,6 +35,8 @@
     stopButton: document.getElementById("stop-button"),
     resetButton: document.getElementById("reset-chat"),
     errorBanner: document.getElementById("error-banner"),
+    errorMessage: document.getElementById("error-message"),
+    errorClose: document.getElementById("error-close"),
     routerStatus: document.getElementById("router-status"),
     modelCount: document.getElementById("model-count"),
     modelHint: document.getElementById("model-hint"),
@@ -46,9 +49,16 @@
     activeSessionTitle: document.getElementById("active-session-title"),
     activeSessionMeta: document.getElementById("active-session-meta"),
     chatMeta: document.getElementById("chat-meta-hint"),
+    settingsToggle: document.getElementById("settings-toggle"),
+    settingsModal: document.getElementById("settings-modal"),
+    modalClose: document.getElementById("modal-close"),
+    sidebar: document.getElementById("sidebar"),
+    sidebarToggle: document.getElementById("sidebar-toggle"),
+    sidebarToggleMobile: document.getElementById("sidebar-toggle-mobile"),
+    apiKeyInput: document.getElementById("api-key-input"),
   };
   dom.providerButtons = dom.providerToggle
-    ? Array.from(dom.providerToggle.querySelectorAll(".segmented__btn"))
+    ? Array.from(dom.providerToggle.querySelectorAll(".provider-btn"))
     : [];
 
   const state = {
@@ -80,34 +90,38 @@
   function setStatus(text, variant = "online") {
     const el = dom.routerStatus;
     if (!el) return;
-    el.textContent = text;
+    el.title = text;
 
     el.classList.remove(
-      "status-pill--connecting",
-      "status-pill--offline",
-      "status-pill--online",
-      "status-pill--error",
+      "status-indicator--connecting",
+      "status-indicator--offline",
+      "status-indicator--online",
+      "status-indicator--error",
     );
 
     const map = {
-      online: "status-pill--online",
-      offline: "status-pill--offline",
-      connecting: "status-pill--connecting",
-      error: "status-pill--error",
+      online: "status-indicator--online",
+      offline: "status-indicator--offline",
+      connecting: "status-indicator--connecting",
+      error: "status-indicator--error",
     };
 
-    el.classList.add(map[variant] ?? "status-pill--online");
+    el.classList.add(map[variant] ?? "status-indicator--online");
   }
 
   function showError(message) {
     if (!dom.errorBanner) return;
-    dom.errorBanner.textContent = message;
+    if (dom.errorMessage) {
+      dom.errorMessage.textContent = message;
+    } else {
+      dom.errorBanner.textContent = message;
+    }
     dom.errorBanner.classList.remove("hidden");
   }
 
   function clearError() {
     dom.errorBanner?.classList.add("hidden");
-    if (dom.errorBanner) dom.errorBanner.textContent = "";
+    if (dom.errorMessage) dom.errorMessage.textContent = "";
   }
 
   function modelKind(id) {
@@ -233,6 +247,7 @@
         history: (session.history || []).map((msg) => ({
           role: msg.role,
           content: msg.content,
+          reasoning: msg.reasoning || null,
           model: msg.model,
           createdAt: msg.createdAt instanceof Date ? msg.createdAt.toISOString() : msg.createdAt,
         })),
@@ -259,6 +274,7 @@
         history: (session.history || []).map((msg) => ({
           role: msg.role,
           content: msg.content,
+          reasoning: msg.reasoning || null,
           model: msg.model,
           createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
           element: null,
@@ -266,6 +282,38 @@
       }));
     } catch (_err) {
       state.sessions = [];
+    }
+  }
+
+  function persistSettings() {
+    try {
+      const settings = {
+        streamEnabled: dom.streamToggle?.checked ?? false,
+        appendSystem: dom.appendSystem?.checked ?? true,
+        apiKey: dom.apiKeyInput?.value || "",
+      };
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (_err) {
+      // 永続化失敗は致命的ではないため無視
+    }
+  }
+
+  function hydrateSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return;
+      const settings = JSON.parse(raw);
+      if (dom.streamToggle && typeof settings.streamEnabled === "boolean") {
+        dom.streamToggle.checked = settings.streamEnabled;
+      }
+      if (dom.appendSystem && typeof settings.appendSystem === "boolean") {
+        dom.appendSystem.checked = settings.appendSystem;
+      }
+      if (dom.apiKeyInput && typeof settings.apiKey === "string") {
+        dom.apiKeyInput.value = settings.apiKey;
+      }
+    } catch (_err) {
+      // 復元失敗は無視
     }
   }
 
@@ -357,7 +405,7 @@
     dom.chatLog.innerHTML = "";
     if (!history || !history.length) {
       dom.chatLog.innerHTML =
-        '<div class="chat-empty">No messages yet. Send a message using the input below.</div>';
+        '<div class="chat-welcome"><h2>LLM Router Chat</h2><p>Select a model and start chatting</p></div>';
       return;
     }
     for (const entry of history) {
@@ -433,36 +481,92 @@
     node.dataset.messageId = entry.id;
     node.classList.add(`message--${entry.role}`);
 
-    const roleEl = node.querySelector(".message__role");
-    const textEl = node.querySelector(".message__text");
-    const metaEl = node.querySelector(".message__meta");
+    const avatarEl = node.querySelector(".message-avatar");
+    const roleEl = node.querySelector(".message-role");
+    const textEl = node.querySelector(".message-text");
+    const metaEl = node.querySelector(".message-meta");
 
-    roleEl.textContent = messageLabel(entry.role);
-    textEl.textContent = entry.content;
-    metaEl.textContent = messageMeta(entry);
+    // Avatar text is handled via CSS ::before pseudo-element
+    if (roleEl) roleEl.textContent = messageLabel(entry.role);
+    if (textEl) {
+      // Reasoning content を折りたたみ表示
+      if (entry.reasoning && entry.role === "assistant") {
+        const details = document.createElement("details");
+        details.className = "reasoning-block";
+        const summary = document.createElement("summary");
+        summary.className = "reasoning-summary";
+        summary.textContent = "思考過程を表示";
+        const reasoningContent = document.createElement("div");
+        reasoningContent.className = "reasoning-content";
+        reasoningContent.textContent = entry.reasoning;
+        details.appendChild(summary);
+        details.appendChild(reasoningContent);
+        textEl.appendChild(details);
 
-    dom.chatLog.querySelector(".chat-empty")?.remove();
+        const mainContent = document.createElement("div");
+        mainContent.className = "main-content";
+        mainContent.textContent = entry.content;
+        textEl.appendChild(mainContent);
+      } else {
+        textEl.textContent = entry.content;
+      }
+    }
+    if (metaEl) metaEl.textContent = messageMeta(entry);
+
+    dom.chatLog.querySelector(".chat-welcome")?.remove();
     dom.chatLog.appendChild(node);
-    dom.chatLog.scrollTop = dom.chatLog.scrollHeight;
+    scrollToBottom(true); // スムーズスクロール
     entry.element = node;
+  }
+
+  function getScrollContainer() {
+    // chat-messagesの親要素(.chat-container)がスクロール可能
+    return dom.chatLog?.parentElement;
+  }
+
+  function isNearBottom() {
+    const container = getScrollContainer();
+    if (!container) return true;
+    const threshold = 100; // ピクセル単位のしきい値
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  }
+
+  function scrollToBottom(smooth = false) {
+    const container = getScrollContainer();
+    if (!container) return;
+    // ダブルrequestAnimationFrameでレイアウト完了後にスクロール
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: smooth ? "smooth" : "instant",
+        });
+      });
+    });
   }
 
   function updateMessage(entry, content) {
     entry.content = content;
     if (entry.element) {
-      const textEl = entry.element.querySelector(".message__text");
-      const metaEl = entry.element.querySelector(".message__meta");
+      const textEl = entry.element.querySelector(".message-text");
+      const metaEl = entry.element.querySelector(".message-meta");
       if (textEl) textEl.textContent = content;
       if (metaEl) metaEl.textContent = messageMeta(entry);
+      // ストリーミング中は自動スクロール（ユーザーが下部付近にいる場合のみ）
+      if (isNearBottom()) {
+        scrollToBottom();
+      }
     }
     persistSessions();
   }
 
-  function addMessage(role, content, { model } = {}) {
+  function addMessage(role, content, { model, reasoning } = {}) {
     const entry = {
       id: crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}-${Math.random()}`,
       role,
       content,
+      reasoning: reasoning || null,
       model: model || null,
       createdAt: new Date(),
       element: null,
@@ -478,6 +582,38 @@
     persistSessions();
     updateSessionHeader(session);
     return entry;
+  }
+
+  function addTypingIndicator(model) {
+    const template = dom.messageTemplate;
+    if (!template || !dom.chatLog) return null;
+
+    const node = template.content.firstElementChild.cloneNode(true);
+    const id = `typing-${Date.now()}`;
+    node.dataset.messageId = id;
+    node.classList.add("message--assistant");
+
+    const roleEl = node.querySelector(".message-role");
+    const textEl = node.querySelector(".message-text");
+    const metaEl = node.querySelector(".message-meta");
+
+    if (roleEl) roleEl.textContent = "Assistant";
+    if (textEl) {
+      textEl.innerHTML = '<span class="typing-indicator"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
+    }
+    if (metaEl) metaEl.textContent = model ? `${model} is typing...` : "Generating...";
+
+    dom.chatLog.querySelector(".chat-welcome")?.remove();
+    dom.chatLog.appendChild(node);
+    scrollToBottom(true); // スムーズスクロール
+
+    return { id, element: node };
+  }
+
+  function removeTypingIndicator(entry) {
+    if (entry?.element) {
+      entry.element.remove();
+    }
   }
 
   function updateSessionTitleFrom(entry) {
@@ -557,10 +693,19 @@
     }
   }
 
+  function getAuthHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const apiKey = dom.apiKeyInput?.value?.trim();
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+    return headers;
+  }
+
   async function postChat(payload, signal) {
     const res = await fetch(state.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
       signal,
     });
@@ -572,12 +717,12 @@
     return res.json();
   }
 
-  async function streamChat(payload, assistantEntry) {
+  async function streamChat(payload, assistantEntry, typingEntry = null) {
     const controller = new AbortController();
     state.controller = controller;
     const res = await fetch(state.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -595,6 +740,7 @@
     const decoder = new TextDecoder();
     let buffer = "";
     let assembled = "";
+    let firstTokenReceived = false;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -605,26 +751,63 @@
 
       for (const line of lines) {
         if (!line.trim()) continue;
-        const parsed = safeParse(line);
+        // SSE形式の場合は "data: " プレフィックスを除去
+        const dataLine = line.startsWith("data: ") ? line.slice(6) : line;
+        if (dataLine === "[DONE]") {
+          buffer = "";
+          continue;
+        }
+        const parsed = safeParse(dataLine);
         if (!parsed) continue;
         if (parsed.error) {
           throw new Error(parsed.error.message || String(parsed.error));
         }
-        if (parsed.message?.content) {
-          assembled += parsed.message.content;
+        // OpenAI互換形式: choices[0].delta.content (ストリーミング)
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) {
+          // 最初のトークン到着時にタイピングインジケーターを削除し、メッセージを表示
+          if (!firstTokenReceived) {
+            firstTokenReceived = true;
+            removeTypingIndicator(typingEntry);
+            if (assistantEntry.element) {
+              assistantEntry.element.classList.remove("hidden");
+            }
+          }
+          assembled += delta;
           updateMessage(assistantEntry, assembled);
         }
-        if (parsed.done) {
+        // 終了判定
+        if (parsed.choices?.[0]?.finish_reason) {
           buffer = "";
         }
       }
     }
 
     if (buffer.trim()) {
-      const parsed = safeParse(buffer.trim());
-      if (parsed?.message?.content) {
-        assembled += parsed.message.content;
-        updateMessage(assistantEntry, assembled);
+      const dataLine = buffer.trim().startsWith("data: ") ? buffer.trim().slice(6) : buffer.trim();
+      if (dataLine !== "[DONE]") {
+        const parsed = safeParse(dataLine);
+        // OpenAI互換形式: choices[0].delta.content
+        const delta = parsed?.choices?.[0]?.delta?.content;
+        if (delta) {
+          if (!firstTokenReceived) {
+            firstTokenReceived = true;
+            removeTypingIndicator(typingEntry);
+            if (assistantEntry.element) {
+              assistantEntry.element.classList.remove("hidden");
+            }
+          }
+          assembled += delta;
+          updateMessage(assistantEntry, assembled);
+        }
+      }
+    }
+
+    // 応答が空の場合もタイピングインジケーターを削除
+    if (!firstTokenReceived) {
+      removeTypingIndicator(typingEntry);
+      if (assistantEntry.element) {
+        assistantEntry.element.classList.remove("hidden");
       }
     }
 
@@ -635,9 +818,9 @@
     dom.providerButtons?.forEach((btn) => {
       const value = btn.dataset.provider;
       if (value === state.providerFilter) {
-        btn.classList.add("segmented__btn--active");
+        btn.classList.add("provider-btn--active");
       } else {
-        btn.classList.remove("segmented__btn--active");
+        btn.classList.remove("provider-btn--active");
       }
     });
   }
@@ -678,16 +861,36 @@
       setLoading(true, { streaming: payload.stream });
       let assistantContent = "";
       if (payload.stream) {
-        const assistantEntry = addMessage("assistant", "…", { model: payload.model });
+        // ストリーミングモードでもタイピングインジケーターを表示
+        const typingEntry = addTypingIndicator(payload.model);
+        const assistantEntry = addMessage("assistant", "", { model: payload.model });
+        assistantEntry.element.classList.add("hidden"); // 最初は非表示
         state.pendingAssistant = assistantEntry;
-        assistantContent = await streamChat(payload, assistantEntry);
-        if (!assistantContent) {
-          updateMessage(assistantEntry, "(Empty response)");
+        try {
+          assistantContent = await streamChat(payload, assistantEntry, typingEntry);
+          if (!assistantContent) {
+            updateMessage(assistantEntry, "(Empty response)");
+          }
+        } catch (err) {
+          removeTypingIndicator(typingEntry);
+          throw err;
         }
       } else {
-        const body = await postChat(payload);
-        assistantContent = body?.message?.content ?? "(Empty response)";
-        addMessage("assistant", assistantContent, { model: payload.model });
+        // 非ストリーミングモードでもタイピングインジケーターを表示
+        const typingEntry = addTypingIndicator(payload.model);
+        try {
+          const body = await postChat(payload);
+          // OpenAI互換形式: choices[0].message.content
+          const message = body?.choices?.[0]?.message;
+          assistantContent = message?.content ?? "(Empty response)";
+          // reasoning_content をサポート（o1系モデル等）
+          const reasoning = message?.reasoning_content || null;
+          removeTypingIndicator(typingEntry);
+          addMessage("assistant", assistantContent, { model: payload.model, reasoning });
+        } catch (err) {
+          removeTypingIndicator(typingEntry);
+          throw err;
+        }
       }
       setStatus(`Response from model ${payload.model}`, "online");
     } catch (err) {
@@ -749,9 +952,31 @@
   }
 
   function handleKeydown(event) {
+    // IME変換中のEnterは無視する（日本語入力など）
+    if (event.isComposing || event.keyCode === 229) {
+      return;
+    }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       dom.chatForm?.requestSubmit();
+    }
+  }
+
+  function openSettingsModal() {
+    if (dom.settingsModal) {
+      dom.settingsModal.showModal();
+    }
+  }
+
+  function closeSettingsModal() {
+    if (dom.settingsModal) {
+      dom.settingsModal.close();
+    }
+  }
+
+  function toggleSidebar() {
+    if (dom.sidebar) {
+      dom.sidebar.classList.toggle("sidebar--collapsed");
     }
   }
 
@@ -768,6 +993,9 @@
       selectedModel();
       updateSessionHeader(currentSession());
     });
+    dom.streamToggle?.addEventListener("change", persistSettings);
+    dom.appendSystem?.addEventListener("change", persistSettings);
+    dom.apiKeyInput?.addEventListener("change", persistSettings);
     dom.newChat?.addEventListener("click", () => createSession());
     dom.newChatInline?.addEventListener("click", () => createSession());
     if (dom.sessionList) {
@@ -781,11 +1009,28 @@
     dom.providerButtons?.forEach((btn) => {
       btn.addEventListener("click", () => setProviderFilter(btn.dataset.provider));
     });
+
+    // Settings modal
+    dom.settingsToggle?.addEventListener("click", openSettingsModal);
+    dom.modalClose?.addEventListener("click", closeSettingsModal);
+    dom.settingsModal?.addEventListener("click", (event) => {
+      if (event.target === dom.settingsModal) {
+        closeSettingsModal();
+      }
+    });
+
+    // Sidebar toggle
+    dom.sidebarToggle?.addEventListener("click", toggleSidebar);
+    dom.sidebarToggleMobile?.addEventListener("click", toggleSidebar);
+
+    // Error close button
+    dom.errorClose?.addEventListener("click", clearError);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     setStatus("Connecting...", "connecting");
     hydrateSessions();
+    hydrateSettings();
     ensureActiveSession();
     renderSessionList();
     renderProviderButtons();

@@ -135,6 +135,20 @@ async function registerModel(repo, filename, displayName) {
   return response.json();
 }
 
+async function pullModelFromHf(repo, filename, chatTemplate) {
+  const payload = { repo, filename, chat_template: chatTemplate };
+  const response = await fetch('/api/models/pull', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const txt = await response.text();
+    throw new Error(txt || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
 /**
  * POST /api/models/distribute - Distribute model
  */
@@ -178,6 +192,22 @@ async function fetchAgentModels(agentId) {
     return await response.json();
   } catch (error) {
     console.error(`Failed to fetch models for agent ${agentId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * GET /api/tasks - Fetch all active tasks
+ */
+async function fetchActiveTasks() {
+  try {
+    const response = await fetch('/api/tasks');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch active tasks:', error);
     return [];
   }
 }
@@ -452,9 +482,9 @@ function renderHfModelCard(model) {
     '</div>',
     `
       <div class="model-card__actions">
-        <button class="btn btn-small" data-action="register" data-repo="${escapeHtml(
+        <button class="btn btn-small" data-action="pull" data-repo="${escapeHtml(
           repo
-        )}" data-file="${escapeHtml(filename)}">Register</button>
+        )}" data-file="${escapeHtml(filename)}">Pull</button>
       </div>
     </div>`
   );
@@ -536,16 +566,17 @@ function renderHfModels(models) {
     return;
   }
   container.innerHTML = filtered.map((m) => renderHfModelCard(m)).join('');
-  container.querySelectorAll('button[data-action="register"]').forEach((btn) => {
+  container.querySelectorAll('button[data-action="pull"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const repo = btn.dataset.repo;
       const file = btn.dataset.file;
       try {
-        await registerModel(repo, file, `${repo}/${file}`);
+        await pullModelFromHf(repo, file, null);
         await refreshRegisteredModels();
-        showSuccess('Registered model');
+        showSuccess('Pulled model to router');
       } catch (e) {
         console.error(e);
+        showError(e.message || 'Failed to pull model');
       }
     });
   });
@@ -1006,16 +1037,24 @@ export async function initModelsUI(agents) {
   loadedModels = await fetchLoadedModels();
   renderLoadedModels();
 
+  // アクティブなタスクを初期取得
+  const activeTasks = await fetchActiveTasks();
+  for (const task of activeTasks) {
+    downloadTasks.set(task.id, task);
+  }
+  renderDownloadTasks();
+
   // 進捗監視開始
   monitorProgress();
 
   const tasksRefresh = elements.tasksRefreshBtn();
   if (tasksRefresh) {
     tasksRefresh.addEventListener('click', async () => {
-      const ids = Array.from(downloadTasks.keys());
-      for (const id of ids) {
-        const t = await fetchTaskProgress(id);
-        if (t) downloadTasks.set(id, t);
+      // サーバーからアクティブなタスク一覧を再取得
+      const tasks = await fetchActiveTasks();
+      downloadTasks.clear();
+      for (const task of tasks) {
+        downloadTasks.set(task.id, task);
       }
       renderDownloadTasks();
     });

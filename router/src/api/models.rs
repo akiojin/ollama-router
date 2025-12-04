@@ -8,15 +8,20 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use futures::StreamExt;
 use once_cell::sync::Lazy;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::{
-    registry::models::{DownloadStatus, DownloadTask, InstalledModel, ModelInfo, ModelSource},
+    registry::models::{
+        ensure_router_model_cached, model_name_to_dir, router_model_path, router_models_dir,
+        DownloadStatus, DownloadTask, InstalledModel, ModelInfo, ModelSource,
+    },
     runtime::RuntimeClient,
     AppState,
 };
@@ -191,6 +196,13 @@ pub fn list_registered_models() -> Vec<ModelInfo> {
     REGISTERED_MODELS.read().unwrap().clone()
 }
 
+fn find_model_by_name(name: &str) -> Option<ModelInfo> {
+    let client = RuntimeClient::new().ok()?;
+    let mut all = client.get_predefined_models();
+    all.extend(list_registered_models());
+    all.into_iter().find(|m| m.name == name)
+}
+
 /// 登録モデルを追加（重複チェックあり）
 fn add_registered_model(model: ModelInfo) -> Result<(), RouterError> {
     let mut store = REGISTERED_MODELS.write().unwrap();
@@ -314,6 +326,8 @@ async fn fetch_hf_models(query: &AvailableQuery) -> Result<(Vec<ModelInfo>, bool
                 tags,
                 source: ModelSource::HfGguf,
                 download_url: Some(download_url),
+                path: None,
+                chat_template: None,
                 repo: Some(m.model_id.clone()),
                 filename: Some(sib.rfilename.clone()),
                 last_modified,
@@ -342,6 +356,27 @@ pub struct DistributeModelsRequest {
     /// ノードID一覧（targetが"specific"の場合）
     #[serde(default)]
     pub node_ids: Vec<Uuid>,
+}
+
+/// HFからモデルをpullするリクエスト
+#[derive(Debug, Deserialize)]
+pub struct PullFromHfRequest {
+    /// HFリポジトリ名 (例: TheBloke/gpt-oss-GGUF)
+    pub repo: String,
+    /// ファイル名 (例: gpt-oss-20b.Q4_K_M.gguf)
+    pub filename: String,
+    /// オプションのchat_template
+    #[serde(default)]
+    pub chat_template: Option<String>,
+}
+
+/// HF pull APIのレスポンス
+#[derive(Debug, Serialize)]
+pub struct PullFromHfResponse {
+    /// 登録名（hf/<repo>/<file>）
+    pub name: String,
+    /// ルーター側にキャッシュされたローカルパス
+    pub path: String,
 }
 
 /// モデル配布レスポンス
@@ -458,6 +493,9 @@ pub struct RegisterModelRequest {
     /// 表示名（任意）
     #[serde(default)]
     pub display_name: Option<String>,
+    /// オプションのchat_template（GGUFに含まれない場合の補助）
+    #[serde(default)]
+    pub chat_template: Option<String>,
 }
 
 /// POST /api/models/register - HF GGUFを対応モデルに登録
@@ -478,6 +516,8 @@ pub async fn register_model(
         tags: vec!["gguf".into()],
         source: ModelSource::HfGguf,
         download_url: Some(download_url),
+        path: None,
+        chat_template: req.chat_template.clone(),
         repo: Some(req.repo.clone()),
         filename: Some(req.filename.clone()),
         last_modified: None,
@@ -493,6 +533,72 @@ pub async fn register_model(
             "name": name,
             "status": "registered"
         })),
+    ))
+}
+
+/// POST /api/models/pull - HFからダウンロードしローカルキャッシュに保存して登録
+pub async fn pull_model_from_hf(
+    Json(req): Json<PullFromHfRequest>,
+) -> Result<(StatusCode, Json<PullFromHfResponse>), AppError> {
+    let name = format!("hf/{}/{}", req.repo, req.filename);
+    validate_model_name(&name)?;
+
+    let download_url = format!(
+        "https://huggingface.co/{}/resolve/main/{}",
+        req.repo, req.filename
+    );
+
+    let base = router_models_dir().ok_or_else(|| RouterError::Internal("HOME not set".into()))?;
+    let dir = base.join(model_name_to_dir(&name));
+    let target = dir.join("model.gguf");
+
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|e| RouterError::Internal(e.to_string()))?;
+
+    // ダウンロード
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(&download_url)
+        .send()
+        .await
+        .map_err(|e| RouterError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(RouterError::Http(resp.status().to_string()).into());
+    }
+
+    let mut file = tokio::fs::File::create(&target)
+        .await
+        .map_err(|e| RouterError::Internal(e.to_string()))?;
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| RouterError::Http(e.to_string()))?;
+        file.write_all(&bytes)
+            .await
+            .map_err(|e| RouterError::Internal(e.to_string()))?;
+    }
+
+    let mut model = ModelInfo::new(name.clone(), 0, req.repo.clone(), 0, vec!["gguf".into()]);
+    model.download_url = Some(download_url.clone());
+    model.path = Some(target.to_string_lossy().to_string());
+    model.chat_template = req.chat_template.clone();
+    model.repo = Some(req.repo.clone());
+    model.filename = Some(req.filename.clone());
+    model.status = Some("cached".into());
+
+    if let Ok(meta) = tokio::fs::metadata(&target).await {
+        model.size = meta.len();
+    }
+
+    add_registered_model(model)?;
+    persist_registered_models().await;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(PullFromHfResponse {
+            name,
+            path: target.to_string_lossy().to_string(),
+        }),
     ))
 }
 
@@ -606,11 +712,26 @@ pub async fn distribute_models(
         let node_url = format!("http://{}:{}/pull", node.ip_address, node_api_port);
         let model_name = request.model_name.clone();
 
+        let model_info = find_model_by_name(&model_name);
+        let cached = if let Some(mi) = &model_info {
+            ensure_router_model_cached(mi).await
+        } else {
+            None
+        };
+        let shared_path = cached
+            .or_else(|| model_info.as_ref().and_then(|m| router_model_path(&m.name)))
+            .map(|p| p.to_string_lossy().to_string());
+        let download_url = model_info.as_ref().and_then(|m| m.download_url.clone());
+        let chat_template = model_info.as_ref().and_then(|m| m.chat_template.clone());
+
         tokio::spawn(async move {
             let client = reqwest::Client::new();
             let pull_request = serde_json::json!({
                 "model": model_name,
                 "task_id": task_id,
+                "path": shared_path,
+                "download_url": download_url,
+                "chat_template": chat_template,
             });
 
             match client.post(&node_url).json(&pull_request).send().await {
@@ -758,6 +879,12 @@ pub async fn get_task_progress(
     })?;
 
     Ok(Json(task))
+}
+
+/// GET /api/tasks - アクティブなタスク一覧を取得
+pub async fn list_tasks(State(state): State<AppState>) -> Json<Vec<DownloadTask>> {
+    let tasks = state.task_manager.list_active_tasks().await;
+    Json(tasks)
 }
 
 /// T034: POST /api/tasks/{task_id}/progress - タスク進捗を更新（ノードから呼ばれる）
