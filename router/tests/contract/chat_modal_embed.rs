@@ -12,6 +12,7 @@ async fn build_router() -> Router {
     let request_history =
         std::sync::Arc::new(llm_router::db::request_history::RequestHistoryStorage::new().unwrap());
     let task_manager = DownloadTaskManager::new();
+    let convert_manager = llm_router::convert::ConvertTaskManager::new(1);
     let db_pool = sqlx::SqlitePool::connect("sqlite::memory:")
         .await
         .expect("Failed to create test database");
@@ -25,6 +26,7 @@ async fn build_router() -> Router {
         load_manager,
         request_history,
         task_manager,
+        convert_manager,
         db_pool,
         jwt_secret,
         http_client: reqwest::Client::new(),
@@ -51,16 +53,19 @@ async fn dashboard_contains_chat_modal() {
     let html = String::from_utf8(bytes.to_vec()).expect("dashboard html should be utf-8");
 
     assert!(
-        html.contains("id=\"chat-open\""),
-        "chat open button not found"
+        html.contains("id=\"playground-open\""),
+        "playground open button not found"
     );
     assert!(
-        html.contains("id=\"chat-modal\""),
-        "chat modal container not found"
+        html.contains("id=\"playground-modal\""),
+        "playground modal container not found"
     );
-    assert!(html.contains("id=\"chat-iframe\""), "chat iframe not found");
     assert!(
-        html.contains("src=\"/chat\""),
-        "chat iframe src should point to /chat"
+        html.contains("id=\"playground-iframe\""),
+        "playground iframe not found"
+    );
+    assert!(
+        html.contains("src=\"/playground\""),
+        "playground iframe src should point to /playground"
     );
 }

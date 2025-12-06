@@ -30,7 +30,7 @@ use mime_guess::MimeGuess;
 
 static DASHBOARD_ASSETS: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/web/static");
 const DASHBOARD_INDEX: &str = "index.html";
-const CHAT_INDEX: &str = "chat/index.html";
+const PLAYGROUND_INDEX: &str = "chat/index.html";
 
 /// APIルーターを作成
 pub fn create_router(state: AppState) -> Router {
@@ -142,6 +142,12 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/models/available", get(models::get_available_models))
         .route("/api/models/register", post(models::register_model))
         .route("/api/models/pull", post(models::pull_model_from_hf))
+        .route("/api/models/convert", post(models::convert_model))
+        .route("/api/models/convert", get(models::list_convert_tasks))
+        .route(
+            "/api/models/convert/:task_id",
+            get(models::get_convert_task),
+        )
         .route("/api/models/loaded", get(models::get_loaded_models))
         .route("/api/models/distribute", post(models::distribute_models))
         .route("/api/models/download", post(models::distribute_models))
@@ -162,10 +168,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/dashboard", get(serve_dashboard_index))
         .route("/dashboard/", get(serve_dashboard_index))
         .route("/dashboard/*path", get(serve_dashboard_asset))
-        // チャットUI（正式）
-        .route("/chat", get(serve_chat_index))
-        .route("/chat/", get(serve_chat_index))
-        .route("/chat/*path", get(serve_chat_asset))
+        // Playground UI (no legacy /chat path)
+        .route("/playground", get(serve_playground_index))
+        .route("/playground/", get(serve_playground_index))
+        .route("/playground/*path", get(serve_playground_asset))
         .with_state(state)
 }
 
@@ -181,12 +187,12 @@ async fn serve_dashboard_asset(AxumPath(request_path): AxumPath<String>) -> Resp
     }
 }
 
-async fn serve_chat_index() -> Response {
-    embedded_dashboard_response(CHAT_INDEX)
+async fn serve_playground_index() -> Response {
+    embedded_dashboard_response(PLAYGROUND_INDEX)
 }
 
-async fn serve_chat_asset(AxumPath(request_path): AxumPath<String>) -> Response {
-    let normalized = normalize_chat_path(&request_path);
+async fn serve_playground_asset(AxumPath(request_path): AxumPath<String>) -> Response {
+    let normalized = normalize_playground_path(&request_path);
     match normalized {
         Some(path) => embedded_dashboard_response(&path),
         None => StatusCode::NOT_FOUND.into_response(),
@@ -222,10 +228,10 @@ fn normalize_dashboard_path(request_path: &str) -> Option<String> {
     Some(trimmed.to_string())
 }
 
-fn normalize_chat_path(request_path: &str) -> Option<String> {
+fn normalize_playground_path(request_path: &str) -> Option<String> {
     let trimmed = request_path.trim_matches('/');
     if trimmed.is_empty() {
-        return Some(CHAT_INDEX.to_string());
+        return Some(PLAYGROUND_INDEX.to_string());
     }
     if trimmed.contains("..") || trimmed.contains('\\') {
         return None;
@@ -252,6 +258,7 @@ mod tests {
         let request_history =
             std::sync::Arc::new(crate::db::request_history::RequestHistoryStorage::new().unwrap());
         let task_manager = DownloadTaskManager::new();
+        let convert_manager = crate::convert::ConvertTaskManager::new(1);
         let db_pool = sqlx::SqlitePool::connect("sqlite::memory:")
             .await
             .expect("Failed to create test database");
@@ -265,6 +272,7 @@ mod tests {
             load_manager,
             request_history,
             task_manager,
+            convert_manager,
             db_pool,
             jwt_secret,
             http_client: reqwest::Client::new(),
@@ -308,14 +316,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_chat_static_served() {
+    async fn test_playground_static_served() {
         let (state, _) = test_state().await;
         let mut router = create_router(state);
         let response = router
             .call(
                 Request::builder()
                     .method(axum::http::Method::GET)
-                    .uri("/chat")
+                    .uri("/playground")
                     .body(Body::empty())
                     .unwrap(),
             )
