@@ -1,4 +1,4 @@
-//! Contract test: /chat static page contains required UI elements
+//! Contract test: /playground static page contains required UI elements
 
 use axum::{body::to_bytes, http::Request, Router};
 use llm_router::{

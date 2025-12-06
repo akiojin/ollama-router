@@ -30,7 +30,7 @@ use mime_guess::MimeGuess;
 
 static DASHBOARD_ASSETS: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/web/static");
 const DASHBOARD_INDEX: &str = "index.html";
-const CHAT_INDEX: &str = "chat/index.html";
+const PLAYGROUND_INDEX: &str = "chat/index.html";
 
 /// APIルーターを作成
 pub fn create_router(state: AppState) -> Router {
@@ -168,13 +168,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/dashboard", get(serve_dashboard_index))
         .route("/dashboard/", get(serve_dashboard_index))
         .route("/dashboard/*path", get(serve_dashboard_asset))
-        // Playground UI (primary) + legacy /chat alias
+        // Playground UI (no legacy /chat path)
         .route("/playground", get(serve_playground_index))
         .route("/playground/", get(serve_playground_index))
         .route("/playground/*path", get(serve_playground_asset))
-        .route("/chat", get(serve_playground_index))
-        .route("/chat/", get(serve_playground_index))
-        .route("/chat/*path", get(serve_playground_asset))
         .with_state(state)
 }
 
@@ -191,11 +188,11 @@ async fn serve_dashboard_asset(AxumPath(request_path): AxumPath<String>) -> Resp
 }
 
 async fn serve_playground_index() -> Response {
-    embedded_dashboard_response(CHAT_INDEX)
+    embedded_dashboard_response(PLAYGROUND_INDEX)
 }
 
 async fn serve_playground_asset(AxumPath(request_path): AxumPath<String>) -> Response {
-    let normalized = normalize_chat_path(&request_path);
+    let normalized = normalize_playground_path(&request_path);
     match normalized {
         Some(path) => embedded_dashboard_response(&path),
         None => StatusCode::NOT_FOUND.into_response(),
@@ -231,10 +228,10 @@ fn normalize_dashboard_path(request_path: &str) -> Option<String> {
     Some(trimmed.to_string())
 }
 
-fn normalize_chat_path(request_path: &str) -> Option<String> {
+fn normalize_playground_path(request_path: &str) -> Option<String> {
     let trimmed = request_path.trim_matches('/');
     if trimmed.is_empty() {
-        return Some(CHAT_INDEX.to_string());
+        return Some(PLAYGROUND_INDEX.to_string());
     }
     if trimmed.contains("..") || trimmed.contains('\\') {
         return None;
